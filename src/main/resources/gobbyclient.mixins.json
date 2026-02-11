@@ -1,0 +1,33 @@
+{
+	"required": true,
+	"package": "gobby.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"MixinMinecraftClient",
+		"MixinMessageHandler",
+      	"MixinKeyboard",
+		"MixinScreen",
+		"MixinItemStack",
+		"render.MixinWorldRenderer",
+		"render.MixinLightmapTextureManager",
+		"render.MixinSplashTextResourceSupplier",
+		"render.MixinInGameOverlayRenderer",
+		"render.MixinInGameHud",
+		"essentials.MixinSearchbar",
+		"MixinMultiplayerScreen",
+		"accessor.MinecraftClientAccessor",
+		"MixinScoreboard",
+		"MixinYggdrasilServicesKeyInfo",
+		"network.MixinClientPlayNetworkHandler",
+		"network.MixinClientConnection",
+		"player.MixinLivingEntity",
+		"player.MixinClientPlayerEntity",
+		"firmament.MixinCheaterSnitcher"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
