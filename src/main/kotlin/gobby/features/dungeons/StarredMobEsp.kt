@@ -1,0 +1,30 @@
+package gobby.features.dungeons
+
+import gobby.config.GobbyConfig
+import gobby.features.render.EntityHighlighter
+import net.minecraft.entity.Entity
+import java.awt.Color
+
+object StarredMobEsp : EntityHighlighter() {
+
+    private const val STAR = "✯"
+    private val MINIBOSS = setOf(
+        "Angry Archaeologist",
+        "Frozen Adventurer",
+        "Lost Adventurer"
+    )
+
+    override fun isEnabled(): Boolean = GobbyConfig.starredMobEsp
+
+    override fun shouldHighlight(entity: Entity): Boolean {
+        val name = entity.customName?.string ?: return false
+        if (!name.contains(STAR)) return false
+        return MINIBOSS.none { name.contains(it) }
+    }
+
+    override fun usesMobCaching(): Boolean = true
+    override fun getColor(): Color = GobbyConfig.starredMobEspColor
+    override fun shouldDrawLines(): Boolean = GobbyConfig.starredMobEspLines
+    override fun getLineColor(): Color = GobbyConfig.starredMobEspColor
+    override fun getLineMode(): Int = GobbyConfig.starredMobEspLineMode
+}

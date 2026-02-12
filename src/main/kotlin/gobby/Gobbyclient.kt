@@ -8,6 +8,8 @@ import gobby.events.CommandRegisterEvent
 import gobby.events.core.EventManager
 import gobby.events.listener.GlobalKeyHandler
 import gobby.features.developer.PacketDebug
+import gobby.features.dungeons.MiniBossEsp
+import gobby.features.dungeons.StarredMobEsp
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
@@ -71,6 +73,8 @@ class Gobbyclient : ClientModInitializer {
 		EVENT_MANAGER.subscribe(TestPearl)
 		EVENT_MANAGER.subscribe(Renderer)
 		EVENT_MANAGER.subscribe(ScanUtils)
+		EVENT_MANAGER.subscribe(StarredMobEsp)
+		EVENT_MANAGER.subscribe(MiniBossEsp)
 		EVENT_MANAGER.subscribe(Pearls)
 		//EVENT_MANAGER.subscribe(BowCharger)
 		//EVENT_MANAGER.subscribe(PacketDebug)

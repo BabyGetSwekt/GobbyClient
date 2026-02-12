@@ -212,7 +212,7 @@ object ScanUtils {
         if (passedRooms.none { it.data.name == room.data.name }) {
             passedRooms.add(room)
         }
-        modMessage("${room.data.name} - ${room.rotation} || clay: ${room.clayPos}")
+        devMessage("${room.data.name} - ${room.rotation} || clay: ${room.clayPos}")
     }
 
     @SubscribeEvent

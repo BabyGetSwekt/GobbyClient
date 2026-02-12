@@ -22,7 +22,7 @@
 		"network.MixinClientConnection",
 		"player.MixinLivingEntity",
 		"player.MixinClientPlayerEntity",
-		"firmament.MixinCheaterSnitcher"
+		"MixinFabricLoaderImpl"
 	],
 	"injectors": {
 		"defaultRequire": 1

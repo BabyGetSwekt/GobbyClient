@@ -1,6 +1,5 @@
 package gobby.utils
 
-import gobby.Gobbyclient
 import gobby.Gobbyclient.Companion.mc
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.Block

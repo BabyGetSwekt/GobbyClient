@@ -102,6 +102,80 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Starred Mob ESP",
+        description = "Highlights starred mobs in dungeons",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var starredMobEsp = false
+
+    @Property(
+        type = PropertyType.COLOR,
+        name = "Starred Mob ESP Color",
+        description = "Pick a color for starred mob highlights",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var starredMobEspColor = Color(255,255,239,0)
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Starred Mob ESP Line",
+        description = "Draws a line to starred mobs",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var starredMobEspLines = false
+
+    @Property(
+        type = PropertyType.SELECTOR,
+        name = "Starred Mob ESP Line Mode",
+        description = "Where the line starts from",
+        category = "Skyblock",
+        subcategory = "Dungeons",
+        options = ["Feet", "Crosshair"],
+    )
+    var starredMobEspLineMode = 1
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Mini Boss ESP",
+        description = "Highlights mini bosses in dungeons (Lost Adventurer, Frozen Adventurer, Angry Archaeologist)",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var miniBossEsp = false
+
+    @Property(
+        type = PropertyType.COLOR,
+        name = "Mini Boss ESP Color",
+        description = "Pick a color for mini boss highlights",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var miniBossEspColor = Color(255, 170, 0, 72)
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Mini Boss ESP Line",
+        description = "Draws a line to mini bosses",
+        category = "Skyblock",
+        subcategory = "Dungeons"
+    )
+    var miniBossEspLines = false
+
+    @Property(
+        type = PropertyType.SELECTOR,
+        name = "Mini Boss ESP Line Mode",
+        description = "Where the line starts from",
+        category = "Skyblock",
+        subcategory = "Dungeons",
+        options = ["Feet", "Crosshair"],
+    )
+    var miniBossEspLineMode = 1
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Full Bright",
         description = "Enables full bright",
         category = "Render",
@@ -183,6 +257,12 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         addDependency("turtleEspLines","turtleEsp")
         addDependency("turtleEspLineColor","turtleEspLines")
         addDependency("turtleEspLineMode","turtleEspLines")
+        addDependency("starredMobEspColor","starredMobEsp")
+        addDependency("starredMobEspLines","starredMobEsp")
+        addDependency("starredMobEspLineMode","starredMobEspLines")
+        addDependency("miniBossEspColor","miniBossEsp")
+        addDependency("miniBossEspLines","miniBossEsp")
+        addDependency("miniBossEspLineMode","miniBossEspLines")
     }
 
     private object Sorting : SortingBehavior() {

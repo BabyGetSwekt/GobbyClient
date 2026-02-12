@@ -71,9 +71,6 @@ dependencies {
 
 	// Kotlin
 	implementation(kotlin("stdlib-jdk8"))
-
-	// Firmament (compile-only for mixin targets)
-	modCompileOnly("maven.modrinth:firmament:43.0.0+mc1.21.10")
 }
 
 tasks.processResources {
