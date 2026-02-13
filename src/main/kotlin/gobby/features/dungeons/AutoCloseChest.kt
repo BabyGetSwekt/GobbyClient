@@ -4,7 +4,6 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.config.GobbyConfig
 import gobby.events.PacketReceivedEvent
 import gobby.events.core.SubscribeEvent
-import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.Utils.equalsOneOf
@@ -17,12 +16,10 @@ object AutoCloseChest {
     fun onPacket(event: PacketReceivedEvent) {
         if (mc.player == null || mc.world == null) return
         val packet = event.packet as? OpenScreenS2CPacket ?: return
-        if (!inDungeons || inBoss || !GobbyConfig.autoCloseChest) return
-        modMessage("AutoCloseChest: Received OpenScreenS2CPacket with name '${packet.name.string}'")
+        if (!inDungeons || inBoss || !GobbyConfig.autoCloseChest ) return
         if (!packet.name.string.equalsOneOf("Chest", "Large Chest")) return
 
-        mc.execute {
-            mc.player?.closeHandledScreen()
-        }
+        mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(packet.syncId))
+        event.cancel()
     }
 }

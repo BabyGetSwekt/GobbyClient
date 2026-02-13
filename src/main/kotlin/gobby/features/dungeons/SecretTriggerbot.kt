@@ -8,7 +8,9 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.PlayerUtils
+import gobby.utils.Utils.equalsOneOf
 import gobby.utils.skyblock.dungeon.DungeonUtils
+import gobby.utils.skyblock.dungeon.ScanUtils.currentRoom
 import gobby.utils.timer.Clock
 import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.hit.HitResult
@@ -24,7 +26,7 @@ object SecretTriggerbot {
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null || !inDungeons || inBoss) return
-        if (!GobbyConfig.secretTriggerbot) return
+        if (!GobbyConfig.secretTriggerbot || currentRoom.equalsOneOf("Water Board", "Three Weirdos")) return
 
         val now = System.currentTimeMillis()
         clickedBlocks.entries.removeIf { now - it.value > 5000 }
