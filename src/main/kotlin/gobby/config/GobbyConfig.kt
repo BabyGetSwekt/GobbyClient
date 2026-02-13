@@ -104,8 +104,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.SWITCH,
         name = "Starred Mob ESP",
         description = "Highlights starred mobs in dungeons",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Starred Mob ESP"
     )
     var starredMobEsp = false
 
@@ -113,17 +113,17 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.COLOR,
         name = "Starred Mob ESP Color",
         description = "Pick a color for starred mob highlights",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Starred Mob ESP"
     )
-    var starredMobEspColor = Color(255,255,239,0)
+    var starredMobEspColor = Color(255, 255, 239, 72)
 
     @Property(
         type = PropertyType.SWITCH,
         name = "Starred Mob ESP Line",
         description = "Draws a line to starred mobs",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Starred Mob ESP"
     )
     var starredMobEspLines = false
 
@@ -131,8 +131,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.SELECTOR,
         name = "Starred Mob ESP Line Mode",
         description = "Where the line starts from",
-        category = "Skyblock",
-        subcategory = "Dungeons",
+        category = "Dungeons",
+        subcategory = "Starred Mob ESP",
         options = ["Feet", "Crosshair"],
     )
     var starredMobEspLineMode = 1
@@ -141,8 +141,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.SWITCH,
         name = "Mini Boss ESP",
         description = "Highlights mini bosses in dungeons (Lost Adventurer, Frozen Adventurer, Angry Archaeologist)",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Mini Boss ESP"
     )
     var miniBossEsp = false
 
@@ -150,8 +150,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.COLOR,
         name = "Mini Boss ESP Color",
         description = "Pick a color for mini boss highlights",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Mini Boss ESP"
     )
     var miniBossEspColor = Color(255, 170, 0, 72)
 
@@ -159,8 +159,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.SWITCH,
         name = "Mini Boss ESP Line",
         description = "Draws a line to mini bosses",
-        category = "Skyblock",
-        subcategory = "Dungeons"
+        category = "Dungeons",
+        subcategory = "Mini Boss ESP"
     )
     var miniBossEspLines = false
 
@@ -168,11 +168,29 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         type = PropertyType.SELECTOR,
         name = "Mini Boss ESP Line Mode",
         description = "Where the line starts from",
-        category = "Skyblock",
-        subcategory = "Dungeons",
+        category = "Dungeons",
+        subcategory = "Mini Boss ESP",
         options = ["Feet", "Crosshair"],
     )
     var miniBossEspLineMode = 1
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Secret Triggerbot",
+        description = "Automatically right-clicks dungeon secrets (chests, levers, skulls) when looking at them",
+        category = "Dungeons",
+        subcategory = "Secret Triggerbot"
+    )
+    var secretTriggerbot = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Close Chest",
+        description = "Automatically closes secret chests in dungeons",
+        category = "Dungeons",
+        subcategory = "Auto Close Chest"
+    )
+    var autoCloseChest = false
 
     @Property(
         type = PropertyType.SWITCH,

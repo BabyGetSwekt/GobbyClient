@@ -7,9 +7,7 @@ import gobby.config.GobbyConfig
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.EventManager
 import gobby.events.listener.GlobalKeyHandler
-import gobby.features.developer.PacketDebug
-import gobby.features.dungeons.MiniBossEsp
-import gobby.features.dungeons.StarredMobEsp
+import gobby.features.dungeons.*
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
@@ -76,6 +74,8 @@ class Gobbyclient : ClientModInitializer {
 		EVENT_MANAGER.subscribe(StarredMobEsp)
 		EVENT_MANAGER.subscribe(MiniBossEsp)
 		EVENT_MANAGER.subscribe(Pearls)
+		EVENT_MANAGER.subscribe(SecretTriggerbot)
+		EVENT_MANAGER.subscribe(AutoCloseChest)
 		//EVENT_MANAGER.subscribe(BowCharger)
 		//EVENT_MANAGER.subscribe(PacketDebug)
 
@@ -94,7 +94,6 @@ class Gobbyclient : ClientModInitializer {
 
 		val mc =  MinecraftClient.getInstance()
 		val scope = CoroutineScope(SupervisorJob() + EmptyCoroutineContext)
-		val originalToken = mc.session.accessToken
 
 		@JvmStatic
 		val logger = LoggerFactory.getLogger(MOD_ID)

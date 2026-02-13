@@ -28,10 +28,10 @@ public class MixinClientConnection implements IClientConnectionAccessor {
         if (packet instanceof PlayerInteractItemC2SPacket) interactSequence++;
     }
 
-    @Inject(method = "channelRead0(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;)V", at = @At("HEAD"))
+    @Inject(method = "channelRead0(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/ClientConnection;handlePacket(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;)V", shift = At.Shift.BEFORE), cancellable = true, require = 1)
     private void gobbyclient$onReceivePacket(ChannelHandlerContext ctx, Packet<?> packet, CallbackInfo ci) {
         try {
-            Gobbyclient.EVENT_MANAGER.publish(new PacketReceivedEvent(packet));
+            if (Gobbyclient.EVENT_MANAGER.publish(new PacketReceivedEvent(packet)).isCanceled()) ci.cancel();
         } catch (Exception e) {
             System.out.println("[GobbyClient] PacketReceivedEvent error: " + e.getMessage());
         }

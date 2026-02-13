@@ -17,11 +17,8 @@
 		"MixinMultiplayerScreen",
 		"accessor.MinecraftClientAccessor",
 		"MixinScoreboard",
-		"MixinYggdrasilServicesKeyInfo",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
-		"player.MixinLivingEntity",
-		"player.MixinClientPlayerEntity",
 		"MixinFabricLoaderImpl"
 	],
 	"injectors": {

@@ -60,13 +60,13 @@ object ChatUtils {
     fun modMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.world == null || message == "") return
         val msg = if (showPrefix) "$PREFIX $message" else message.toString()
-        mc.inGameHud?.chatHud?.addMessage(Text.literal(msg))
+        mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
     }
 
     fun devMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.world == null || message == "" || !isDeveloper() || !GobbyConfig.devMode) return
         val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()
-        mc.inGameHud?.chatHud?.addMessage(Text.literal(msg))
+        mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
     }
 
     fun coloredModMessage(message: String, showPrefix: Boolean = true) {

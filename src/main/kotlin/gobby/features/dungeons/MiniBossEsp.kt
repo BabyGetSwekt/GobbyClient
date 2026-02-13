@@ -2,6 +2,8 @@ package gobby.features.dungeons
 
 import gobby.config.GobbyConfig
 import gobby.features.render.EntityHighlighter
+import gobby.utils.LocationUtils.inBoss
+import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.entity.Entity
 import java.awt.Color
 
@@ -17,6 +19,7 @@ object MiniBossEsp : EntityHighlighter() {
     override fun isEnabled(): Boolean = GobbyConfig.miniBossEsp
 
     override fun shouldHighlight(entity: Entity): Boolean {
+        if (!inDungeons || inBoss) return false
         val name = entity.customName?.string ?: return false
         if (!name.contains(STAR)) return false
         return MINIBOSS_NAMES.any { name.contains(it) }
