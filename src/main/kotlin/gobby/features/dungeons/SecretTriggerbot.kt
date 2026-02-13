@@ -19,49 +19,32 @@ import net.minecraft.util.math.BlockPos
 object SecretTriggerbot {
 
     private val clock = Clock()
-    private var clickDelay = 0L
-    private var targetPos: BlockPos? = null
+    private const val clickDelay = 100L
     private val clickedBlocks = mutableMapOf<BlockPos, Long>()
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null || !inDungeons || inBoss) return
         if (!GobbyConfig.secretTriggerbot || currentRoom.equalsOneOf("Water Board", "Three Weirdos")) return
+        if (!clock.hasTimePassed(clickDelay)) return
 
         val now = System.currentTimeMillis()
         clickedBlocks.entries.removeIf { now - it.value > 5000 }
 
         val hitResult = mc.crosshairTarget
-        if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) {
-            targetPos = null
-            return
-        }
+        if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) return
 
         val pos = hitResult.blockPos
         if (pos in clickedBlocks) return
-
-        if (!DungeonUtils.isSecret(pos)) {
-            targetPos = null
-            return
-        }
-
-        if (targetPos != pos) {
-            targetPos = pos
-            clickDelay = (50L..100L).random()
-            clock.update()
-            return
-        }
-
-        if (!clock.hasTimePassed(clickDelay)) return
+        if (!DungeonUtils.isSecret(pos)) return
 
         PlayerUtils.rightClick()
-        clickedBlocks[BlockPos(pos)] = now
-        targetPos = null
+        clock.update()
+        clickedBlocks[pos] = now
     }
 
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
         clickedBlocks.clear()
-        targetPos = null
     }
 }
