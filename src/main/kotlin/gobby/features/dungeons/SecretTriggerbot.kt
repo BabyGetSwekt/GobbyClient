@@ -22,10 +22,12 @@ object SecretTriggerbot {
     private const val clickDelay = 100L
     private val clickedBlocks = mutableMapOf<BlockPos, Long>()
 
+
+
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null || !inDungeons || inBoss) return
-        if (!GobbyConfig.secretTriggerbot || currentRoom.equalsOneOf("Water Board", "Three Weirdos")) return
+        if (!GobbyConfig.secretTriggerbot || currentRoom?.data?.name.equalsOneOf("Water Board", "Three Weirdos")) return
         if (!clock.hasTimePassed(clickDelay)) return
 
         val now = System.currentTimeMillis()

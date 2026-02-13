@@ -1,6 +1,5 @@
 package gobby.features.skyblock
 
-import gg.essential.universal.utils.toUnformattedString
 import gobby.Gobbyclient.Companion.mc
 import gobby.config.GobbyConfig
 import gobby.events.ChatReceivedEvent
@@ -19,7 +18,7 @@ object CoordWaypoints {
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (mc.player == null || mc.world == null || !GobbyConfig.renderCoordBeacons) return
-        val msg = event.message.toUnformattedString()
+        val msg = event.message
 
         val match = publicCoordRegex.matchEntire(msg) ?: partyCoordRegex.matchEntire(msg)
         if (match != null) {

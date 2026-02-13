@@ -15,6 +15,6 @@ public class MixinMessageHandler {
     @Inject(method = "onGameMessage", at = @At("HEAD"))
     private void gobbyclient$monitorGameMessage(Text message, boolean overlay, CallbackInfo ci) {
         if (overlay) return;
-        Gobbyclient.EVENT_MANAGER.publish(new ChatReceivedEvent(message));
+        Gobbyclient.EVENT_MANAGER.publish(new ChatReceivedEvent(message.getString()));
     }
 }

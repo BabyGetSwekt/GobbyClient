@@ -1,6 +1,5 @@
 package gobby.features.skyblock
 
-import gg.essential.universal.utils.toUnformattedString
 import gobby.Gobbyclient.Companion.mc
 import gobby.config.GobbyConfig
 import gobby.events.ChatReceivedEvent
@@ -15,7 +14,7 @@ object PartyCommands {
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (mc.player == null || mc.world == null || !GobbyConfig.partyCommands) return
-        val rawMessage = event.message.toUnformattedString()
+        val rawMessage = event.message
         val match = partyMessageRegex.matchEntire(rawMessage) ?: return
         val (rank, username, message) = match.destructured
 
