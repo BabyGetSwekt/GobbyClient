@@ -1,8 +1,11 @@
 package gobby.events.core
 
 import gobby.Gobbyclient
+import gobby.events.ChunkLoadEvent
+import gobby.events.ChunkUnloadEvent
 import gobby.events.Events
 import gobby.events.render.Render3DEvent
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 
 import java.lang.invoke.MethodHandles
@@ -103,7 +106,13 @@ class EventManager {
             Gobbyclient.EVENT_MANAGER.publish(event)
         }
 
-        // Add other hooks here (AFTER_ENTITIES, HUD, Tick, etc.)
+        ClientChunkEvents.CHUNK_LOAD.register { world, chunk ->
+            Gobbyclient.EVENT_MANAGER.publish(ChunkLoadEvent(world, chunk))
+        }
+
+        ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
+            Gobbyclient.EVENT_MANAGER.publish(ChunkUnloadEvent(world, chunk))
+        }
     }
 
 }

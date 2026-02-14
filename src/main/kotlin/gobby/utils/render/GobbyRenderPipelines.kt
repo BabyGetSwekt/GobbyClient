@@ -39,4 +39,23 @@ object GobbyRenderPipelines {
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .build()
     )
+
+    val DEPTH_QUADS: RenderPipeline = RenderPipelines.register(
+        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withLocation("pipeline/gobby_depth_quads")
+            .withCull(false)
+            .build()
+    )
+
+    val DEPTH_LINES: RenderPipeline = RenderPipelines.register(
+        RenderPipeline.builder(RenderPipelines.RENDERTYPE_LINES_SNIPPET)
+            .withLocation("pipeline/gobby_depth_lines")
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .build()
+    )
 }

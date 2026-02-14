@@ -26,7 +26,8 @@ object BlockRenderUtils {
         camera: Camera,
         box: Box,
         color: Color,
-        filled: Boolean = true
+        filled: Boolean = true,
+        depthTest: Boolean = false
     ) {
         if (matrixStack == null) return
         val newBox = box.offset(camera.pos.multiply(-1.0))
@@ -40,10 +41,12 @@ object BlockRenderUtils {
         val a = color.alpha.toFloat() / 255f
 
         val vertexConsumerProvider = mc.bufferBuilders.entityVertexConsumers
+        val quadsLayer = if (depthTest) RenderLayers.DEPTH_QUADS else RenderLayers.ESP_QUADS
+        val linesLayer = if (depthTest) RenderLayers.DEPTH_LINES else RenderLayers.ESP_LINES
 
         // Draw if filled
         if (filled) {
-            val bufferBuilder = vertexConsumerProvider.getBuffer(RenderLayers.ESP_QUADS)
+            val bufferBuilder = vertexConsumerProvider.getBuffer(quadsLayer)
 
             bufferBuilder.vertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).color(r, g, b, a)
             bufferBuilder.vertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).color(r, g, b, a)
@@ -75,11 +78,11 @@ object BlockRenderUtils {
             bufferBuilder.vertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).color(r, g, b, a)
             bufferBuilder.vertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).color(r, g, b, a)
 
-            vertexConsumerProvider.draw(RenderLayers.ESP_QUADS)
+            vertexConsumerProvider.draw(quadsLayer)
         }
 
         // Box outline
-        val bufferBuilder = vertexConsumerProvider.getBuffer(RenderLayers.ESP_LINES)
+        val bufferBuilder = vertexConsumerProvider.getBuffer(linesLayer)
 
         buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color)
         buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color)
@@ -94,7 +97,7 @@ object BlockRenderUtils {
         buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
         buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color)
 
-        vertexConsumerProvider.draw(RenderLayers.ESP_LINES)
+        vertexConsumerProvider.draw(linesLayer)
     }
 
     fun drawLine3D(

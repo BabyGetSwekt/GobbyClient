@@ -5,12 +5,15 @@ import gobby.commands.*
 import gobby.commands.developer.TestPearl
 import gobby.config.GobbyConfig
 import gobby.events.CommandRegisterEvent
+import gobby.events.core.EventDispatcher
 import gobby.events.core.EventManager
 import gobby.events.listener.GlobalKeyHandler
+import gobby.features.developer.*
 import gobby.features.dungeons.*
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
+import gobby.features.floor7.*
 import gobby.utils.LocationUtils
 import gobby.utils.render.RenderBeacon
 import gobby.utils.render.RenderBlock
@@ -76,7 +79,12 @@ class Gobbyclient : ClientModInitializer {
 		EVENT_MANAGER.subscribe(Pearls)
 		EVENT_MANAGER.subscribe(SecretTriggerbot)
 		EVENT_MANAGER.subscribe(AutoCloseChest)
-		//EVENT_MANAGER.subscribe(BowCharger)
+		EVENT_MANAGER.subscribe(LastBreathHelper)
+		EVENT_MANAGER.subscribe(DebuffAreaRenderer)
+
+
+		EVENT_MANAGER.subscribe(EventDispatcher)
+		//EVENT_MANAGER.subscribe(LastBreathHelper)
 		//EVENT_MANAGER.subscribe(PacketDebug)
 
 

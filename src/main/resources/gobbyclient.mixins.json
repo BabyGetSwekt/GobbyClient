@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"MixinMinecraftClient",
+		"MixinMouse",
 		"MixinMessageHandler",
       	"MixinKeyboard",
 		"MixinScreen",
@@ -19,7 +20,8 @@
 		"MixinScoreboard",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
-		"MixinFabricLoaderImpl"
+		"MixinFabricLoaderImpl",
+		"MixinClientWorld"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -33,6 +33,22 @@ object RenderLayers {
 //            .target(RenderLayer.ITEM_ENTITY_TARGET).build(false)
 //    )
 
+    val DEPTH_QUADS: RenderLayer.MultiPhase = RenderLayer.of(
+        "gobby:depth_quads", 2000, GobbyRenderPipelines.DEPTH_QUADS, RenderLayer.MultiPhaseParameters.builder()
+            .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
+            .target(RenderPhase.ITEM_ENTITY_TARGET)
+            .build(false)
+    )
+
+    val DEPTH_LINES: RenderLayer.MultiPhase = RenderLayer.of(
+        "gobby:depth_lines", 1536, GobbyRenderPipelines.DEPTH_LINES,
+        RenderLayer.MultiPhaseParameters.builder()
+            .lineWidth(RenderPhase.LineWidth(OptionalDouble.of(3.0)))
+            .layering(RenderLayer.VIEW_OFFSET_Z_LAYERING)
+            .target(RenderLayer.ITEM_ENTITY_TARGET)
+            .build(false)
+    )
+
     val TRIS_SIMPLE: RenderLayer = RenderLayer.getDebugTriangleFan()
     val QUADS_SIMPLE: RenderLayer = RenderLayer.getDebugQuads()
 

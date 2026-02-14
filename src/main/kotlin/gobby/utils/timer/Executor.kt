@@ -1,5 +1,6 @@
 package gobby.utils.timer
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import kotlinx.coroutines.*
@@ -32,7 +33,7 @@ object Executor {
             task.tickCount++
             if (task.tickCount >= task.ticks) {
                 scope.launch {
-                    task.executable(this@Executor)
+                    mc.execute { task.executable(this@Executor) }
                 }
                 task.tickCount = 0
                 if (!task.repeat) {

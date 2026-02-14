@@ -1,7 +1,10 @@
 package gobby.utils.skyblock.dungeon
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.LocationUtils.dungeonFloor
+import gobby.utils.LocationUtils.inBoss
 import gobby.utils.Utils.equalsOneOf
+import gobby.utils.Utils.posY
 import gobby.utils.VecUtils.addVec
 import gobby.utils.VecUtils.rotateAroundNorth
 import gobby.utils.VecUtils.rotateToNorth
@@ -31,6 +34,18 @@ object DungeonUtils {
             return owner.gameProfile.id?.toString()?.equalsOneOf(WITHER_ESSENCE_ID, REDSTONE_KEY) == true
         }
         return false
+    }
+
+    fun getPhase(): Int {
+        if (dungeonFloor != 7 || !inBoss) return 0
+
+        return when {
+            posY > 210 -> 1
+            posY > 155 -> 2
+            posY > 100 -> 3
+            posY > 45 -> 4
+            else -> 5
+        }
     }
 
     fun Room.getRelativeCoords(pos: Vec3i) = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)

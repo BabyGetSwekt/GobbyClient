@@ -267,6 +267,33 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var antiPearlCooldown = false
 
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "P5 Debuff Helper",
+        description = "Enables P5 debuff helpers for Floor 7",
+        category = "Floor 7",
+        subcategory = "P5 Debuff Helper"
+    )
+    var p5DebuffHelper = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Last Breath Helper",
+        description = "Automatically releases and re-charges LB when under a dragon.\nYou MUST hold rightclick for this to work.",
+        category = "Floor 7",
+        subcategory = "P5 Debuff Helper"
+    )
+    var lastBreathHelper = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Render Debuff Area",
+        description = "Renders the areas where debuff timing applies",
+        category = "Floor 7",
+        subcategory = "P5 Debuff Helper"
+    )
+    var renderDebuffArea = false
+
     fun init() {
         initialize()
         markDirty()
@@ -281,6 +308,8 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         addDependency("miniBossEspColor","miniBossEsp")
         addDependency("miniBossEspLines","miniBossEsp")
         addDependency("miniBossEspLineMode","miniBossEspLines")
+        addDependency("lastBreathHelper","p5DebuffHelper")
+        addDependency("renderDebuffArea","p5DebuffHelper")
     }
 
     private object Sorting : SortingBehavior() {
@@ -289,7 +318,7 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         }
 
         private val configCategories = listOf(
-            "Skyblock", "Galatea", "Render", "Developer",
+            "Dungeons", "Floor 7", "Skyblock", "Galatea", "Render", "Developer",
         )
     }
 }
