@@ -5,7 +5,6 @@ import gg.essential.vigilance.data.Category
 import gg.essential.vigilance.data.Property
 import gg.essential.vigilance.data.PropertyType
 import gg.essential.vigilance.data.SortingBehavior
-import gobby.gui.property.KeybindProperty
 import java.awt.Color
 import java.io.File
 

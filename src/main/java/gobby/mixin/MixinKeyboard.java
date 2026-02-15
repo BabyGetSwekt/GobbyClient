@@ -3,7 +3,6 @@ package gobby.mixin;
 import gobby.Gobbyclient;
 import gobby.events.CharTypedEvent;
 import gobby.events.KeyPressGuiEvent;
-import gobby.gui.components.KeybindPropertyComponent;
 import net.minecraft.client.Keyboard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.input.CharInput;

@@ -8,7 +8,7 @@ import gobby.events.CommandRegisterEvent
 import gobby.events.core.EventDispatcher
 import gobby.events.core.EventManager
 import gobby.events.listener.GlobalKeyHandler
-import gobby.features.developer.*
+//import gobby.features.developer.*
 import gobby.features.dungeons.*
 import gobby.features.galatea.*
 import gobby.features.render.*
