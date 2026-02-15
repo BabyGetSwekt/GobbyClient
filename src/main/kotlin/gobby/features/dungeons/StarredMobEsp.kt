@@ -13,7 +13,8 @@ object StarredMobEsp : EntityHighlighter() {
     private val MINIBOSS = setOf(
         "Angry Archaeologist",
         "Frozen Adventurer",
-        "Lost Adventurer"
+        "Lost Adventurer",
+        "Shadow Assassin",
     )
 
     override fun isEnabled(): Boolean = GobbyConfig.starredMobEsp
