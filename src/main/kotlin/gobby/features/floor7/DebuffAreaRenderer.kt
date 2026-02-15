@@ -6,7 +6,6 @@ import gobby.events.ChatReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.render.BlockHighlighter
-import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos

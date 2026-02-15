@@ -155,19 +155,23 @@ object LocationUtils {
                 || serverAddress.contains("hypixel.net")
                 || serverAddress.contains("hypixel.io")
                 || serverBrand.contains("Hypixel BungeeCord")
+                || serverBrand.contains("hypixelp3sim.zapto.org")
     }
 
     private fun updateFloor() {
-        if (inDungeons) {
-            floorRegex.find(area)?.groupValues?.get(1)?.let {
-                if (inDungeons) {
-                    floorRegex.find(area)?.groupValues?.get(1)?.let {
-                        dungeonFloor = when (it) {
-                            "Entrance" -> 0
-                            else -> it.drop(1).toIntOrNull() ?: -1
-                        }
-                    }
-                }
+        if (!inDungeons) return
+
+        val client = MinecraftClient.getInstance() ?: return
+        val serverAddress = client.currentServerEntry?.address?.lowercase() ?: ""
+        if (serverAddress.contains("hypixelp3sim.zapto.org")) {
+            dungeonFloor = 7
+            return
+        }
+
+        floorRegex.find(area)?.groupValues?.get(1)?.let {
+            dungeonFloor = when (it) {
+                "Entrance" -> 0
+                else -> it.drop(1).toIntOrNull() ?: -1
             }
         }
     }

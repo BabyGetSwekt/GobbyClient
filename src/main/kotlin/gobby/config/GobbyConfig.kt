@@ -102,6 +102,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Secret Triggerbot",
+        description = "Automatically right-clicks dungeon secrets (chests, levers, skulls) when looking at them",
+        category = "Dungeons",
+        subcategory = "Secret Triggerbot"
+    )
+    var secretTriggerbot = false
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Starred Mob ESP",
         description = "Highlights starred mobs in dungeons",
         category = "Dungeons",
@@ -173,15 +182,6 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         options = ["Feet", "Crosshair"],
     )
     var miniBossEspLineMode = 1
-
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Secret Triggerbot",
-        description = "Automatically right-clicks dungeon secrets (chests, levers, skulls) when looking at them",
-        category = "Dungeons",
-        subcategory = "Secret Triggerbot"
-    )
-    var secretTriggerbot = false
 
     @Property(
         type = PropertyType.SWITCH,
@@ -278,6 +278,33 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Auto Align",
+        description = "Automatically solves the arrow align device (P3 S3). ",
+        category = "Floor 7",
+        subcategory = "Arrow Align Device"
+    )
+    var autoAlign = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Align Helper",
+        description = "Prevents you from overspinning arrows in the align device",
+        category = "Floor 7",
+        subcategory = "Arrow Align Device"
+    )
+    var alignHelper = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Sneak to Override",
+        description = "Sneak to bypass the align helper block and continue clicking",
+        category = "Floor 7",
+        subcategory = "Arrow Align Device"
+    )
+    var alignSneakOverride = false
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Last Breath Helper",
         description = "Automatically releases and re-charges LB when under a dragon.\nYou MUST hold rightclick for this to work.",
         category = "Floor 7",
@@ -308,6 +335,7 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         addDependency("miniBossEspColor","miniBossEsp")
         addDependency("miniBossEspLines","miniBossEsp")
         addDependency("miniBossEspLineMode","miniBossEspLines")
+        addDependency("alignSneakOverride","alignHelper")
         addDependency("lastBreathHelper","p5DebuffHelper")
         addDependency("renderDebuffArea","p5DebuffHelper")
     }

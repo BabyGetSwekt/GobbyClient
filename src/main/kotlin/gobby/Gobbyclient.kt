@@ -14,6 +14,7 @@ import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
 import gobby.features.floor7.*
+import gobby.features.floor7.devices.*
 import gobby.utils.LocationUtils
 import gobby.utils.render.RenderBeacon
 import gobby.utils.render.RenderBlock
@@ -41,7 +42,7 @@ class Gobbyclient : ClientModInitializer {
 
 
 		// Executors
-		Executor.schedule(20, repeat = true) { LocationUtils.update() }
+		Executor.schedule(20, repeat = true) { LocationUtils.update() } // TODO: Put it in an event
 	}
 
 	private fun initEvents() {
@@ -81,16 +82,12 @@ class Gobbyclient : ClientModInitializer {
 		EVENT_MANAGER.subscribe(AutoCloseChest)
 		EVENT_MANAGER.subscribe(LastBreathHelper)
 		EVENT_MANAGER.subscribe(DebuffAreaRenderer)
+		EVENT_MANAGER.subscribe(AutoAlign)
+		EVENT_MANAGER.subscribe(AlignHelper)
 
 
 		EVENT_MANAGER.subscribe(EventDispatcher)
-		//EVENT_MANAGER.subscribe(LastBreathHelper)
-		//EVENT_MANAGER.subscribe(PacketDebug)
 
-
-
-		//EVENT_MANAGER.subscribe(DevTestCommand.init())
-		//KeybindHandler.register()
 	}
 
 
