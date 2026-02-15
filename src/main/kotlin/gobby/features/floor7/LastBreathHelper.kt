@@ -22,7 +22,6 @@ object LastBreathHelper {
 
     private fun getMaxTicks(): Int {
         return when {
-            isPlayerInBox(-8, 90, 16, 28, 110, 31) -> 6   // Purple (test
             isPlayerInBox(47, 8, 113, 64, 28, 135) -> 6   // Purple
             isPlayerInBox(13, 5, 85, 40, 27, 103) -> 8    // Green
             isPlayerInBox(13, 4, 47, 40, 20, 68) -> 8     // Red
@@ -35,7 +34,7 @@ object LastBreathHelper {
     @SubscribeEvent
     fun onMouseButton(event: MouseButtonEvent) {
         if (mc.player == null || mc.world == null) return
-        //if (dungeonFloor != 7 || !inBoss) return
+        if (dungeonFloor != 7 || !inBoss) return
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
         if (event.button != MouseButtonEvent.RIGHT_BUTTON) return
         if (mc.currentScreen != null) return
@@ -46,7 +45,7 @@ object LastBreathHelper {
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
         if (mc.player == null || mc.world == null) return
-        //if (dungeonFloor != 7 || !inBoss) return
+        if (dungeonFloor != 7 || !inBoss) return
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
 
         if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH") || !lbCharged || !rcButtonState) {
@@ -66,7 +65,7 @@ object LastBreathHelper {
     @SubscribeEvent
     fun onClientTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null) return
-        //if (dungeonFloor != 7 || !inBoss) return
+        if (dungeonFloor != 7 || !inBoss) return
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
         if (mc.options.useKey.isPressed) {
             lbCharged = true
