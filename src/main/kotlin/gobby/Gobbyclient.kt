@@ -77,7 +77,7 @@ class Gobbyclient : ClientModInitializer {
 		EVENT_MANAGER.subscribe(ScanUtils)
 		EVENT_MANAGER.subscribe(StarredMobEsp)
 		EVENT_MANAGER.subscribe(MiniBossEsp)
-		EVENT_MANAGER.subscribe(Pearls)
+		EVENT_MANAGER.subscribe(CancelInteract)
 		EVENT_MANAGER.subscribe(SecretTriggerbot)
 		EVENT_MANAGER.subscribe(AutoCloseChest)
 		EVENT_MANAGER.subscribe(LastBreathHelper)

@@ -320,6 +320,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var renderDebuffArea = false
 
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Cancel Interact",
+        description = "Cancels the interaction with blocks so u can throw pearls freely",
+        category = "Skyblock",
+        subcategory = "Map Helper"
+    )
+    var cancelInteract = false
+
     fun init() {
         initialize()
         markDirty()
