@@ -1,25 +1,11 @@
 package gobby
 
 import com.mojang.brigadier.CommandDispatcher
-import gobby.commands.*
-import gobby.commands.developer.TestPearl
 import gobby.config.GobbyConfig
 import gobby.events.CommandRegisterEvent
-import gobby.events.core.EventDispatcher
 import gobby.events.core.EventManager
-import gobby.events.listener.GlobalKeyHandler
-//import gobby.features.developer.*
-import gobby.features.dungeons.*
-import gobby.features.galatea.*
-import gobby.features.render.*
-import gobby.features.skyblock.*
-import gobby.features.floor7.*
-import gobby.features.floor7.devices.*
+import gobby.features.ModuleManager.subscribeEventListeners
 import gobby.utils.LocationUtils
-import gobby.utils.render.RenderBeacon
-import gobby.utils.render.RenderBlock
-import gobby.utils.render.Renderer
-import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.timer.Executor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -53,44 +39,6 @@ class Gobbyclient : ClientModInitializer {
 		})
 
 	}
-
-	// TODO: Move this into module manager
-	private fun subscribeEventListeners() {
-		//DevTest.init()
-		EVENT_MANAGER.subscribe(GobbyCommand)
-		EVENT_MANAGER.subscribe(RotateCommand)
-		EVENT_MANAGER.subscribe(DevTestCommand)
-		EVENT_MANAGER.subscribe(RenderMobs)
-		EVENT_MANAGER.subscribe(Test)
-		EVENT_MANAGER.subscribe(FullBright)
-		EVENT_MANAGER.subscribe(GlobalKeyHandler)
-		EVENT_MANAGER.subscribe(RenderSeaPickle)
-		EVENT_MANAGER.subscribe(CoordWaypoints)
-		EVENT_MANAGER.subscribe(Executor)
-		EVENT_MANAGER.subscribe(TerminatorAC)
-		EVENT_MANAGER.subscribe(PartyCommands)
-		EVENT_MANAGER.subscribe(RenderBeacon)
-		EVENT_MANAGER.subscribe(RenderBlock)
-		EVENT_MANAGER.subscribe(LocationUtils)
-		EVENT_MANAGER.subscribe(TestPearl)
-		EVENT_MANAGER.subscribe(Renderer)
-		EVENT_MANAGER.subscribe(ScanUtils)
-		EVENT_MANAGER.subscribe(StarredMobEsp)
-		EVENT_MANAGER.subscribe(MiniBossEsp)
-		EVENT_MANAGER.subscribe(CancelInteract)
-		EVENT_MANAGER.subscribe(SecretTriggerbot)
-		EVENT_MANAGER.subscribe(AutoCloseChest)
-		EVENT_MANAGER.subscribe(LastBreathHelper)
-		EVENT_MANAGER.subscribe(DebuffAreaRenderer)
-		EVENT_MANAGER.subscribe(AutoAlign)
-		EVENT_MANAGER.subscribe(AlignHelper)
-
-
-		EVENT_MANAGER.subscribe(EventDispatcher)
-
-	}
-
-
 
 	companion object {
 		const val MOD_ID = "gobbyclient"
