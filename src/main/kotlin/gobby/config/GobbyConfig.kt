@@ -329,6 +329,34 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var cancelInteract = false
 
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Pre 4",
+        description = "Automatically completes the fourth device",
+        category = "Floor 7",
+        subcategory = "Shooting Device"
+    )
+    var autoPre4 = false
+
+    @Property(
+        type = PropertyType.SELECTOR,
+        name = "Aim Style",
+        description = "How the aim rotates to the target. You should set this on snap when NOT using a term\nDo NOT enable packet mode, it's kinda here for the memes tbh",
+        category = "Floor 7",
+        subcategory = "Shooting Device",
+        options = ["Snap", "Ease", "Packet"],
+    )
+    var autoPre4AimStyle = 1
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Shooting Device ESP",
+        description = "Highlights shot positions and shows the current aim target",
+        category = "Floor 7",
+        subcategory = "Shooting Device"
+    )
+    var shootingDeviceEsp = false
+
     fun init() {
         initialize()
         markDirty()
@@ -343,6 +371,7 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         addDependency("miniBossEspColor","miniBossEsp")
         addDependency("miniBossEspLines","miniBossEsp")
         addDependency("miniBossEspLineMode","miniBossEspLines")
+        addDependency("autoPre4AimStyle","autoPre4")
         addDependency("alignSneakOverride","alignHelper")
         addDependency("lastBreathHelper","p5DebuffHelper")
         addDependency("renderDebuffArea","p5DebuffHelper")

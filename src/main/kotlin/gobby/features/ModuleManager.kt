@@ -13,6 +13,7 @@ import gobby.features.skyblock.*
 import gobby.utils.LocationUtils
 import gobby.utils.render.*
 import gobby.utils.skyblock.dungeon.ScanUtils
+import gobby.utils.rotation.RotationUtils
 import gobby.utils.timer.Executor
 
 object ModuleManager {
@@ -49,7 +50,9 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)
         EVENT_MANAGER.subscribe(AutoAlign)
         EVENT_MANAGER.subscribe(AlignHelper)
-
+        EVENT_MANAGER.subscribe(AutoPre4)
+        EVENT_MANAGER.subscribe(ShootingDeviceEsp)
+        EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(EventDispatcher)
 

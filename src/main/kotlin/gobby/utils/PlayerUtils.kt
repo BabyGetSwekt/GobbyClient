@@ -6,9 +6,15 @@ import gobby.mixinterface.IMinecraftClient
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
+import net.minecraft.util.math.Vec3d
 
 
 object PlayerUtils {
+
+    fun getEyePosition(): Vec3d? {
+        val player = mc.player ?: return null
+        return Vec3d(player.x, player.eyeY, player.z)
+    }
 
     fun leftClick() {
         val attackCooldown: Int = (mc as MinecraftClientAccessor).getAttackCooldown()
