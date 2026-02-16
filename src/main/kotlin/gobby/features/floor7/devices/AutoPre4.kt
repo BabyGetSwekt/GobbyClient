@@ -26,7 +26,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 
 /**
- * This code was inspired by CyanAddons and has been heavily modified.
+ * This code was inspired by CyanAddons, but has been heavily modified.
  */
 object AutoPre4 {
 
