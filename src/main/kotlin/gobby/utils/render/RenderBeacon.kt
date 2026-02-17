@@ -73,12 +73,10 @@ object RenderBeacon {
         val b = beacon.color.blue.toFloat() / 255f
         val a = beacon.color.alpha.toFloat() / 255f
 
-        // Beacon position relative to camera
         val beaconX = beacon.pos.x + 0.5 - cameraPos.x
-        val beaconY = beacon.pos.y + 1.0 - cameraPos.y // Start slightly above the beacon block
+        val beaconY = beacon.pos.y + 1.0 - cameraPos.y
         val beaconZ = beacon.pos.z + 0.5 - cameraPos.z
 
-        // Draw the main beam cylinder
         for (i in 0 until SEGMENTS) {
             val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
             val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
@@ -95,7 +93,6 @@ object RenderBeacon {
             buffer.vertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).color(r, g, b, a * 0.3f)
         }
 
-        // Draw inner beam for more intensity
         val innerRadius = BEAM_RADIUS * 0.6f
         for (i in 0 until SEGMENTS) {
             val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
@@ -115,11 +112,9 @@ object RenderBeacon {
 
         vertexConsumerProvider.draw(layer)
 
-        // Optional: Draw beacon base outline using lines
         val lineLayer = RenderLayers.ESP_LINES
         val lineBuffer = vertexConsumerProvider.getBuffer(lineLayer)
 
-        // Draw a square outline at the beacon base
         val baseSize = 0.6f
         val baseY = beacon.pos.y + 1.0
 

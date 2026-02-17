@@ -1,24 +1,21 @@
 package gobby.utils.render
 
-import com.mojang.blaze3d.systems.RenderSystem
 import gobby.Gobbyclient.Companion.mc
-import gobby.events.render.NewRender3DEvent
-import net.minecraft.block.Block
-import net.minecraft.block.Blocks
-import net.minecraft.client.render.BufferBuilder
 import net.minecraft.client.render.Camera
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.Tessellator
 import net.minecraft.client.render.VertexConsumer
 import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.Identifier
 import net.minecraft.util.math.Box
 import net.minecraft.util.math.Vec3d
-import net.minecraft.util.math.Vec3i
-import org.joml.Matrix3f
 import org.joml.Matrix4f
 import java.awt.Color
 
+/**
+ * Contents of this file are based on Aoba-Client and the work of coltonk9043 under GNU General Public License v3.0.
+ * All the credits go to him.
+ * @author coltonk9043 (https://github.com/coltonk9043)
+ * License: https://github.com/coltonk9043/Aoba-Client/blob/master/LICENSE
+ * Original source: https://github.com/coltonk9043/Aoba-Client/blob/53607ef4318a9e5a246fb2a347ec25ec184b15a8/src/main/java/net/aoba/utils/render/Render3D.java
+ */
 object BlockRenderUtils {
 
     fun draw3DBox(

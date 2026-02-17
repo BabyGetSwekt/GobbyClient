@@ -13,6 +13,13 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
+/**
+ * Contents of this file are based on Aoba-Client and the work of coltonk9043 under GNU General Public License v3.0.
+ * All the credits go to him.
+ * @author coltonk9043 (https://github.com/coltonk9043)
+ * License: https://github.com/coltonk9043/Aoba-Client/blob/master/LICENSE
+ * Original source: https://github.com/coltonk9043/Aoba-Client/blob/53607ef4318a9e5a246fb2a347ec25ec184b15a8/src/main/java/net/aoba/utils/Interpolation.java
+ */
 object Interpolate {
 
     fun interpolatedEyePos(): Vec3d {
