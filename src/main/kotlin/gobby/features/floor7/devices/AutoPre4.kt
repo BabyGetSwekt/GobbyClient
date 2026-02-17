@@ -30,6 +30,8 @@ import net.minecraft.util.math.Vec3d
  */
 object AutoPre4 {
 
+    // TODO: Auto leap + auto mask
+
     val shootPositions = listOf(
         BlockPos(68, 130, 50),
         BlockPos(68, 128, 50),
