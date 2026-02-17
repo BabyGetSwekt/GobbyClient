@@ -20,7 +20,6 @@ public class MixinClientWorld {
     private void gobbyclient$onBlockUpdate(BlockPos pos, BlockState newState, int flags, CallbackInfo ci) {
         ClientWorld world = (ClientWorld) (Object) this;
         BlockState oldState = world.getBlockState(pos);
-        //modMessage("Block state updated at " + pos.toImmutable() + ": " + oldState.getBlock() + " -> " + newState.getBlock(), true);
         Gobbyclient.EVENT_MANAGER.publish(new BlockStateChangeEvent(pos.toImmutable(), oldState, newState));
     }
 }

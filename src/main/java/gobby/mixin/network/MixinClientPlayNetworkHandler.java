@@ -34,7 +34,4 @@ public class MixinClientPlayNetworkHandler {
             ci.cancel();
         }
     }
-
-    // TODO: Make the event above fire after 5 seconds
-    // TODO: Figure out onOpenScreen
 }
