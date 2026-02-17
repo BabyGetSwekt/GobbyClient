@@ -7,6 +7,8 @@ import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
+import gobby.utils.LocationUtils.dungeonFloor
+import gobby.utils.LocationUtils.inBoss
 import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
@@ -120,7 +122,7 @@ object AutoPre4 {
 
     @SubscribeEvent
     fun onBlockChange(event: BlockStateChangeEvent) {
-        if (mc.world == null || mc.player == null) return
+        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss) return
         val pos = event.blockPos
         if (pos !in shootPositions) return
 
@@ -134,8 +136,7 @@ object AutoPre4 {
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (!GobbyConfig.autoPre4) return
-        if (mc.world == null || mc.player == null) return
+        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss || !GobbyConfig.autoPre4) return
         if (!isNearPlate()) return
 
         val player = mc.player ?: return
@@ -186,7 +187,7 @@ object AutoPre4 {
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (mc.world == null || mc.player == null) return
-       if (event.message.startsWith("[BOSS] Goldor: Who dares trespass into my domain?")) deviceCompleted = false
+        if (event.message.startsWith("[BOSS] Goldor: Who dares trespass into my domain?")) deviceCompleted = false
 
         val name = mc.player?.gameProfile?.name ?: return
         if (event.message.startsWith("$name completed a device!")) {
