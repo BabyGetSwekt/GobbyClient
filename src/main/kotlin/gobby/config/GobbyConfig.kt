@@ -5,9 +5,9 @@ import gg.essential.vigilance.data.Category
 import gg.essential.vigilance.data.Property
 import gg.essential.vigilance.data.PropertyType
 import gg.essential.vigilance.data.SortingBehavior
+import gobby.gui.property.KeybindPropertyInfo
 import java.awt.Color
 import java.io.File
-
 
 object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "GobbyClient", sortingBehavior = Sorting) {
 
@@ -58,46 +58,14 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     var turtleEspLineMode = 1
 
     @Property(
-        type = PropertyType.SWITCH,
-        name = "Sea Lumies Block ESP",
-        description = "Enables the ESP, duhhh\nThe radius is based on the render distance",
-        category = "Galatea",
-        subcategory = "Sea Lumies",
-        hidden = true
+        type = PropertyType.CUSTOM,
+        name = "Keybind Test",
+        description = "Click the button and press a key to bind it.",
+        category = "Skyblock",
+        subcategory = "Keybinds",
+        customPropertyInfo = KeybindPropertyInfo::class,
     )
-    var seaLumiesESP = false
-
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Sea Lumies Amount",
-        description = "The amount of sea lumies required to be rendered",
-        category = "Galatea",
-        subcategory = "Sea Lumies",
-        min = 1,
-        max = 4,
-        hidden = true
-    )
-    var seaLumiesAmount = 1
-
-    @Property(
-        type = PropertyType.COLOR,
-        name = "Sea Lumies Color Block ESP",
-        description = "Enables the ESP, duhhh",
-        category = "Galatea",
-        subcategory = "Sea Lumies",
-        hidden = true
-    )
-    var seaLumiesColor = Color(218, 11, 11, 70)
-
-//    @Property(
-//        type = PropertyType.CUSTOM,
-//        name = "Keybind Test",
-//        description = "Fuck keybinds.",
-//        category = "Skyblock",
-//        subcategory = "Test",
-//        customPropertyInfo = KeybindProperty::class,
-//    )
-//    var keybindUp = 17
+    var keybindTest = -1
 
     @Property(
         type = PropertyType.SWITCH,
@@ -251,7 +219,7 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     @Property(
         type = PropertyType.SWITCH,
         name = "Enable Developer Mode",
-        description = "Only abled to developers, enables some extra features (without being dev this won't work)",
+        description = "Only enabled to developers, enables some extra features (without being dev this won't work)",
         category = "Developer",
         subcategory = "Developer Mode"
     )
@@ -356,6 +324,24 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         subcategory = "Shooting Device"
     )
     var shootingDeviceEsp = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Lights Device Triggerbot",
+        description = "Automatically right-clicks the Lights Device levers when looking at them",
+        category = "Floor 7",
+        subcategory = "Lights Device"
+    )
+    var lightsDeviceTriggerbot = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "P3 Lever Triggerbot",
+        description = "Automatically right-clicks P3 levers when looking at them",
+        category = "Floor 7",
+        subcategory = "Lights Device"
+    )
+    var p3LeverTriggerbot = false
 
     fun init() {
         initialize()

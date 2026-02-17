@@ -6,6 +6,7 @@ import gobby.events.ChatReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.render.BlockHighlighter
+import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
@@ -28,7 +29,8 @@ object DebuffAreaRenderer : BlockHighlighter() {
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.renderDebuffArea) return
-        if (event.message.contains("[BOSS] The Wither King: You... again?")) {
+        if (event.message.startsWith("[BOSS] The Wither King: You") && event.message.contains("again?")) {
+            modMessage("P5 start detected, rendering areas")
             active = true
             scanLoadedChunks()
         }

@@ -3,7 +3,6 @@ package gobby.features
 import gobby.Gobbyclient.Companion.EVENT_MANAGER
 import gobby.commands.*
 import gobby.events.core.EventDispatcher
-import gobby.events.listener.GlobalKeyHandler
 import gobby.features.dungeons.*
 import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
@@ -27,11 +26,8 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(GobbyCommand)
         EVENT_MANAGER.subscribe(RotateCommand)
         EVENT_MANAGER.subscribe(DevTestCommand)
-        EVENT_MANAGER.subscribe(RenderMobs)
-        EVENT_MANAGER.subscribe(Test)
+        EVENT_MANAGER.subscribe(RenderTurtles)
         EVENT_MANAGER.subscribe(FullBright)
-        EVENT_MANAGER.subscribe(GlobalKeyHandler)
-        EVENT_MANAGER.subscribe(RenderSeaPickle)
         EVENT_MANAGER.subscribe(CoordWaypoints)
         EVENT_MANAGER.subscribe(Executor)
         EVENT_MANAGER.subscribe(TerminatorAC)
@@ -39,7 +35,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(RenderBeacon)
         EVENT_MANAGER.subscribe(RenderBlock)
         EVENT_MANAGER.subscribe(LocationUtils)
-        EVENT_MANAGER.subscribe(Renderer)
+        EVENT_MANAGER.subscribe(TitleUtils)
         EVENT_MANAGER.subscribe(ScanUtils)
         EVENT_MANAGER.subscribe(StarredMobEsp)
         EVENT_MANAGER.subscribe(MiniBossEsp)
@@ -52,6 +48,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AlignHelper)
         EVENT_MANAGER.subscribe(AutoPre4)
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
+        EVENT_MANAGER.subscribe(LeverTriggerbot)
         EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(EventDispatcher)
