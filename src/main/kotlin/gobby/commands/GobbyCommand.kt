@@ -7,6 +7,7 @@ import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gg.essential.universal.UScreen
+import gobby.gui.brush.BlockSelector
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
@@ -37,10 +38,22 @@ object GobbyCommand {
             )
     }
 
+    private fun blockSelectorCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("blockselector")
+                    .executes {
+                        mc.send { BlockSelector.open() }
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
     @SubscribeEvent
     fun register(event: CommandRegisterEvent) {
         event.register(openConfig("gobby"))
         event.register(openConfig("gobbyclient"))
         event.register(sendCoordsCommand())
+        event.register(blockSelectorCommand())
     }
 }
