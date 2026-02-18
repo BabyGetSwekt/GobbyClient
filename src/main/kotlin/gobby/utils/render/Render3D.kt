@@ -96,6 +96,12 @@ object Render3D {
                 matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(270.0f))
             }
 
+            val customName = entity.customName?.string
+            if (customName != null && customName.contains("Dinnerbone")) {
+                matrixStack.translate(0.0f, entity.height + 0.1f, 0.0f)
+                matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f))
+            }
+
             matrixStack.scale(-1.0f, -1.0f, 1.0f)
             matrixStack.translate(0.0f, -1.501f, 0.0f)
             val vertexConsumerProvider: Immediate = mc.bufferBuilders.entityVertexConsumers
