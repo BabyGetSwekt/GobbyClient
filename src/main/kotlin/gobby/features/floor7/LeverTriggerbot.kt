@@ -4,6 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.config.GobbyConfig
 import gobby.features.Triggerbot
 import gobby.utils.LocationUtils.dungeonFloor
+import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.block.Blocks
@@ -39,7 +40,7 @@ object LeverTriggerbot : Triggerbot() {
 
     override fun isValidBlock(pos: BlockPos): Boolean {
         val world = mc.world ?: return false
-        if (!world.getBlockState(pos).isOf(Blocks.LEVER)) return false
+        if (world.getBlockAtPos(pos) != Blocks.LEVER) return false
         val type = leverPositions[pos] ?: return false
         return when (type) {
             LeverType.DEVICE -> GobbyConfig.lightsDeviceTriggerbot

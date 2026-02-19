@@ -4,6 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.Utils.equalsOneOf
+import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.Utils.posY
 import gobby.utils.VecUtils.addVec
 import gobby.utils.VecUtils.rotateAroundNorth
@@ -25,7 +26,7 @@ object DungeonUtils {
 
     fun isSecret(pos: BlockPos): Boolean {
         val world = mc.world ?: return false
-        val block = world.getBlockState(pos).block
+        val block = world.getBlockAtPos(pos)
         if (block.equalsOneOf(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.LEVER)) return true
 
         if (block is AbstractSkullBlock) {
