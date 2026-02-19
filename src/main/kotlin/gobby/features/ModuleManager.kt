@@ -24,7 +24,6 @@ object ModuleManager {
     fun subscribeEventListeners() {
         //DevTest.init()
         EVENT_MANAGER.subscribe(GobbyCommand)
-        EVENT_MANAGER.subscribe(RotateCommand)
         EVENT_MANAGER.subscribe(DevTestCommand)
         EVENT_MANAGER.subscribe(RenderTurtles)
         EVENT_MANAGER.subscribe(FullBright)
@@ -49,6 +48,8 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AutoPre4)
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
         EVENT_MANAGER.subscribe(LeverTriggerbot)
+        EVENT_MANAGER.subscribe(Brush)
+        EVENT_MANAGER.subscribe(BrushCommand)
         EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(EventDispatcher)

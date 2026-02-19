@@ -16,10 +16,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ClientWorld.class)
 public class MixinClientWorld {
 
-    @Inject(method = "handleBlockUpdate", at = @At("HEAD"))
+    @Inject(method = "handleBlockUpdate", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$onBlockUpdate(BlockPos pos, BlockState newState, int flags, CallbackInfo ci) {
         ClientWorld world = (ClientWorld) (Object) this;
         BlockState oldState = world.getBlockState(pos);
-        Gobbyclient.EVENT_MANAGER.publish(new BlockStateChangeEvent(pos.toImmutable(), oldState, newState));
+        BlockStateChangeEvent event = Gobbyclient.EVENT_MANAGER.publish(new BlockStateChangeEvent(pos.toImmutable(), oldState, newState));
+        if (event.isCanceled()) ci.cancel();
     }
 }

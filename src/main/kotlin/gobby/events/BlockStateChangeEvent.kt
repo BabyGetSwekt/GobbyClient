@@ -7,4 +7,4 @@ class BlockStateChangeEvent (
     val blockPos: BlockPos,
     val oldState: BlockState?,
     val newState: BlockState
-) : Events()
+) : Events.Cancelable<Unit>()

@@ -102,15 +102,17 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
         Gobbyclient.EVENT_MANAGER.publish(new GuiOpenEvent(screen));
     }
 
+    @Inject(method = "doAttack()Z", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$onDoAttack(CallbackInfoReturnable<Boolean> cir) {
+        LeftClickEvent event = new LeftClickEvent();
+        if (Gobbyclient.EVENT_MANAGER.publish(event).isCanceled()) cir.setReturnValue(false);
+    }
+
     @Inject(method = "doItemUse()V", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$onDoItemUse(CallbackInfo ci) {
         doItemUseCalled = true;
         RightClickEvent event = new RightClickEvent();
-        Gobbyclient.EVENT_MANAGER.publish(event);
-
-        if (event.isCanceled()) {
-            ci.cancel();
-        }
+        if (Gobbyclient.EVENT_MANAGER.publish(event).isCanceled()) ci.cancel();
     }
 
     @Override

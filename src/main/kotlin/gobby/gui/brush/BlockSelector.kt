@@ -14,6 +14,7 @@ import gg.essential.elementa.dsl.*
 import gg.essential.elementa.effects.OutlineEffect
 import gg.essential.universal.UScreen
 import gobby.gui.components.BlockItemComponent
+import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.Block
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.item.ItemStack
@@ -21,7 +22,7 @@ import net.minecraft.item.Items
 import net.minecraft.registry.Registries
 import java.awt.Color
 
-class BlockSelector private constructor(
+class BlockSelector private constructor (
     private val onSelect: ((Block) -> Unit)?
 ) : WindowScreen(
     version = ElementaVersion.V6,
@@ -156,6 +157,7 @@ class BlockSelector private constructor(
             component.onMouseClick { event ->
                 if (event.mouseButton == 0) {
                     selectedBlock = block
+                    modMessage("Selected block: §a$id")
                     onSelect?.invoke(block)
                     displayScreen(null)
                 }
@@ -196,7 +198,11 @@ class BlockSelector private constructor(
             val right = comp.getRight().toInt()
             val bottom = comp.getBottom().toInt()
             if (top + 20 < clipTop || top > clipBottom) continue
-            val bg = if (comp.mouseOver) BlockItemComponent.HOVER_COLOR else BlockItemComponent.BG_COLOR
+            val bg = when {
+                entry.block == selectedBlock -> BlockItemComponent.SELECTED_COLOR
+                comp.mouseOver -> BlockItemComponent.HOVER_COLOR
+                else -> BlockItemComponent.BG_COLOR
+            }
             context.fill(left, top, right, bottom, bg)
             context.drawItem(entry.stack, left + 2, top + 2)
         }
@@ -217,7 +223,6 @@ class BlockSelector private constructor(
 
     companion object {
         var selectedBlock: Block? = null
-            private set
 
         @JvmStatic
         var currentDrawContext: DrawContext? = null

@@ -75,6 +75,17 @@ object ChatUtils {
         mc.inGameHud?.chatHud?.addMessage(text)
     }
 
+    fun errorMessage(message: Any) {
+        if (mc.player == null || mc.world == null || message == "") return
+        val text = Text.empty()
+            .append(Text.literal("[").formatted(Formatting.DARK_RED))
+            .append(Text.literal("Gobby Client").formatted(Formatting.RED))
+            .append(Text.literal("] ").formatted(Formatting.DARK_RED))
+            .append(Text.literal("» ").formatted(Formatting.DARK_GRAY))
+            .append(Text.literal(message.toString()).formatted(Formatting.RED))
+        mc.execute { mc.inGameHud?.chatHud?.addMessage(text) }
+    }
+
     fun sendMessage(message: Any) {
         if (mc.player == null || mc.world == null || message == "") return
         mc.player?.networkHandler?.sendChatMessage(message.toString())
