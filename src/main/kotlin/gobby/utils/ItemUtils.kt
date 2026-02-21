@@ -2,6 +2,7 @@
 
 package gobby.utils
 
+import gobby.Gobbyclient.Companion.mc
 import net.minecraft.component.ComponentHolder
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.component.type.NbtComponent
@@ -76,4 +77,24 @@ fun ItemStack.getCritDamage(): Double? = findStatValue("Crit Damage")
 fun ItemStack.getBonusAtkSpd(): Double? = findStatValue("Bonus Attack Speed")
 
 fun ItemStack.getShotCooldown(): Double? = findStatValue("Shot Cooldown")
+
+fun isHoldingSkyblockItem(vararg ids: String): Boolean {
+    val player = mc.player ?: return false
+    return player.mainHandStack.skyblockID in ids
+}
+
+fun swapToSkyblockItem(vararg ids: String): Boolean {
+    val player = mc.player ?: return false
+    if (player.mainHandStack.skyblockID in ids) return true
+
+    val inventory = player.inventory
+    for (i in 0..8) {
+        val stack = inventory.getStack(i)
+        if (stack.skyblockID in ids) {
+            inventory.selectedSlot = i
+            return true
+        }
+    }
+    return false
+}
 

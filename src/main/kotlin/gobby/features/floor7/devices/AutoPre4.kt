@@ -81,7 +81,6 @@ object AutoPre4 {
         val player = mc.player ?: return Vec3d(pos.x + 0.5, pos.y + 1.1, pos.z.toDouble())
         val heldItem = player.mainHandStack
         var xOffset = offsetMap[pos.x] ?: 0.5
-        modMessage("Held item skyblockID: '${heldItem.skyblockID}', xOffset: $xOffset")
         if (heldItem.skyblockID != "TERMINATOR") xOffset = 0.5
         return Vec3d(pos.x + xOffset, pos.y + 1.1, pos.z.toDouble())
     }

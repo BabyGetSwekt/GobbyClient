@@ -50,7 +50,7 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
     @Inject(method = "tick", at = @At("HEAD"))
     private void gobbyclient$onPreTick(CallbackInfo ci) {
         MinecraftClient client = (MinecraftClient) (Object) this;
-        if (client.player != null && client.world != null) {
+        if (client.player != null || client.world != null) {
             Gobbyclient.EVENT_MANAGER.publish(ClientTickEvent.Pre.INSTANCE);
         }
 
@@ -66,7 +66,7 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
     @Inject(method = "tick", at = @At("TAIL"))
     private void gobbyclient$onPostTick(CallbackInfo ci) {
         MinecraftClient client = (MinecraftClient) (Object) this;
-        if (client.player != null && client.world != null) {
+        if (client.player != null || client.world != null) {
             Gobbyclient.EVENT_MANAGER.publish(ClientTickEvent.Post.INSTANCE);
         }
     }

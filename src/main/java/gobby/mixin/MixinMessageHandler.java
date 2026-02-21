@@ -2,6 +2,7 @@ package gobby.mixin;
 
 import gobby.Gobbyclient;
 import gobby.events.ChatReceivedEvent;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.message.MessageHandler;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,6 +16,8 @@ public class MixinMessageHandler {
     @Inject(method = "onGameMessage", at = @At("HEAD"))
     private void gobbyclient$monitorGameMessage(Text message, boolean overlay, CallbackInfo ci) {
         if (overlay) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) return;
         Gobbyclient.EVENT_MANAGER.publish(new ChatReceivedEvent(message.getString()));
     }
 }

@@ -7,6 +7,7 @@ import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gg.essential.universal.UScreen
+import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
@@ -49,11 +50,42 @@ object GobbyCommand {
             )
     }
 
+    private fun helpCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("help")
+                    .executes {
+                        modMessage("§b§m                              ")
+                        modMessage("§e/gobby §7- Opens the settings menu")
+                        modMessage("§e/gobby help §7- Shows this help menu")
+                        modMessage("§e/gobby modid §7- Hide mod IDs from other mods")
+                        modMessage("§e/gobby blockselector §7- Pick a block for the brush")
+                        modMessage("§e/gobby brush §7- Toggle brush mode")
+                        modMessage("§e/gobby sendcoords §7- Send your coords in chat")
+                        modMessage("§b§m                              ")
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
+    private fun modIdCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("modid")
+                    .executes {
+                        mc.send { ModIdHiderScreen.open() }
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
     @SubscribeEvent
     fun register(event: CommandRegisterEvent) {
         event.register(openConfig("gobby"))
         event.register(openConfig("gobbyclient"))
         event.register(sendCoordsCommand())
         event.register(blockSelectorCommand())
+        event.register(modIdCommand())
+        event.register(helpCommand())
     }
 }

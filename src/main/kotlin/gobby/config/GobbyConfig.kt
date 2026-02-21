@@ -5,6 +5,8 @@ import gg.essential.vigilance.data.Category
 import gg.essential.vigilance.data.Property
 import gg.essential.vigilance.data.PropertyType
 import gg.essential.vigilance.data.SortingBehavior
+import gobby.Gobbyclient.Companion.mc
+import gobby.gui.ModIdHiderScreen
 import gobby.gui.property.KeybindPropertyInfo
 import java.awt.Color
 import java.io.File
@@ -57,15 +59,25 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var turtleEspLineMode = 1
 
+//    @Property(
+//        type = PropertyType.CUSTOM,
+//        name = "Keybind Test",
+//        description = "Click the button and press a key to bind it.",
+//        category = "Skyblock",
+//        subcategory = "Keybinds",
+//        customPropertyInfo = KeybindPropertyInfo::class,
+//    )
+//    var keybindTest = -1
+
     @Property(
-        type = PropertyType.CUSTOM,
-        name = "Keybind Test",
-        description = "Click the button and press a key to bind it.",
-        category = "Skyblock",
-        subcategory = "Keybinds",
-        customPropertyInfo = KeybindPropertyInfo::class,
+        type = PropertyType.SELECTOR,
+        name = "Auto Leap to Door Opener",
+        description = "Off: Disabled\nAuto Leap: Automatically swaps to Spirit Leap/Infinileap and leaps to the door opener\nLeft Click: Only leaps when you left click while holding a leap",
+        category = "Dungeons",
+        subcategory = "Auto Leap",
+        options = ["Off", "Auto Leap", "Left Click"],
     )
-    var keybindTest = -1
+    var autoLeapMode = 0
 
     @Property(
         type = PropertyType.SWITCH,
@@ -224,6 +236,18 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         subcategory = "Developer Mode"
     )
     var devMode = false
+
+    @Property(
+        type = PropertyType.BUTTON,
+        name = "Mod ID Hider",
+        description = "Opens a gui to hide certain mod IDs.\nFabric doesn't send your modlist to the server, but some mods may forcefully send your mod ID to the server.\nYou can also use \"/gobby modid\" to open this menu.",
+        category = "Skyblock",
+        subcategory = "Mod ID Hider",
+        placeholder = "Open"
+    )
+    fun openModIdHider() {
+        mc.send { ModIdHiderScreen.open() }
+    }
 
     @Property(
         type = PropertyType.SWITCH,

@@ -1,10 +1,12 @@
 package gobby.mixin.network;
 
 import gobby.Gobbyclient;
+import gobby.events.ScreenReceivedEvent;
 import gobby.events.SpawnParticleEvent;
 import gobby.events.network.ClientConnectedToServerEvent;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,6 +26,11 @@ public class MixinClientPlayNetworkHandler {
     private void onGamJoin(GameJoinS2CPacket packet, CallbackInfo ci) {
         ClientConnectedToServerEvent event = new ClientConnectedToServerEvent();
         Gobbyclient.EVENT_MANAGER.publish(event);
+    }
+
+    @Inject(method = "onOpenScreen(Lnet/minecraft/network/packet/s2c/play/OpenScreenS2CPacket;)V", at = @At("TAIL"))
+    private void gobbyclient$onOpenScreen(OpenScreenS2CPacket packet, CallbackInfo ci) {
+        Gobbyclient.EVENT_MANAGER.publish(new ScreenReceivedEvent(packet.getName().getString(), packet.getSyncId()));
     }
 
     @Inject(method = "onParticle(Lnet/minecraft/network/packet/s2c/play/ParticleS2CPacket;)V", at = @At("HEAD"), cancellable = true)

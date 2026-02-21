@@ -2,18 +2,17 @@ package gobby.gui.brush
 
 import gg.essential.elementa.ElementaVersion
 import gg.essential.elementa.WindowScreen
-import gg.essential.elementa.components.ScrollComponent
 import gg.essential.elementa.components.UIBlock
 import gg.essential.elementa.components.UIRoundedRectangle
 import gg.essential.elementa.components.UIText
 import gg.essential.elementa.components.input.UITextInput
 import gg.essential.elementa.constraints.CenterConstraint
 import gg.essential.elementa.constraints.CramSiblingConstraint
-import gg.essential.elementa.constraints.animation.Animations
 import gg.essential.elementa.dsl.*
 import gg.essential.elementa.effects.OutlineEffect
 import gg.essential.universal.UScreen
 import gobby.gui.components.BlockItemComponent
+import gobby.gui.components.GobbyScrollPanel
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.Block
 import net.minecraft.client.gui.DrawContext
@@ -73,7 +72,7 @@ class BlockSelector private constructor (
         color = Color(200, 200, 200).toConstraint()
     } childOf searchBg
 
-    private val scrollArea by ScrollComponent(
+    private val scrollPanel by GobbyScrollPanel(
         emptyString = "No blocks found :(",
         innerPadding = 4f,
         pixelsPerScroll = 40f,
@@ -81,23 +80,9 @@ class BlockSelector private constructor (
     ).constrain {
         x = 8.pixels
         y = 48.pixels
-        width = 100.percent - 30.pixels
+        width = 100.percent - 16.pixels
         height = 100.percent - 68.pixels
     } childOf panel
-
-    private val scrollTrack by UIRoundedRectangle(3f).constrain {
-        x = 5.pixels(alignOpposite = true)
-        y = 48.pixels
-        width = 8.pixels
-        height = 100.percent - 68.pixels
-        color = Color(12, 12, 16, 180).toConstraint()
-    } childOf panel
-
-    private val scrollGrip by UIRoundedRectangle(3f).constrain {
-        x = CenterConstraint()
-        width = 6.pixels
-        color = Color(70, 70, 80, 200).toConstraint()
-    } childOf scrollTrack
 
     private val statusBar by UIBlock(Color(26, 26, 32, 255)).constrain {
         y = 0.pixels(alignOpposite = true)
@@ -112,19 +97,6 @@ class BlockSelector private constructor (
     } childOf statusBar
 
     init {
-        scrollArea.setVerticalScrollBarComponent(scrollGrip, hideWhenUseless = true)
-
-        scrollGrip.onMouseEnter {
-            scrollGrip.animate {
-                setColorAnimation(Animations.OUT_EXP, 0.15f, Color(110, 110, 130, 240).toConstraint())
-            }
-        }
-        scrollGrip.onMouseLeave {
-            scrollGrip.animate {
-                setColorAnimation(Animations.OUT_EXP, 0.2f, Color(70, 70, 80, 200).toConstraint())
-            }
-        }
-
         searchInput.onKeyType { _, _ ->
             val query = searchInput.getText()
             if (query != lastQuery) {
@@ -171,7 +143,7 @@ class BlockSelector private constructor (
     }
 
     private fun filterBlocks(query: String) {
-        scrollArea.clearChildren()
+        scrollPanel.scrollArea.clearChildren()
         val lower = query.lowercase().trim()
         val filtered = if (lower.isEmpty()) allEntries else allEntries.filter { it.id.contains(lower) }
         showEntries(filtered)
@@ -180,15 +152,15 @@ class BlockSelector private constructor (
     private fun showEntries(entries: List<BlockEntry>) {
         visibleEntries = entries.toList()
         for (entry in visibleEntries) {
-            entry.component childOf scrollArea
+            entry.component childOf scrollPanel.scrollArea
         }
     }
 
     fun drawBlockItems(context: DrawContext) {
-        val clipLeft = scrollArea.getLeft().toInt()
-        val clipTop = scrollArea.getTop().toInt()
-        val clipRight = scrollArea.getRight().toInt()
-        val clipBottom = scrollArea.getBottom().toInt()
+        val clipLeft = scrollPanel.scrollArea.getLeft().toInt()
+        val clipTop = scrollPanel.scrollArea.getTop().toInt()
+        val clipRight = scrollPanel.scrollArea.getRight().toInt()
+        val clipBottom = scrollPanel.scrollArea.getBottom().toInt()
 
         context.enableScissor(clipLeft, clipTop, clipRight, clipBottom)
         for (entry in visibleEntries) {

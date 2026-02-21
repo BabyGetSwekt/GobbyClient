@@ -5,6 +5,7 @@ import gobby.config.GobbyConfig
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.EventManager
 import gobby.features.ModuleManager.subscribeEventListeners
+import gobby.features.skyblock.ModIdHider
 import gobby.utils.LocationUtils
 import gobby.utils.timer.Executor
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,7 @@ class Gobbyclient : ClientModInitializer {
 
 	override fun onInitializeClient() {
 		logger.info("Hello Fabric world!")
+		ModIdHider.applyToLoader()
 		config.init()
 		initEvents()
 		EVENT_MANAGER.initEvents()

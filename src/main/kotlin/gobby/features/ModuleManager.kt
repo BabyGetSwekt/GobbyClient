@@ -11,6 +11,7 @@ import gobby.features.render.*
 import gobby.features.skyblock.*
 import gobby.utils.LocationUtils
 import gobby.utils.render.*
+import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.timer.Executor
@@ -35,7 +36,9 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(RenderBlock)
         EVENT_MANAGER.subscribe(LocationUtils)
         EVENT_MANAGER.subscribe(TitleUtils)
+        EVENT_MANAGER.subscribe(DungeonListener)
         EVENT_MANAGER.subscribe(ScanUtils)
+        EVENT_MANAGER.subscribe(AutoLeap)
         EVENT_MANAGER.subscribe(StarredMobEsp)
         EVENT_MANAGER.subscribe(MiniBossEsp)
         EVENT_MANAGER.subscribe(CancelInteract)
