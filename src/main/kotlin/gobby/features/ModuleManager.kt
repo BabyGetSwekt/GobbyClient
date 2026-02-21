@@ -44,6 +44,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(MiniBossEsp)
         EVENT_MANAGER.subscribe(CancelInteract)
         EVENT_MANAGER.subscribe(SecretTriggerbot)
+        EVENT_MANAGER.subscribe(EtherwarpTriggerbot)
         EVENT_MANAGER.subscribe(AutoCloseChest)
         EVENT_MANAGER.subscribe(LastBreathHelper)
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)

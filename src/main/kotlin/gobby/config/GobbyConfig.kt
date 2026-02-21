@@ -7,6 +7,7 @@ import gg.essential.vigilance.data.PropertyType
 import gg.essential.vigilance.data.SortingBehavior
 import gobby.Gobbyclient.Companion.mc
 import gobby.gui.ModIdHiderScreen
+import gobby.gui.property.InfoPropertyInfo
 import gobby.gui.property.KeybindPropertyInfo
 import java.awt.Color
 import java.io.File
@@ -161,6 +162,26 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         options = ["Feet", "Crosshair"],
     )
     var miniBossEspLineMode = 1
+
+    @Property(
+        type = PropertyType.CUSTOM,
+        name = "Info",
+        description = "",
+        category = "Dungeons",
+        subcategory = "Etherwarp Triggerbot",
+        customPropertyInfo = InfoPropertyInfo::class,
+    )
+    var etherwarpTriggerbotInfo = "The only blocks that can be used to etherwarp to are:\n- PRISMARINE_BRICK_SLAB\n- PRISMARINE_BRICK_STAIRS\n- PRISMARINE_BRICKS\n- PRISMARINE_WALL\n\nTo place these blocks down use `/gobby brush`. Or use `/gobby help` for more info.\nEtherwarp blocks are marked as yellow."
+
+    @Property(
+        type = PropertyType.SELECTOR,
+        name = "Etherwarp Triggerbot",
+        description = "Off: Disabled\nAuto Sneak: Automatically sneaks and etherwarps to target blocks\nManual Sneak: Only right-clicks when you are already sneaking",
+        category = "Dungeons",
+        subcategory = "Etherwarp Triggerbot",
+        options = ["Off", "Auto Sneak", "Manual Sneak"],
+    )
+    var etherwarpTriggerbot = 0
 
     @Property(
         type = PropertyType.SWITCH,

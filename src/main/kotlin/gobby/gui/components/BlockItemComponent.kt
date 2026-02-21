@@ -22,5 +22,6 @@ class BlockItemComponent(
         const val BG_COLOR = 0xFF000000.toInt()
         const val HOVER_COLOR = 0xFF2A2A32.toInt()
         const val SELECTED_COLOR = 0xFF1B5E20.toInt()
+        const val ETHERWARP_COLOR = 0xFFFFD700.toInt()
     }
 }

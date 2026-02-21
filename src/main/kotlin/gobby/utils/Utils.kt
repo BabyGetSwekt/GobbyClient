@@ -46,6 +46,8 @@ object Utils {
         return name.startsWith("Goblin")
     }
 
+    fun getRandomInt(min: Int, max: Int): Int = (min..max).random()
+
     inline val posX get() = mc.player!!.x
     inline val posY get() = mc.player!!.y
     inline val posZ get() = mc.player!!.z

@@ -19,12 +19,18 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
+import net.minecraft.block.SlabBlock
+import net.minecraft.block.StairsBlock
+import net.minecraft.block.WallBlock
+import net.minecraft.block.enums.BlockHalf
+import net.minecraft.block.enums.SlabType
 import net.minecraft.client.world.ClientWorld
 import net.minecraft.registry.Registries
 import net.minecraft.util.Identifier
 import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Direction
 import java.io.File
 
 object Brush {
@@ -36,6 +42,11 @@ object Brush {
 
     private val gson = GsonBuilder().setPrettyPrinting().create()
     private val dataType = object : TypeToken<MutableMap<String, MutableMap<String, MutableList<String>>>>() {}.type
+
+    private val favoritesFile = File("./config/gobbyclientFabric/favorites.json")
+    private val favoritesType = object : TypeToken<MutableSet<String>>() {}.type
+    var favoriteBlocks: MutableSet<String> = mutableSetOf()
+        private set
 
     private val configFile = File("./config/gobbyclientFabric/brush.json")
     private var brushData: MutableMap<String, MutableMap<String, MutableList<String>>> = mutableMapOf()
@@ -54,6 +65,7 @@ object Brush {
     init {
         loadFromFile(configFile, "brush") { brushData = it }
         loadFromFile(bossConfigFile, "boss brush") { bossData = it }
+        loadFavorites()
     }
 
     private fun coordStr(pos: BlockPos): String = "${pos.x}, ${pos.y}, ${pos.z}"
@@ -77,6 +89,31 @@ object Brush {
 
     private fun saveOriginalState(pos: BlockPos, world: ClientWorld) {
         originalStates.putIfAbsent(pos, world.getBlockState(pos))
+    }
+
+    private fun computePlacementState(defaultState: BlockState, hitResult: BlockHitResult): BlockState {
+        val player = mc.player ?: return defaultState
+        val block = defaultState.block
+        val side = hitResult.side
+        val hitY = hitResult.pos.y - hitResult.blockPos.y.toDouble()
+        val isUpper = if (side == Direction.UP) false
+            else if (side == Direction.DOWN) true
+            else hitY > 0.5
+
+        if (block is StairsBlock) {
+            val facing = player.horizontalFacing
+            val half = if (isUpper) BlockHalf.TOP else BlockHalf.BOTTOM
+            return defaultState
+                .with(StairsBlock.FACING, facing)
+                .with(StairsBlock.HALF, half)
+        }
+
+        if (block is SlabBlock) {
+            val slabType = if (isUpper) SlabType.TOP else SlabType.BOTTOM
+            return defaultState.with(SlabBlock.TYPE, slabType)
+        }
+
+        return defaultState
     }
 
     /**
@@ -129,6 +166,39 @@ object Brush {
             file.writeText(gson.toJson(data))
         } catch (e: Exception) {
             println("[GobbyClient] Failed to save $label data: ${e.message}")
+        }
+    }
+
+    fun toggleFavorite(blockId: String): Boolean {
+        val added = if (blockId in favoriteBlocks) {
+            favoriteBlocks.remove(blockId)
+            false
+        } else {
+            favoriteBlocks.add(blockId)
+            true
+        }
+        saveFavorites()
+        return added
+    }
+
+    fun isFavorite(blockId: String): Boolean = blockId in favoriteBlocks
+
+    private fun loadFavorites() {
+        if (!favoritesFile.exists()) return
+        try {
+            favoriteBlocks = gson.fromJson(favoritesFile.readText(), favoritesType) ?: mutableSetOf()
+        } catch (e: Exception) {
+            println("[GobbyClient] Failed to load favorites: ${e.message}")
+            favoriteBlocks = mutableSetOf()
+        }
+    }
+
+    private fun saveFavorites() {
+        try {
+            favoritesFile.parentFile.mkdirs()
+            favoritesFile.writeText(gson.toJson(favoriteBlocks))
+        } catch (e: Exception) {
+            println("[GobbyClient] Failed to save favorites: ${e.message}")
         }
     }
 
@@ -191,7 +261,8 @@ object Brush {
         removeCoord(ctx.blocks, ctx.coord)
         ctx.blocks.getOrPut(blockId) { mutableListOf() }.add(ctx.coord)
         saveOriginalState(placePos, world)
-        world.setBlockState(placePos, selectedBlock.defaultState)
+        val state = computePlacementState(selectedBlock.defaultState, hitResult)
+        world.setBlockState(placePos, state)
         ctx.save()
 
         rightClickUsed = true

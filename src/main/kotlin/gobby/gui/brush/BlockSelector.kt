@@ -11,6 +11,9 @@ import gg.essential.elementa.constraints.CramSiblingConstraint
 import gg.essential.elementa.dsl.*
 import gg.essential.elementa.effects.OutlineEffect
 import gg.essential.universal.UScreen
+import gobby.Gobbyclient.Companion.mc
+import gobby.features.dungeons.Brush
+import gobby.features.dungeons.EtherwarpTriggerbot
 import gobby.gui.components.BlockItemComponent
 import gobby.gui.components.GobbyScrollPanel
 import gobby.utils.ChatUtils.modMessage
@@ -31,6 +34,7 @@ class BlockSelector private constructor (
     private val allEntries = mutableListOf<BlockEntry>()
     private var visibleEntries = listOf<BlockEntry>()
     private var lastQuery = ""
+    private var showingFavorites = false
 
     private val overlay by UIBlock(Color(0, 0, 0, 100)).constrain {
         width = 100.percent
@@ -55,6 +59,20 @@ class BlockSelector private constructor (
         y = CenterConstraint()
         color = Color(210, 210, 215).toConstraint()
     } childOf titleBar
+
+    private val favBtnBg by UIRoundedRectangle(3f).constrain {
+        x = 8.pixels(alignOpposite = true)
+        y = CenterConstraint()
+        width = 52.pixels
+        height = 14.pixels
+        color = Color(40, 40, 50).toConstraint()
+    } childOf titleBar
+
+    private val favBtnText by UIText("Favorites", shadow = true).constrain {
+        x = CenterConstraint()
+        y = CenterConstraint()
+        color = Color(180, 180, 190).toConstraint()
+    } childOf favBtnBg
 
     private val searchBg by UIRoundedRectangle(3f).constrain {
         x = 8.pixels
@@ -108,6 +126,18 @@ class BlockSelector private constructor (
         searchBg.enableEffect(OutlineEffect(Color(40, 40, 50), 1f))
         overlay.onMouseClick { UScreen.displayScreen(null) }
 
+        favBtnBg.onMouseClick {
+            showingFavorites = !showingFavorites
+            if (showingFavorites) {
+                favBtnBg.setColor(Color(180, 50, 50))
+                favBtnText.setText("§c♥ §rFavs")
+            } else {
+                favBtnBg.setColor(Color(40, 40, 50))
+                favBtnText.setText("Favorites")
+            }
+            refreshFilter()
+        }
+
         populateBlocks()
     }
 
@@ -132,6 +162,10 @@ class BlockSelector private constructor (
                     modMessage("Selected block: §a$id")
                     onSelect?.invoke(block)
                     displayScreen(null)
+                } else if (event.mouseButton == 1) {
+                    val added = Brush.toggleFavorite(id)
+                    modMessage(if (added) "§e★ §aFavorited: §f$id" else "§7Unfavorited: §f$id")
+                    if (showingFavorites) refreshFilter()
                 }
             }
 
@@ -145,8 +179,13 @@ class BlockSelector private constructor (
     private fun filterBlocks(query: String) {
         scrollPanel.scrollArea.clearChildren()
         val lower = query.lowercase().trim()
-        val filtered = if (lower.isEmpty()) allEntries else allEntries.filter { it.id.contains(lower) }
+        var filtered = if (lower.isEmpty()) allEntries else allEntries.filter { it.id.contains(lower) }
+        if (showingFavorites) filtered = filtered.filter { Brush.isFavorite(it.id) }
         showEntries(filtered)
+    }
+
+    private fun refreshFilter() {
+        filterBlocks(lastQuery)
     }
 
     private fun showEntries(entries: List<BlockEntry>) {
@@ -177,6 +216,18 @@ class BlockSelector private constructor (
             }
             context.fill(left, top, right, bottom, bg)
             context.drawItem(entry.stack, left + 2, top + 2)
+
+            if (entry.block in EtherwarpTriggerbot.TARGET_BLOCKS) {
+                val c = BlockItemComponent.ETHERWARP_COLOR
+                context.fill(left, top, right, top + 1, c)
+                context.fill(left, bottom - 1, right, bottom, c)
+                context.fill(left, top, left + 1, bottom, c)
+                context.fill(right - 1, top, right, bottom, c)
+            }
+
+            if (Brush.isFavorite(entry.id)) {
+                context.drawText(mc.textRenderer, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
+            }
         }
         context.disableScissor()
     }

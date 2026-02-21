@@ -3,6 +3,7 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.equalsOneOf
 import net.minecraft.component.ComponentHolder
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.component.type.NbtComponent
@@ -77,6 +78,16 @@ fun ItemStack.getCritDamage(): Double? = findStatValue("Crit Damage")
 fun ItemStack.getBonusAtkSpd(): Double? = findStatValue("Bonus Attack Speed")
 
 fun ItemStack.getShotCooldown(): Double? = findStatValue("Shot Cooldown")
+
+fun ItemStack.isEtherwarpable(): Boolean {
+    if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return false
+    return this.getItemData.getBoolean("ethermerge").orElse(false)
+}
+
+fun ItemStack.getTunedTransmission(): Int {
+    if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return 0
+    return this.getItemData.getInt("tuned_transmission").orElse(0)
+}
 
 fun isHoldingSkyblockItem(vararg ids: String): Boolean {
     val player = mc.player ?: return false

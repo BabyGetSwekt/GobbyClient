@@ -12,26 +12,23 @@ import net.minecraft.util.math.BlockPos
 
 abstract class Triggerbot {
 
-    private val clock = Clock()
-    private val clickedBlocks = mutableMapOf<BlockPos, Long>()
+    protected val clock = Clock()
+    protected val clickedBlocks = mutableMapOf<BlockPos, Long>()
 
     @SubscribeEvent
-    fun onTick(event: ClientTickEvent.Pre) {
+    open fun onTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null) return
         if (!shouldActivate()) return
         if (!clock.hasTimePassed(getClickDelay())) return
 
         val now = System.currentTimeMillis()
-        clickedBlocks.entries.removeIf { now - it.value > 5000 }
+        clickedBlocks.entries.removeIf { now - it.value > getBlockCooldown() }
 
-        val hitResult = mc.crosshairTarget
-        if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) return
-
-        val pos = hitResult.blockPos
+        val pos = getTargetPos() ?: return
         if (pos in clickedBlocks) return
         if (!isValidBlock(pos)) return
 
-        PlayerUtils.rightClick()
+        performAction()
         clock.update()
         clickedBlocks[pos] = now
     }
@@ -44,4 +41,15 @@ abstract class Triggerbot {
     abstract fun shouldActivate(): Boolean
     abstract fun isValidBlock(pos: BlockPos): Boolean
     open fun getClickDelay(): Long = 100L
+    open fun getBlockCooldown(): Long = 5000L
+
+    protected open fun getTargetPos(): BlockPos? {
+        val hitResult = mc.crosshairTarget
+        if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) return null
+        return hitResult.blockPos
+    }
+
+    protected open fun performAction() {
+        PlayerUtils.rightClick()
+    }
 }

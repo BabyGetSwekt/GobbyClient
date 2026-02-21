@@ -25,8 +25,8 @@ object MiniBossEsp : EntityHighlighter() {
         if (!inDungeons || inBoss) return false
         if (entity !is PlayerEntity) return false
         if (entity == mc.player) return false
-        if (entity.uuid.version() != 2) return false
-        if (entity.isDead) return false
+//        if (entity.uuid.version() != 2) return false
+        if (entity.isDead || entity.isSleeping) return false
         val name = entity.name.string
         val customName = entity.customName?.string ?: ""
         return MINIBOSS_NAMES.any { name.contains(it) || customName.contains(it) }
