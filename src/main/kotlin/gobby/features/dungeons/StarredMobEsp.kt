@@ -15,6 +15,7 @@ object StarredMobEsp : EntityHighlighter() {
         "Frozen Adventurer",
         "Lost Adventurer",
         "Shadow Assassin",
+        "King Midas"
     )
 
     override fun isEnabled(): Boolean = GobbyConfig.starredMobEsp

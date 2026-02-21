@@ -367,6 +367,16 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var p3LeverTriggerbot = false
 
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "First Time Player",
+        description = "Yo",
+        category = "Skyblock",
+        subcategory = "Welcome",
+        hidden = true
+    )
+    var welcome = false
+
     fun init() {
         initialize()
         markDirty()

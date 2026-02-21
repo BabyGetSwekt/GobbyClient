@@ -1,31 +1,37 @@
 package gobby.features.dungeons
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.config.GobbyConfig
 import gobby.features.render.EntityHighlighter
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.entity.Entity
+import net.minecraft.entity.player.PlayerEntity
 import java.awt.Color
 
 object MiniBossEsp : EntityHighlighter() {
 
-    private const val STAR = "✯"
     private val MINIBOSS_NAMES = setOf(
-        "Angry Archaeologist",
+        "Lost Adventurer",
+        "Shadow Assassin",
         "Frozen Adventurer",
-        "Lost Adventurer"
+        "Angry Archaeologist",
+        "King Midas"
     )
 
     override fun isEnabled(): Boolean = GobbyConfig.miniBossEsp
 
     override fun shouldHighlight(entity: Entity): Boolean {
         if (!inDungeons || inBoss) return false
-        val name = entity.customName?.string ?: return false
-        if (!name.contains(STAR)) return false
-        return MINIBOSS_NAMES.any { name.contains(it) }
+        if (entity !is PlayerEntity) return false
+        if (entity == mc.player) return false
+        if (entity.uuid.version() != 2) return false
+        if (entity.isDead) return false
+        val name = entity.name.string
+        val customName = entity.customName?.string ?: ""
+        return MINIBOSS_NAMES.any { name.contains(it) || customName.contains(it) }
     }
 
-    override fun usesMobCaching(): Boolean = true
     override fun getColor(): Color = GobbyConfig.miniBossEspColor
     override fun shouldDrawLines(): Boolean = GobbyConfig.miniBossEspLines
     override fun getLineColor(): Color = GobbyConfig.miniBossEspColor

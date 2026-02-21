@@ -6,6 +6,7 @@ import gobby.events.core.EventDispatcher
 import gobby.features.dungeons.*
 import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
+import gobby.features.force.*
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
@@ -56,6 +57,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(EventDispatcher)
+        EVENT_MANAGER.subscribe(Welcome)
 
     }
 
