@@ -4,7 +4,6 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.utils.ChatUtils.modMessage
 import gobby.utils.PlayerUtils
 import gobby.utils.timer.Clock
 import net.minecraft.util.hit.BlockHitResult
