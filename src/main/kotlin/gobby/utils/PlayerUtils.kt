@@ -1,11 +1,12 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.mixin.accessor.KeyBindingAccessor
 import gobby.mixin.accessor.MinecraftClientAccessor
-import gobby.mixinterface.IMinecraftClient
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
+import net.minecraft.client.option.KeyBinding
 import net.minecraft.util.math.Vec3d
 
 
@@ -27,7 +28,10 @@ object PlayerUtils {
     }
 
     fun rightClick() {
-        (mc as IMinecraftClient).`gobbyclient$rightClick`()
+        val key = (mc.options.useKey as KeyBindingAccessor).boundKey
+        KeyBinding.setKeyPressed(key, true)
+        KeyBinding.onKeyPressed(key)
+        KeyBinding.setKeyPressed(key, false)
     }
 
 

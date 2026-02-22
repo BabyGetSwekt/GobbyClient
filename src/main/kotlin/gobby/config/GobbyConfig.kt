@@ -230,6 +230,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Disable Block Particles",
+        description = "Disables block breaking particles",
+        category = "Render",
+        subcategory = "Block Particles"
+    )
+    var disableBlockParticles = false
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Terminator Autoclick",
         description = "Automically left clicks to use the salvation ability",
         category = "Skyblock",

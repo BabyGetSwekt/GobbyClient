@@ -36,9 +36,6 @@ public class MixinClientPlayNetworkHandler {
     @Inject(method = "onParticle(Lnet/minecraft/network/packet/s2c/play/ParticleS2CPacket;)V", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$onParticle(ParticleS2CPacket packet, CallbackInfo ci) {
         SpawnParticleEvent event = new SpawnParticleEvent(packet, packet.getParameters().getType(), new Vec3d(packet.getX(), packet.getY(), packet.getZ()));
-        Gobbyclient.EVENT_MANAGER.publish(event);
-        if (event.isCanceled()) {
-            ci.cancel();
-        }
+        if (Gobbyclient.EVENT_MANAGER.publish(event).isCanceled()) ci.cancel();
     }
 }

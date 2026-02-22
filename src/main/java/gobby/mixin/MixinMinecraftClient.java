@@ -3,7 +3,6 @@ package gobby.mixin;
 import gobby.Gobbyclient;
 import gobby.events.*;
 import gobby.events.gui.GuiOpenEvent;
-import gobby.mixinterface.IMinecraftClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.world.ClientWorld;
@@ -17,21 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 
 @Mixin(value = MinecraftClient.class, priority = 1001)
-public abstract class MixinMinecraftClient implements IMinecraftClient {
+public abstract class MixinMinecraftClient {
 
 
     @Shadow public ClientWorld world;
 
-    @Shadow protected abstract void doItemUse();
-
     @Unique
     private long gobbyclien$lastChecked = 0;
-
-    @Unique
-    private boolean rightClick;
-
-    @Unique
-    private boolean doItemUseCalled;
 
 
     /**
@@ -53,11 +44,6 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
         if (client.player != null || client.world != null) {
             Gobbyclient.EVENT_MANAGER.publish(ClientTickEvent.Pre.INSTANCE);
         }
-
-        doItemUseCalled = false;
-
-        if (rightClick && !doItemUseCalled) doItemUse();
-        rightClick = false;
     }
 
     /**
@@ -116,13 +102,7 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
 
     @Inject(method = "doItemUse()V", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$onDoItemUse(CallbackInfo ci) {
-        doItemUseCalled = true;
         RightClickEvent event = new RightClickEvent();
         if (Gobbyclient.EVENT_MANAGER.publish(event).isCanceled()) ci.cancel();
-    }
-
-    @Override
-    public void gobbyclient$rightClick() {
-        rightClick = true;
     }
 }

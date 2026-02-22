@@ -16,10 +16,12 @@
 		"render.MixinInGameHud",
 		"essentials.MixinSearchbar",
 		"accessor.MinecraftClientAccessor",
+		"accessor.KeyBindingAccessor",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
 		"MixinFabricLoaderImpl",
-		"MixinClientWorld"
+		"MixinClientWorld",
+		"MixinParticleManager"
 	],
 	"injectors": {
 		"defaultRequire": 1
