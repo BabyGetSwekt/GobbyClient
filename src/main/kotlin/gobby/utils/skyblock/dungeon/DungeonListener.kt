@@ -29,6 +29,26 @@ object DungeonListener {
     private var leapTicks = 0
     private const val LEAP_TIMEOUT_TICKS = 40
 
+    val endDialogues = mapOf(
+        1 to listOf("[BOSS] Bonzo: Just you wait..."),
+        2 to listOf("[BOSS] Scarf: His technique.. is too advanced.."),
+        3 to listOf("[BOSS] The Professor: I can't let my Master hear about this.. he'll kill m-"),
+        4 to listOf("[BOSS] Thorn: Congratulations humans, you may pass."),
+        5 to listOf(
+            "[BOSS] Vendetta Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Crossed Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Hockey Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Doctor Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Frog Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Smile Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Scream Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Purple Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
+            "[BOSS] Arcane Livid: My shadows are everywhere, THEY WILL FIND YOU!!"
+        ),
+        6 to listOf("[BOSS] Sadan: FATHER, FORGIVE ME!!!"),
+        7 to listOf("[BOSS] The Wither King: Incredible. You did what I couldn't do myself.")
+    )
+
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (!inDungeons) return

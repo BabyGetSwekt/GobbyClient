@@ -425,6 +425,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     )
     var welcome = false
 
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "You Are a King GG",
+        description = "Fortnite.",
+        category = "Dungeons",
+        subcategory = "You are a King GG"
+    )
+    var fortniteMode = false
+
     fun init() {
         initialize()
         markDirty()

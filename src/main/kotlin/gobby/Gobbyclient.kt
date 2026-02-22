@@ -44,7 +44,7 @@ class Gobbyclient : ClientModInitializer {
 
 	companion object {
 		const val MOD_ID = "gobbyclient"
-		const val MOD_VERSION = "1.0.1"
+		const val MOD_VERSION = "1.0.2"
 		const val BETA_MODE = "development build"
 
 		val mc =  MinecraftClient.getInstance()

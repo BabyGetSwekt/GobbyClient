@@ -10,6 +10,7 @@ import gobby.features.force.*
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
+import gobby.gui.GuiElementManager
 import gobby.utils.LocationUtils
 import gobby.utils.render.*
 import gobby.utils.skyblock.dungeon.DungeonListener
@@ -36,7 +37,6 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(RenderBeacon)
         EVENT_MANAGER.subscribe(RenderBlock)
         EVENT_MANAGER.subscribe(LocationUtils)
-        EVENT_MANAGER.subscribe(TitleUtils)
         EVENT_MANAGER.subscribe(DungeonListener)
         EVENT_MANAGER.subscribe(ScanUtils)
         EVENT_MANAGER.subscribe(AutoLeap)
@@ -60,9 +60,12 @@ object ModuleManager {
 
         EVENT_MANAGER.subscribe(RotationUtils)
 
+        EVENT_MANAGER.subscribe(GuiElementManager)
+        EVENT_MANAGER.subscribe(YouAreAKingGG)
+
         EVENT_MANAGER.subscribe(EventDispatcher)
         EVENT_MANAGER.subscribe(Welcome)
-
+        TitleUtils
     }
 
 }
