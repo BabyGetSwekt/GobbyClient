@@ -128,17 +128,24 @@ class BlockSelector private constructor (
 
         favBtnBg.onMouseClick {
             showingFavorites = !showingFavorites
-            if (showingFavorites) {
-                favBtnBg.setColor(Color(180, 50, 50))
-                favBtnText.setText("§c♥ §rFavs")
-            } else {
-                favBtnBg.setColor(Color(40, 40, 50))
-                favBtnText.setText("Favorites")
-            }
+            Brush.showFavoritesOnOpen = showingFavorites
+            updateFavButton()
             refreshFilter()
         }
 
+        showingFavorites = Brush.showFavoritesOnOpen
+        updateFavButton()
         populateBlocks()
+    }
+
+    private fun updateFavButton() {
+        if (showingFavorites) {
+            favBtnBg.setColor(Color(180, 50, 50))
+            favBtnText.setText("§c♥ §rFavs")
+        } else {
+            favBtnBg.setColor(Color(40, 40, 50))
+            favBtnText.setText("Favorites")
+        }
     }
 
     private fun populateBlocks() {
@@ -173,7 +180,7 @@ class BlockSelector private constructor (
         }
 
         allEntries.sortBy { it.id }
-        showEntries(allEntries)
+        refreshFilter()
     }
 
     private fun filterBlocks(query: String) {

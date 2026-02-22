@@ -185,6 +185,24 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Etherwarp ESP",
+        description = "Highlights all etherwarp target blocks (Prismarine Bricks, Slabs, Stairs, Walls) in dungeons",
+        category = "Dungeons",
+        subcategory = "Etherwarp Triggerbot"
+    )
+    var etherwarpEsp = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Etherwarp Highlighter",
+        description = "Highlights the block you would etherwarp to while sneaking. Green = valid landing, Red = blocked.",
+        category = "Dungeons",
+        subcategory = "Etherwarp Triggerbot"
+    )
+    var etherwarpHighlighter = false
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Auto Close Chest",
         description = "Automatically closes secret chests in dungeons",
         category = "Dungeons",

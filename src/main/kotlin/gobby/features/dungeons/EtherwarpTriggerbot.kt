@@ -26,14 +26,17 @@ object EtherwarpTriggerbot : Triggerbot() {
         Blocks.PRISMARINE_WALL
     )
 
-    override fun shouldActivate(): Boolean = GobbyConfig.etherwarpTriggerbot != 0 || !inBoss || dungeonFloor != -1
+    override fun shouldActivate(): Boolean = GobbyConfig.etherwarpTriggerbot != 0 && !inBoss && dungeonFloor != -1 && mc.currentScreen == null
 
     override fun isValidBlock(pos: BlockPos): Boolean =
         mc.world?.getBlockState(pos)?.block in TARGET_BLOCKS
 
+    override fun getBlockCooldown(): Long = 3000L
+
     override fun getTargetPos(): BlockPos? {
         val player = mc.player ?: return null
         if (!player.mainHandStack.isEtherwarpable()) return null
+        if (GobbyConfig.etherwarpTriggerbot == 2 && !player.isSneaking) return null
         return EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos
     }
 
@@ -41,10 +44,10 @@ object EtherwarpTriggerbot : Triggerbot() {
         val player = mc.player ?: return
         when (GobbyConfig.etherwarpTriggerbot) {
             1 -> { /* Auto sneak mode */
-                wasSneaking = player.isSneaking
                 if (player.isSneaking) {
                     PlayerUtils.rightClick()
                 } else {
+                    wasSneaking = false
                     mc.options.sneakKey.isPressed = true
                     sneakDelay = getRandomInt(3, 4)
                 }

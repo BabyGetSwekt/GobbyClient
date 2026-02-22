@@ -45,6 +45,8 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(CancelInteract)
         EVENT_MANAGER.subscribe(SecretTriggerbot)
         EVENT_MANAGER.subscribe(EtherwarpTriggerbot)
+        EVENT_MANAGER.subscribe(EtherwarpEsp)
+        EVENT_MANAGER.subscribe(EtherwarpHighlighter)
         EVENT_MANAGER.subscribe(AutoCloseChest)
         EVENT_MANAGER.subscribe(LastBreathHelper)
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)
@@ -55,6 +57,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(LeverTriggerbot)
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
+
         EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(EventDispatcher)

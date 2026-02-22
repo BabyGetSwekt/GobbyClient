@@ -35,7 +35,7 @@ object LeverTriggerbot : Triggerbot() {
     override fun getClickDelay(): Long = 50L
 
     override fun shouldActivate(): Boolean =
-        inDungeons && dungeonFloor == 7 && inBoss &&
+        inDungeons && dungeonFloor == 7 && inBoss && mc.currentScreen != null &&
             (GobbyConfig.lightsDeviceTriggerbot || GobbyConfig.p3LeverTriggerbot)
 
     override fun isValidBlock(pos: BlockPos): Boolean {

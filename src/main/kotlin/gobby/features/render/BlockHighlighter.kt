@@ -70,8 +70,6 @@ abstract class BlockHighlighter {
 
     @SubscribeEvent
     fun onChunkUnload(event: ChunkUnloadEvent) {
-        if (!isEnabled()) return
-
         val chunkPos = event.chunk.pos
         highlightedBlocks.removeIf { pos ->
             pos.x shr 4 == chunkPos.x && pos.z shr 4 == chunkPos.z
