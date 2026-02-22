@@ -308,15 +308,6 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
-        name = "P5 Debuff Helper",
-        description = "Enables P5 debuff helpers for Floor 7",
-        category = "Floor 7",
-        subcategory = "P5 Debuff Helper"
-    )
-    var p5DebuffHelper = false
-
-    @Property(
-        type = PropertyType.SWITCH,
         name = "Auto Align",
         description = "Automatically solves the arrow align device (P3 S3). ",
         category = "Floor 7",
@@ -341,6 +332,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         subcategory = "Arrow Align Device"
     )
     var alignSneakOverride = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "P5 Debuff Helper",
+        description = "Enables P5 debuff helpers for Floor 7",
+        category = "Floor 7",
+        subcategory = "P5 Debuff Helper"
+    )
+    var p5DebuffHelper = false
 
     @Property(
         type = PropertyType.SWITCH,

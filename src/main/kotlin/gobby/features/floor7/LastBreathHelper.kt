@@ -48,17 +48,19 @@ object LastBreathHelper {
         if (dungeonFloor != 7 || !inBoss) return
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
 
-        if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH") || !lbCharged || !rcButtonState) {
+        if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH")) {
             ticks = 0
             return
         }
 
-        if (ticks < getMaxTicks()) ticks++
+        if (lbCharged && rcButtonState) {
+            if (ticks < getMaxTicks()) ticks++
 
-        if (ticks == getMaxTicks() && rcButtonState ) {
-            Executor.execute(1) { mc.options.useKey.isPressed = false }
+            if (ticks == getMaxTicks()) {
+                Executor.execute(1) { mc.options.useKey.isPressed = false }
 
-            Executor.execute(3) { mc.options.useKey.isPressed = rcButtonState }
+                Executor.execute(3) { mc.options.useKey.isPressed = rcButtonState }
+            }
         }
     }
 

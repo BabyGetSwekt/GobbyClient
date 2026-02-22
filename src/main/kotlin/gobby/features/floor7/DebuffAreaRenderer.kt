@@ -16,6 +16,11 @@ object DebuffAreaRenderer : BlockHighlighter() {
 
     data class RenderArea(val x1: Int, val y: Int, val z1: Int, val x2: Int, val z2: Int, val color: Color)
 
+    private val startMessages = listOf(
+        "[BOSS] The Wither King: Ohh?",
+        "[BOSS] The Wither King: You... again?"
+    )
+
     private val renderAreas = listOf(
         RenderArea(20, 5, 54, 28, 64, Color(255, 0, 0, 255)),       // Red
         RenderArea(18, 5, 85, 28, 99, Color(0, 255, 0, 255)),       // Green
@@ -29,7 +34,7 @@ object DebuffAreaRenderer : BlockHighlighter() {
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.renderDebuffArea) return
-        if (event.message.startsWith("[BOSS] The Wither King: You") && event.message.contains("again?")) {
+        if (event.message in startMessages) {
             modMessage("P5 start detected, rendering areas")
             active = true
             scanLoadedChunks()

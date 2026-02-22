@@ -2,6 +2,7 @@ package gobby.features
 
 import gobby.Gobbyclient.Companion.EVENT_MANAGER
 import gobby.commands.*
+import gobby.commands.developer.ClipCommand
 import gobby.commands.developer.SimulateCommand
 import gobby.events.core.EventDispatcher
 import gobby.features.dungeons.*
@@ -65,6 +66,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(YouAreAKingGG)
 
         EVENT_MANAGER.subscribe(SimulateCommand)
+        EVENT_MANAGER.subscribe(ClipCommand)
         EVENT_MANAGER.subscribe(EventDispatcher)
         EVENT_MANAGER.subscribe(Welcome)
         TitleUtils
