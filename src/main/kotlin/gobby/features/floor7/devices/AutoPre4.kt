@@ -18,6 +18,7 @@ import gobby.utils.hasItemID
 import gobby.utils.PacketUtils.getSequence
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
+import gobby.utils.skyblock.dungeon.DungeonUtils.getSection
 import gobby.utils.skyblockID
 import gobby.utils.timer.Clock
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
@@ -159,7 +160,7 @@ object AutoPre4 {
         val (yaw, pitch) = calcAimAngles(target) ?: return
 
         when (GobbyConfig.autoPre4AimStyle) {
-            1 -> RotationUtils.easeTo(yaw, pitch, 100) { // Smooth rotation
+            1 -> RotationUtils.easeTo(yaw, pitch, 60) { // Smooth rotation
                 rightClick()
                 shotClock.update()
                 prefires++
@@ -189,7 +190,7 @@ object AutoPre4 {
         if (event.message.startsWith("[BOSS] Goldor: Who dares trespass into my domain?")) deviceCompleted = false
 
         val name = mc.player?.gameProfile?.name ?: return
-        if (event.message.startsWith("$name completed a device!")) {
+        if (event.message.startsWith("$name completed a device!") && getSection() == 4) {
             deviceCompleted = true
         }
     }

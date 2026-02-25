@@ -8,7 +8,9 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.Utils.equalsOneOf
 import gobby.utils.Utils.getBlockAtPos
+import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
+import gobby.utils.Utils.posZ
 import gobby.utils.VecUtils.addVec
 import gobby.utils.VecUtils.rotateAroundNorth
 import gobby.utils.VecUtils.rotateToNorth
@@ -91,6 +93,18 @@ object DungeonUtils {
             posY > 100 -> 3
             posY > 45 -> 4
             else -> 5
+        }
+    }
+
+    fun getSection(): Int {
+        if (dungeonFloor != 7 || !inBoss || getPhase() != 3) return 0
+
+        return when {
+            posX in 90.0..110.0 && posZ in 52.0..121.0 -> 1
+            posX in 19.0..88.0 && posZ in 122.0..142.0 -> 2
+            posX in -2.0..19.0 && posZ in 52.0..121.0 -> 3
+            posX in 19.0..88.0 && posZ in 30.0..50.0 -> 3
+            else -> 0
         }
     }
 

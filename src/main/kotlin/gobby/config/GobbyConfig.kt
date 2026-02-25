@@ -82,6 +82,15 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Spirit Leap Overlay",
+        description = "Replaces the default Spirit Leap chest GUI with a clean overlay showing teammate buttons with dungeon class colors.",
+        category = "Dungeons",
+        subcategory = "Spirit Leap Overlay"
+    )
+    var leapOverlay = true
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Secret Triggerbot",
         description = "Automatically right-clicks dungeon secrets (chests, levers, skulls) when looking at them",
         category = "Dungeons",
@@ -384,7 +393,7 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
         description = "How the aim rotates to the target. You should set this on snap when NOT using a term\nDo NOT enable packet mode, it's kinda here for the memes tbh",
         category = "Floor 7",
         subcategory = "Shooting Device",
-        options = ["Snap", "Ease", "Packet"],
+        options = ["Snap", "Ease", "Packet", "Device", "Shoot"],
     )
     var autoPre4AimStyle = 1
 
