@@ -83,11 +83,22 @@ object GobbyConfig : Vigilant(File("./config/gobbyclientFabric/config.toml"), "G
     @Property(
         type = PropertyType.SWITCH,
         name = "Spirit Leap Overlay",
-        description = "Replaces the default Spirit Leap chest GUI with a clean overlay showing teammate buttons with dungeon class colors.",
+        description = "Spirit leap overlay to leap to classes easier. Prio is: Arch -> Bers -> Mage -> Tank -> Healer",
         category = "Dungeons",
         subcategory = "Spirit Leap Overlay"
     )
     var leapOverlay = true
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Spirit Leap Overlay Scale",
+        description = "Scale of the Spirit Leap overlay UI (in percent).",
+        category = "Dungeons",
+        subcategory = "Spirit Leap Overlay",
+        min = 50,
+        max = 200
+    )
+    var leapOverlayScale = 100
 
     @Property(
         type = PropertyType.SWITCH,

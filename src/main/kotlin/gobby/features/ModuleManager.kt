@@ -42,6 +42,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(DungeonListener)
         EVENT_MANAGER.subscribe(ScanUtils)
         EVENT_MANAGER.subscribe(AutoLeap)
+        EVENT_MANAGER.subscribe(LeapOverlay)
         EVENT_MANAGER.subscribe(StarredMobEsp)
         EVENT_MANAGER.subscribe(MiniBossEsp)
         EVENT_MANAGER.subscribe(CancelInteract)
