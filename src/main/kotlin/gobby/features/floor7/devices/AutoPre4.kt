@@ -18,14 +18,11 @@ import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
 import gobby.utils.getShotCooldown
 import gobby.utils.hasItemID
-import gobby.utils.PacketUtils.getSequence
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getSection
 import gobby.utils.skyblockID
 import gobby.utils.timer.Clock
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
-import net.minecraft.util.Hand
 import net.minecraft.block.Blocks
 import net.minecraft.state.property.Properties
 import net.minecraft.util.math.BlockPos
@@ -39,7 +36,7 @@ object AutoPre4 : Module(
     Category.FLOOR7
 ) {
 
-    val aimStyle by SelectorSetting("Aim Style", 1, listOf("Snap", "Ease", "Packet"), desc = "How the aim rotates to the target")
+    val aimStyle by SelectorSetting("Aim Style", 1, listOf("Snap", "Ease"), desc = "How the aim rotates to the target")
     val shootingDeviceEsp by BooleanSetting("Shooting Device ESP", false, desc = "Highlights shot positions and shows aim target")
 
     // TODO: Auto leap + auto mask
@@ -169,21 +166,13 @@ object AutoPre4 : Module(
         val (yaw, pitch) = calcAimAngles(target) ?: return
 
         when (aimStyle) {
-            1 -> RotationUtils.easeTo(yaw, pitch, 60) { // Smooth rotation
+            1 -> RotationUtils.easeTo(yaw, pitch, 60) {
                 rightClick()
                 shotClock.update()
                 prefires++
                 currentAimTarget = null
             }
-            2 -> {
-                val packet = PlayerInteractItemC2SPacket(Hand.MAIN_HAND, getSequence(), yaw, pitch) // Serversided rotation
-                RotationUtils.snapTo(yaw, pitch, true)
-                mc.networkHandler?.sendPacket(packet)
-                shotClock.update()
-                prefires++
-                currentAimTarget = null
-            }
-            else -> { // snap rotation
+            else -> {
                 RotationUtils.snapTo(yaw, pitch)
                 rightClick()
                 shotClock.update()

@@ -13,13 +13,13 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.doorOpener
 
 object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", Category.DUNGEONS) {
 
-    val mode by SelectorSetting("Mode", 0, listOf("Off", "Auto Leap", "Left Click"), desc = "Off: Disabled\nAuto Leap: Automatically leaps\nLeft Click: Only leaps when you left click")
+    val mode by SelectorSetting("Mode", 0, listOf("Auto Leap", "Left Click"), desc = "Auto Leap: Automatically leaps\nLeft Click: Only leaps when you left click")
 
     private val witherDoorRegex = Regex("""^\w+ opened a WITHER door!$""")
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (!inDungeons || mode != 1) return
+        if (!inDungeons || mode != 0) return
         if (!witherDoorRegex.matches(event.message)) return
 
         val opener = doorOpener
@@ -30,7 +30,7 @@ object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", 
 
     @SubscribeEvent
     fun onLeftClick(event: LeftClickEvent) {
-        if (!inDungeons || mode != 2) return
+        if (!inDungeons || mode != 1) return
 
         val opener = doorOpener
         if (opener.isEmpty() || opener == mc.player?.name?.string) return
