@@ -1,9 +1,11 @@
 package gobby.features.floor7.devices
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.RightClickEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.BooleanSetting
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
@@ -13,14 +15,23 @@ import net.minecraft.entity.decoration.ItemFrameEntity
 import net.minecraft.util.hit.EntityHitResult
 import kotlin.math.floor
 
-object AlignHelper {
+object AlignHelper : Module(
+    "Align Helper", "Helpers for the arrow align device",
+    Category.FLOOR7
+) {
+
+    val aura by BooleanSetting("Aura", false, desc = "Automatically clicks all nearby item frames")
+    val legitMode by BooleanSetting("Legit Mode", false, desc = "Prevents you from overclicking item frames")
+    val sneakOverrides by BooleanSetting("Sneak Overrides", false, desc = "Sneaking lets you click even when the item frame is already solved")
+        .withDependency { legitMode }
 
     private val clickClocks = mutableMapOf<Int, Clock>()
 
     @SubscribeEvent
     fun onRightClick(event: RightClickEvent) {
+        if (!enabled || !legitMode) return
         if (!inDungeons || !inBoss || dungeonFloor != 7 || getPhase() != 3) return
-        if (!GobbyConfig.alignHelper || mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.world == null) return
 
         val frame = getTargetedFrame() ?: return
         val index = getFrameIndex(frame) ?: return
@@ -28,7 +39,7 @@ object AlignHelper {
         val solution = AutoAlign.currentSolution ?: return
 
         if (!AutoAlign.remainingClicks.containsKey(index)) {
-            if (GobbyConfig.alignSneakOverride && mc.player!!.isSneaking) return
+            if (sneakOverrides && mc.player!!.isSneaking) return
             event.cancel()
             return
         }

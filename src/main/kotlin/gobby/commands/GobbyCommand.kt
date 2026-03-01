@@ -1,14 +1,13 @@
 package gobby.commands
 
-import gobby.Gobbyclient.Companion.config
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import gg.essential.universal.UScreen
 import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
+import gobby.gui.click.ClickGUI
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
@@ -19,7 +18,7 @@ object GobbyCommand {
     private fun openConfig(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal(name)
             .executes {
-                mc.send { UScreen.displayScreen(config.gui()) }
+                mc.send { mc.setScreen(ClickGUI()) }
                 Command.SINGLE_SUCCESS
             }
     }

@@ -69,6 +69,15 @@ dependencies {
 	implementation("gg.essential:elementa:710")
 	include("gg.essential:elementa:710")
 
+	// NanoVG for custom font rendering
+	val lwjglVersion = "3.3.3"
+	modImplementation("org.lwjgl:lwjgl-nanovg:$lwjglVersion")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglVersion")
+	listOf("windows", "linux", "macos", "macos-arm64").forEach { os ->
+		modImplementation("org.lwjgl:lwjgl-nanovg:$lwjglVersion:natives-$os")
+		include("org.lwjgl:lwjgl-nanovg:$lwjglVersion:natives-$os")
+	}
+
 	// Kotlin
 	implementation(kotlin("stdlib-jdk8"))
 }

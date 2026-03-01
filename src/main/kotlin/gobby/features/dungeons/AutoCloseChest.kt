@@ -1,22 +1,23 @@
 package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.PacketReceivedEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.Utils.equalsOneOf
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
 import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
 
-object AutoCloseChest {
+object AutoCloseChest : Module("Auto Close Chest", "Automatically closes secret chests in dungeons", Category.DUNGEONS) {
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (mc.player == null || mc.world == null) return
         val packet = event.packet as? OpenScreenS2CPacket ?: return
-        if (!inDungeons || inBoss || !GobbyConfig.autoCloseChest ) return
+        if (!inDungeons || inBoss || !enabled) return
         if (!packet.name.string.equalsOneOf("Chest", "Large Chest")) return
 
         mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(packet.syncId))

@@ -1,14 +1,15 @@
 package gobby.features.floor7.devices
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
-import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.WorldUnloadEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
+import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getPhase
 import net.minecraft.entity.decoration.ItemFrameEntity
 import net.minecraft.item.Items
@@ -18,7 +19,10 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import kotlin.math.floor
 
-object AutoAlign {
+object AutoAlign : Module(
+    "Arrow Align", "Arrow align device helpers",
+    Category.FLOOR7, hidden = true
+) {
 
     private const val CLICK_CACHE_DURATION = 1000L
     private const val MAX_INTERACT_RANGE_SQ = 25.0
@@ -46,14 +50,14 @@ object AutoAlign {
         private set
     var currentSolution: List<Int?>? = null
         private set
-    var inP3 = false
+    val inP3 get() = DungeonUtils.inP3
 
     data class FrameData(val entity: ItemFrameEntity, var rotation: Int)
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (!inDungeons || !inBoss || dungeonFloor != 7 || getPhase() != 3) return
-        if (!GobbyConfig.autoAlign && !GobbyConfig.alignHelper) return
+        if (!AlignHelper.enabled) return
 
         val player = mc.player ?: return
         if (player.squaredDistanceTo(deviceStandPos.x.toDouble(), deviceStandPos.y.toDouble(), deviceStandPos.z.toDouble()) > DEVICE_RANGE_SQ) {
@@ -65,21 +69,12 @@ object AutoAlign {
         currentSolution = matchSolution()
         buildRemainingClicks()
 
-        if (currentSolution == null || !GobbyConfig.autoAlign) return
+        if (currentSolution == null || !AlignHelper.aura) return
         solveClosestFrame(player)
     }
 
     @SubscribeEvent
-    fun onChat(event: ChatReceivedEvent) {
-        when (event.message) {
-            "[BOSS] Goldor: Who dares trespass into my domain?" -> inP3 = true
-            "The Core entrance is opening!" -> inP3 = false
-        }
-    }
-
-    @SubscribeEvent
     fun onWorldUnload(event: WorldUnloadEvent) {
-        inP3 = false
         reset()
     }
 

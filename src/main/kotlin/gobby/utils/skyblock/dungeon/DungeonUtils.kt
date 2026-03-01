@@ -45,6 +45,7 @@ object DungeonUtils {
 
     inline val dungeonTeammates get() = DungeonListener.teammates
     inline val doorOpener get() = DungeonListener.doorOpener
+    inline val inP3 get() = DungeonListener.inP3
 
     private const val SPIRIT_LEAP = "SPIRIT_LEAP"
     private const val INFINITE_SPIRIT_LEAP = "INFINITE_SPIRIT_LEAP"

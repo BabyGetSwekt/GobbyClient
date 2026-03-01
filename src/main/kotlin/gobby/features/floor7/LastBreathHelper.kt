@@ -1,7 +1,6 @@
 package gobby.features.floor7
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ClientTickEvent
 import gobby.events.MouseButtonEvent
 import gobby.events.ServerTickEvent
@@ -35,7 +34,7 @@ object LastBreathHelper {
     fun onMouseButton(event: MouseButtonEvent) {
         if (mc.player == null || mc.world == null) return
         if (dungeonFloor != 7 || !inBoss) return
-        if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
+        if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
         if (event.button != MouseButtonEvent.RIGHT_BUTTON) return
         if (mc.currentScreen != null) return
 
@@ -46,7 +45,7 @@ object LastBreathHelper {
     fun onServerTick(event: ServerTickEvent) {
         if (mc.player == null || mc.world == null) return
         if (dungeonFloor != 7 || !inBoss) return
-        if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
+        if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
 
         if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH")) {
             ticks = 0
@@ -68,7 +67,7 @@ object LastBreathHelper {
     fun onClientTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.world == null) return
         if (dungeonFloor != 7 || !inBoss) return
-        if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.lastBreathHelper || getMaxTicks() == 0) return
+        if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
         if (mc.options.useKey.isPressed) {
             lbCharged = true
         } else {

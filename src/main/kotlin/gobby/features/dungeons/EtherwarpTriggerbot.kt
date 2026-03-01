@@ -1,10 +1,13 @@
 package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.Triggerbot
+import gobby.gui.click.BooleanSetting
+import gobby.gui.click.Category
+import gobby.gui.click.Module
+import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.PlayerUtils
@@ -14,7 +17,11 @@ import gobby.utils.skyblock.EtherwarpUtils
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
 
-object EtherwarpTriggerbot : Triggerbot() {
+object EtherwarpTriggerbot : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", Category.DUNGEONS) {
+
+    val mode by SelectorSetting("Mode", 0, listOf("Auto Sneak", "Manual Sneak"), desc = "Auto Sneak: Automatically sneaks and etherwarps\nManual Sneak: Only right-clicks when already sneaking")
+    val esp by BooleanSetting("ESP", false, desc = "Highlights etherwarp target blocks in dungeons.\nThe only blocks that can be used to etherwarp to are:\n- PRISMARINE_BRICK_SLAB\n- PRISMARINE_BRICK_STAIRS\n- PRISMARINE_BRICKS\n- PRISMARINE_WALL\n\nTo place these blocks down use `/gobby brush`. Or use `/gobby help` for more info.\nEtherwarp blocks are marked as yellow.")
+    val highlighter by BooleanSetting("Highlighter", false, desc = "Highlights the block you would etherwarp to")
 
     private var sneakDelay = 0
     private var wasSneaking = false
@@ -26,7 +33,7 @@ object EtherwarpTriggerbot : Triggerbot() {
         Blocks.PRISMARINE_WALL
     )
 
-    override fun shouldActivate(): Boolean = GobbyConfig.etherwarpTriggerbot != 0 && !inBoss && dungeonFloor != -1 && mc.currentScreen == null
+    override fun shouldActivate(): Boolean = enabled && !inBoss && dungeonFloor != -1 && mc.currentScreen == null
 
     override fun isValidBlock(pos: BlockPos): Boolean =
         mc.world?.getBlockState(pos)?.block in TARGET_BLOCKS
@@ -36,14 +43,14 @@ object EtherwarpTriggerbot : Triggerbot() {
     override fun getTargetPos(): BlockPos? {
         val player = mc.player ?: return null
         if (!player.mainHandStack.isEtherwarpable()) return null
-        if (GobbyConfig.etherwarpTriggerbot == 2 && !player.isSneaking) return null
+        if (mode == 1 && !player.isSneaking) return null
         return EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos
     }
 
     override fun performAction() {
         val player = mc.player ?: return
-        when (GobbyConfig.etherwarpTriggerbot) {
-            1 -> { /* Auto sneak mode */
+        when (mode) {
+            0 -> { /* Auto sneak mode */
                 if (player.isSneaking) {
                     PlayerUtils.rightClick()
                 } else {
@@ -52,7 +59,7 @@ object EtherwarpTriggerbot : Triggerbot() {
                     sneakDelay = getRandomInt(3, 4)
                 }
             }
-            2 -> { /* Manual sneak mode (you have to sneak urself) */
+            1 -> { /* Manual sneak mode (you have to sneak urself) */
                 if (player.isSneaking) PlayerUtils.rightClick()
             }
         }

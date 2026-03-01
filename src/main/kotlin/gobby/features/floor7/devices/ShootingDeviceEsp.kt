@@ -1,7 +1,6 @@
 package gobby.features.floor7.devices
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.BlockStateChangeEvent
 import gobby.events.ChatReceivedEvent
 import gobby.events.core.SubscribeEvent
@@ -24,7 +23,7 @@ object ShootingDeviceEsp : BlockHighlighter() {
 
     private val completedShots = mutableSetOf<BlockPos>()
 
-    override fun isEnabled(): Boolean = GobbyConfig.shootingDeviceEsp && dungeonFloor == 7
+    override fun isEnabled(): Boolean = AutoPre4.enabled && AutoPre4.shootingDeviceEsp && dungeonFloor == 7
 
     override fun getStatePredicate(): (BlockState) -> Boolean = { it.block == Blocks.EMERALD_BLOCK }
 
@@ -71,7 +70,7 @@ object ShootingDeviceEsp : BlockHighlighter() {
             draw3DBox(event.matrixStack, event.camera, box, hitColor)
         }
 
-        if (!GobbyConfig.autoPre4) return
+        if (!AutoPre4.enabled) return
         val aim = AutoPre4.currentAimTarget ?: return
         val half = AIM_BOX_SIZE / 2.0
         val aimBox = Box(

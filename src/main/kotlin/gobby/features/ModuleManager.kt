@@ -5,18 +5,22 @@ import gobby.commands.*
 import gobby.commands.developer.ClipCommand
 import gobby.commands.developer.SimulateCommand
 import gobby.events.core.EventDispatcher
+import gobby.features.developer.*
 import gobby.features.dungeons.*
 import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
+import gobby.features.floor7.terminals.*
 import gobby.features.force.*
 import gobby.features.galatea.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
 import gobby.gui.GuiElementManager
+import gobby.gui.click.KeybindListener
 import gobby.utils.LocationUtils
 import gobby.utils.render.*
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.ScanUtils
+import gobby.utils.skyblock.dungeon.TerminalUtils
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.timer.Executor
 
@@ -66,11 +70,30 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(GuiElementManager)
         EVENT_MANAGER.subscribe(YouAreAKingGG)
 
+        EVENT_MANAGER.subscribe(TerminalUtils)
+        EVENT_MANAGER.subscribe(NumbersTerminal)
+        EVENT_MANAGER.subscribe(ColorsTerminal)
+        EVENT_MANAGER.subscribe(StartsWithTerminal)
+        EVENT_MANAGER.subscribe(RubixTerminal)
+        EVENT_MANAGER.subscribe(RedGreenTerminal)
+        EVENT_MANAGER.subscribe(MelodyTerminal)
+        EVENT_MANAGER.subscribe(TerminalOverlay)
+
         EVENT_MANAGER.subscribe(SimulateCommand)
         EVENT_MANAGER.subscribe(ClipCommand)
         EVENT_MANAGER.subscribe(EventDispatcher)
+        EVENT_MANAGER.subscribe(KeybindListener)
         EVENT_MANAGER.subscribe(Welcome)
         TitleUtils
+
+        // Reference module objects to trigger init/registration
+        P5DebuffHelper
+        AutoTerminals
+        NoFire
+        DisableBlockParticles
+        AntiPearlCooldown
+        DevMode
+        ModIdHiderModule
     }
 
 }

@@ -1,8 +1,12 @@
 package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.features.render.EntityHighlighter
+import gobby.gui.click.BooleanSetting
+import gobby.gui.click.Category
+import gobby.gui.click.ColorSetting
+import gobby.gui.click.Module
+import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.entity.Entity
@@ -10,7 +14,12 @@ import net.minecraft.entity.decoration.ArmorStandEntity
 import net.minecraft.entity.player.PlayerEntity
 import java.awt.Color
 
-object MiniBossEsp : EntityHighlighter() {
+object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses in dungeons", Category.DUNGEONS) {
+
+    val espColor by ColorSetting("ESP Color", Color(255, 170, 0, 72), desc = "Pick a color for mini boss highlights")
+    val espLines by BooleanSetting("ESP Line", false, desc = "Draws a line to mini bosses")
+    val espLineMode by SelectorSetting("Line Mode", 1, listOf("Feet", "Crosshair"), desc = "Where the line starts from")
+        .withDependency { espLines }
 
     private val MINIBOSS_NAMES = setOf(
         "Lost Adventurer",
@@ -19,8 +28,6 @@ object MiniBossEsp : EntityHighlighter() {
         "Angry Archaeologist",
         "King Midas"
     )
-
-    override fun isEnabled(): Boolean = GobbyConfig.miniBossEsp
 
     override fun shouldHighlight(entity: Entity): Boolean {
         if (!inDungeons || inBoss) return false
@@ -45,8 +52,8 @@ object MiniBossEsp : EntityHighlighter() {
         return entity
     }
 
-    override fun getColor(): Color = GobbyConfig.miniBossEspColor
-    override fun shouldDrawLines(): Boolean = GobbyConfig.miniBossEspLines
-    override fun getLineColor(): Color = GobbyConfig.miniBossEspColor
-    override fun getLineMode(): Int = GobbyConfig.miniBossEspLineMode
+    override fun getColor(): Color = espColor
+    override fun shouldDrawLines(): Boolean = espLines
+    override fun getLineColor(): Color = espColor
+    override fun getLineMode(): Int = espLineMode
 }

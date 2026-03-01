@@ -1,7 +1,6 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.utils.Utils.isDeveloper
 import net.minecraft.text.MutableText
 import net.minecraft.text.Text
@@ -64,7 +63,7 @@ object ChatUtils {
     }
 
     fun devMessage(message: Any, showPrefix: Boolean = true) {
-        if (mc.player == null || mc.world == null || message == "" || !isDeveloper() || !GobbyConfig.devMode) return
+        if (mc.player == null || mc.world == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled) return
         val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()
         mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
     }

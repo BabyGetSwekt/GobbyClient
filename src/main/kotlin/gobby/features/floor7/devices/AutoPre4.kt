@@ -1,11 +1,14 @@
 package gobby.features.floor7.devices
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.BlockStateChangeEvent
 import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.BooleanSetting
+import gobby.gui.click.Category
+import gobby.gui.click.Module
+import gobby.gui.click.SelectorSetting
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
@@ -31,7 +34,13 @@ import net.minecraft.util.math.Vec3d
 /**
  * This code was inspired by CyanAddons, but has been heavily modified.
  */
-object AutoPre4 {
+object AutoPre4 : Module(
+    "Auto Pre 4", "Automatically completes the fourth device",
+    Category.FLOOR7
+) {
+
+    val aimStyle by SelectorSetting("Aim Style", 1, listOf("Snap", "Ease", "Packet"), desc = "How the aim rotates to the target")
+    val shootingDeviceEsp by BooleanSetting("Shooting Device ESP", false, desc = "Highlights shot positions and shows aim target")
 
     // TODO: Auto leap + auto mask
 
@@ -136,7 +145,7 @@ object AutoPre4 {
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss || !GobbyConfig.autoPre4) return
+        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss || !enabled) return
         if (!isNearPlate()) return
 
         val player = mc.player ?: return
@@ -159,7 +168,7 @@ object AutoPre4 {
         currentAimTarget = target
         val (yaw, pitch) = calcAimAngles(target) ?: return
 
-        when (GobbyConfig.autoPre4AimStyle) {
+        when (aimStyle) {
             1 -> RotationUtils.easeTo(yaw, pitch, 60) { // Smooth rotation
                 rightClick()
                 shotClock.update()

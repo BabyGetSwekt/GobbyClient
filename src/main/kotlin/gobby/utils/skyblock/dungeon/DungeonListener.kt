@@ -25,6 +25,8 @@ object DungeonListener {
         private set
     var isBloodOpened = false
         private set
+    var inP3 = false
+        private set
 
     private var leapTicks = 0
     private const val LEAP_TIMEOUT_TICKS = 40
@@ -60,8 +62,19 @@ object DungeonListener {
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (!inDungeons || inBoss) return
+        if (!inDungeons) return
         val message = event.message
+
+        if (message == "[BOSS] Goldor: Who dares trespass into my domain?") {
+            inP3 = true
+            return
+        }
+        if (message == "The Core entrance is opening!") {
+            inP3 = false
+            return
+        }
+
+        if (inBoss) return
 
         if (message == "The BLOOD DOOR has been opened!") {
             isBloodOpened = true
@@ -115,6 +128,7 @@ object DungeonListener {
         teammates.clear()
         doorOpener = ""
         isBloodOpened = false
+        inP3 = false
         DungeonUtils.leapTarget = null
     }
 

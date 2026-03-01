@@ -1,7 +1,6 @@
 package gobby.features.floor7
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ChatReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
@@ -33,7 +32,7 @@ object DebuffAreaRenderer : BlockHighlighter() {
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (!GobbyConfig.p5DebuffHelper || !GobbyConfig.renderDebuffArea) return
+        if (!P5DebuffHelper.enabled || !P5DebuffHelper.renderDebuffArea) return
         if (event.message in startMessages) {
             modMessage("P5 start detected, rendering areas")
             active = true
@@ -46,7 +45,7 @@ object DebuffAreaRenderer : BlockHighlighter() {
         active = false
     }
 
-    override fun isEnabled(): Boolean = GobbyConfig.p5DebuffHelper && GobbyConfig.renderDebuffArea && active
+    override fun isEnabled(): Boolean = P5DebuffHelper.enabled && P5DebuffHelper.renderDebuffArea && active
 
     override fun getStatePredicate(): (BlockState) -> Boolean = { !it.isAir }
 

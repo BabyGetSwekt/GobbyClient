@@ -1,23 +1,25 @@
 package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ChatReceivedEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.partyCoordRegex
 import gobby.utils.ChatUtils.publicCoordRegex
 import gobby.utils.render.RenderBeacon
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3i
+import java.awt.Color
 
-object CoordWaypoints {
+object CoordWaypoints : Module("Coordinate Beacons", "Renders a beacon on coordinates", Category.SKYBLOCK, defaultEnabled = true) {
 
     private var waypointCoords: Vec3i = Vec3i(0, 0, 0)
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (mc.player == null || mc.world == null || !GobbyConfig.renderCoordBeacons) return
+        if (mc.player == null || mc.world == null || !enabled) return
         val msg = event.message
 
         val match = publicCoordRegex.matchEntire(msg) ?: partyCoordRegex.matchEntire(msg)
@@ -30,7 +32,7 @@ object CoordWaypoints {
 
             // DEBUG, DELETE LATER @forceWarning
             modMessage("New waypoint set: ${waypointCoords.x}, ${waypointCoords.y}, ${waypointCoords.z} for 30 seconds")
-            RenderBeacon.addBeacon(BlockPos(waypointCoords.x, waypointCoords.y, waypointCoords.z), GobbyConfig.turtleEspColor, "Waypoint")
+            RenderBeacon.addBeacon(BlockPos(waypointCoords.x, waypointCoords.y, waypointCoords.z), Color(0, 170, 170), "Waypoint")
         }
     }
 }

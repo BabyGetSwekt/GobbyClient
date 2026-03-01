@@ -4,13 +4,20 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.PlayerUtils
 import gobby.utils.timer.Clock
 import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 
-abstract class Triggerbot {
+abstract class Triggerbot(
+    name: String,
+    description: String = "",
+    category: Category,
+    defaultEnabled: Boolean = false
+) : Module(name, description, category, toggled = true, defaultEnabled = defaultEnabled) {
 
     protected val clock = Clock()
     protected val clickedBlocks = mutableMapOf<BlockPos, Long>()

@@ -1,6 +1,6 @@
 package gobby.mixin;
 
-import gobby.config.GobbyConfig;
+import gobby.features.render.DisableBlockParticles;
 import net.minecraft.client.particle.BlockDustParticle;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleManager;
@@ -14,7 +14,7 @@ public class MixinParticleManager {
 
     @Inject(method = "addParticle(Lnet/minecraft/client/particle/Particle;)V", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$disableBlockParticles(Particle particle, CallbackInfo ci) {
-        if (GobbyConfig.INSTANCE.getDisableBlockParticles() && particle instanceof BlockDustParticle) {
+        if (DisableBlockParticles.INSTANCE.getEnabled() && particle instanceof BlockDustParticle) {
             ci.cancel();
         }
     }

@@ -1,19 +1,20 @@
 package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ChatReceivedEvent
 import gobby.events.core.SubscribeEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.partyMessage
 import gobby.utils.ChatUtils.partyMessageRegex
 import gobby.utils.ChatUtils.sendCommand
 
-object PartyCommands {
+object PartyCommands : Module("Party Commands", "Enables party commands (!help in party chat)", Category.SKYBLOCK) {
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (mc.player == null || mc.world == null || !GobbyConfig.partyCommands) return
+        if (mc.player == null || mc.world == null || !enabled) return
         val rawMessage = event.message
         val match = partyMessageRegex.matchEntire(rawMessage) ?: return
         val (rank, username, message) = match.destructured

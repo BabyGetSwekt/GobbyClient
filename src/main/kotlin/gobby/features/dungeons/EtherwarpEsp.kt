@@ -1,6 +1,5 @@
 package gobby.features.dungeons
 
-import gobby.config.GobbyConfig
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
 import gobby.features.render.BlockHighlighter
@@ -17,7 +16,7 @@ object EtherwarpEsp : BlockHighlighter() {
 
     private val highlightColor = Color(255, 255, 0, 60)
 
-    override fun isEnabled(): Boolean = GobbyConfig.etherwarpEsp && inDungeons && !inBoss
+    override fun isEnabled(): Boolean = EtherwarpTriggerbot.enabled && EtherwarpTriggerbot.esp && inDungeons && !inBoss
 
     override fun getStatePredicate(): (BlockState) -> Boolean = { false }
 

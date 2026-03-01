@@ -1,8 +1,10 @@
 package gobby.features.floor7
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.features.Triggerbot
+import gobby.gui.click.BooleanSetting
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.LocationUtils.inBoss
@@ -10,7 +12,13 @@ import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
 
-object LeverTriggerbot : Triggerbot() {
+object LeverTriggerbot : Triggerbot(
+    "Lever Triggerbot", "Auto right-clicks Floor 7 levers",
+    Category.FLOOR7
+) {
+
+    val lightsDevice by BooleanSetting("Lights Device", false, desc = "Auto right-clicks Lights Device levers")
+    val p3Levers by BooleanSetting("P3 Levers", false, desc = "Auto right-clicks P3 levers")
 
     enum class LeverType { DEVICE, P3 }
 
@@ -35,16 +43,16 @@ object LeverTriggerbot : Triggerbot() {
     override fun getClickDelay(): Long = 50L
 
     override fun shouldActivate(): Boolean =
-        inDungeons && dungeonFloor == 7 && inBoss && mc.currentScreen == null &&
-            (GobbyConfig.lightsDeviceTriggerbot || GobbyConfig.p3LeverTriggerbot)
+        enabled && inDungeons && dungeonFloor == 7 && inBoss && mc.currentScreen == null &&
+            (lightsDevice || p3Levers)
 
     override fun isValidBlock(pos: BlockPos): Boolean {
         val world = mc.world ?: return false
         if (world.getBlockAtPos(pos) != Blocks.LEVER) return false
         val type = leverPositions[pos] ?: return false
         return when (type) {
-            LeverType.DEVICE -> GobbyConfig.lightsDeviceTriggerbot
-            LeverType.P3 -> GobbyConfig.p3LeverTriggerbot
+            LeverType.DEVICE -> lightsDevice
+            LeverType.P3 -> p3Levers
         }
     }
 }

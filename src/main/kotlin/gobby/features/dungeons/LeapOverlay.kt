@@ -1,10 +1,12 @@
 package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.gui.ScreenRenderEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
+import gobby.gui.click.NumberSetting
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
@@ -17,7 +19,9 @@ import net.minecraft.util.Formatting
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
 
-object LeapOverlay {
+object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS, defaultEnabled = true) {
+
+    val scale by NumberSetting("Scale", 100, 50, 200, desc = "Scale of the overlay UI (percent)")
 
     private data class LeapButton(
         val teammate: DungeonTeammate,
@@ -79,14 +83,14 @@ object LeapOverlay {
     )
 
     fun isOverlayActive(): Boolean {
-        if (!GobbyConfig.leapOverlay || !inDungeons) return false
+        if (!enabled || !inDungeons) return false
         val screen = mc.currentScreen as? GenericContainerScreen ?: return false
         return screen.title.string.contains("Spirit Leap")
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
-        if (!inDungeons || !GobbyConfig.leapOverlay) {
+        if (!inDungeons || !enabled) {
             if (isActive) deactivate()
             return
         }
@@ -137,17 +141,17 @@ object LeapOverlay {
         val screenWidth = mc.window.scaledWidth
         val screenHeight = mc.window.scaledHeight
 
-        val scale = GobbyConfig.leapOverlayScale / 100f
+        val uiScale = scale / 100f
         val centerX = screenWidth / 2f
         val centerY = screenHeight / 2f
-        val scaledMouseX = ((event.mouseX - centerX) / scale + centerX).toInt()
-        val scaledMouseY = ((event.mouseY - centerY) / scale + centerY).toInt()
+        val scaledMouseX = ((event.mouseX - centerX) / uiScale + centerX).toInt()
+        val scaledMouseY = ((event.mouseY - centerY) / uiScale + centerY).toInt()
 
         handleMouseInput(scaledMouseX, scaledMouseY)
         drawDarkOverlay(context, screenWidth, screenHeight)
 
         context.matrices.pushMatrix()
-        applyScaleAroundCenter(context, centerX, centerY, scale)
+        applyScaleAroundCenter(context, centerX, centerY, uiScale)
         drawGrid(context, screenWidth, screenHeight, scaledMouseX, scaledMouseY)
         context.matrices.popMatrix()
     }

@@ -1,9 +1,9 @@
 package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.config.GobbyConfig
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
+import gobby.features.dungeons.EtherwarpTriggerbot
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.isEtherwarpable
@@ -17,7 +17,7 @@ object EtherwarpHighlighter {
 
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
-        if (!GobbyConfig.etherwarpHighlighter) return
+        if (!(EtherwarpTriggerbot.enabled && EtherwarpTriggerbot.highlighter)) return
         val player = mc.player ?: return
         if (!player.isSneaking) return
         if (!player.mainHandStack.isEtherwarpable()) return

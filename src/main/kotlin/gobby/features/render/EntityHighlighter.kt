@@ -5,6 +5,8 @@ import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.render.Interpolate
 import gobby.utils.render.Render3D.drawEntityModel
@@ -17,7 +19,12 @@ import net.minecraft.entity.decoration.ArmorStandEntity
 import net.minecraft.entity.player.PlayerEntity
 import java.awt.Color
 
-abstract class EntityHighlighter {
+abstract class EntityHighlighter(
+    name: String,
+    description: String = "",
+    category: Category,
+    defaultEnabled: Boolean = false
+) : Module(name, description, category, toggled = true, defaultEnabled = defaultEnabled) {
 
     private val cachedMobs = mutableSetOf<Entity>()
 
@@ -25,7 +32,7 @@ abstract class EntityHighlighter {
     fun onRender3D(event: NewRender3DEvent) {
         val player = mc.player ?: return
         val world = mc.world ?: return
-        if (!isEnabled()) return
+        if (!enabled) return
 
         val matrixStack = event.matrixStack
         val camera = event.camera
@@ -36,7 +43,7 @@ abstract class EntityHighlighter {
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
-        if (!usesMobCaching() || !isEnabled()) return
+        if (!usesMobCaching() || !enabled) return
         val world = mc.world ?: return
 
         for (entity in world.entities) {
@@ -112,7 +119,6 @@ abstract class EntityHighlighter {
         }
     }
 
-    abstract fun isEnabled(): Boolean
     abstract fun shouldHighlight(entity: Entity): Boolean
     abstract fun getColor(): Color
 
