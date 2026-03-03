@@ -54,6 +54,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(EtherwarpTriggerbot)
         EVENT_MANAGER.subscribe(EtherwarpEsp)
         EVENT_MANAGER.subscribe(EtherwarpHighlighter)
+        EVENT_MANAGER.subscribe(SecretHitbox)
         EVENT_MANAGER.subscribe(AutoCloseChest)
         EVENT_MANAGER.subscribe(LastBreathHelper)
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)

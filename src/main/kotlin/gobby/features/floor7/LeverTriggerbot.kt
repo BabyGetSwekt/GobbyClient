@@ -22,7 +22,7 @@ object LeverTriggerbot : Triggerbot(
 
     enum class LeverType { DEVICE, P3 }
 
-    private val leverPositions = mapOf(
+    val leverPositions = mapOf(
         BlockPos(62, 133, 142) to LeverType.DEVICE,
         BlockPos(62, 136, 142) to LeverType.DEVICE,
         BlockPos(60, 135, 142) to LeverType.DEVICE,

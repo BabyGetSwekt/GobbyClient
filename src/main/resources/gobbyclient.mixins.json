@@ -21,7 +21,11 @@
 		"network.MixinClientConnection",
 		"MixinFabricLoaderImpl",
 		"MixinClientWorld",
-		"MixinParticleManager"
+		"MixinParticleManager",
+		"MixinAbstractBlock",
+		"MixinLeverBlock",
+		"MixinSkullBlock",
+		"MixinWallSkullBlock"
 	],
 	"injectors": {
 		"defaultRequire": 1
