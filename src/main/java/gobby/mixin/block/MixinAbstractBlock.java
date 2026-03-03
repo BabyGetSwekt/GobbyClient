@@ -1,4 +1,4 @@
-package gobby.mixin;
+package gobby.mixin.block;
 
 import gobby.features.dungeons.SecretHitbox;
 import net.minecraft.block.AbstractBlock;

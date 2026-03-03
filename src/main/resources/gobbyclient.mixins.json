@@ -22,10 +22,10 @@
 		"MixinFabricLoaderImpl",
 		"MixinClientWorld",
 		"MixinParticleManager",
-		"MixinAbstractBlock",
-		"MixinLeverBlock",
-		"MixinSkullBlock",
-		"MixinWallSkullBlock"
+		"block.MixinAbstractBlock",
+		"block.MixinLeverBlock",
+		"block.MixinSkullBlock",
+		"block.MixinWallSkullBlock"
 	],
 	"injectors": {
 		"defaultRequire": 1
