@@ -6,7 +6,6 @@ import gobby.events.gui.ScreenRenderEvent
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
-import gobby.features.floor7.terminals.AutoTerminals
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
