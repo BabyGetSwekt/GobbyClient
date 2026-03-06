@@ -21,6 +21,7 @@ import gobby.utils.render.*
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.skyblock.dungeon.TerminalUtils
+import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.timer.Executor
 
@@ -66,6 +67,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
 
+        EVENT_MANAGER.subscribe(PathExecutor)
         EVENT_MANAGER.subscribe(RotationUtils)
 
         EVENT_MANAGER.subscribe(GuiElementManager)
