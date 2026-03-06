@@ -4,14 +4,18 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
+import gobby.pathfinder.PathExecutor
+import gobby.pathfinder.core.PathFinder
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.minecraft.util.math.BlockPos
 
 object GobbyCommand {
 
@@ -61,6 +65,8 @@ object GobbyCommand {
                         modMessage("§e/gobby blockselector §7- Pick a block for the brush")
                         modMessage("§e/gobby brush §7- Toggle brush mode")
                         modMessage("§e/gobby sendcoords §7- Send your coords in chat")
+                        modMessage("§e/gobby path <x> <y> <z> §7- Pathfind to coordinates")
+                        modMessage("§e/gobby pathstop §7- Stop following a path")
                         modMessage("§b§m                              ")
                         Command.SINGLE_SUCCESS
                     }
@@ -78,6 +84,53 @@ object GobbyCommand {
             )
     }
 
+    private fun pathCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("path")
+                    .then(
+                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                            .then(
+                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                    .then(
+                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                            .executes { context ->
+                                                val x = IntegerArgumentType.getInteger(context, "x")
+                                                val y = IntegerArgumentType.getInteger(context, "y")
+                                                val z = IntegerArgumentType.getInteger(context, "z")
+                                                val player = mc.player ?: return@executes 0
+                                                val start = player.blockPos
+                                                val goal = BlockPos(x, y, z)
+                                                val speed = player.movementSpeed.toDouble()
+
+                                                modMessage("Pathfinding to $x $y $z (speed: ${"%.3f".format(speed)})...")
+                                                val path = PathFinder.findPath(start, goal, speed)
+                                                if (path != null) {
+                                                    PathExecutor.start(path)
+                                                    modMessage("§aPath found! ${path.size} nodes. Following path... Use §e/gobby pathstop §ato cancel.")
+                                                } else {
+                                                    modMessage("§cNo path found to $x $y $z")
+                                                }
+                                                Command.SINGLE_SUCCESS
+                                            }
+                                    )
+                            )
+                    )
+            )
+    }
+
+    private fun pathStopCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("pathstop")
+                    .executes {
+                        PathExecutor.stop()
+                        modMessage("§cPath following stopped.")
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
     @SubscribeEvent
     fun register(event: CommandRegisterEvent) {
         event.register(openConfig("gobby"))
@@ -86,5 +139,7 @@ object GobbyCommand {
         event.register(blockSelectorCommand())
         event.register(modIdCommand())
         event.register(helpCommand())
+        event.register(pathCommand())
+        event.register(pathStopCommand())
     }
 }
