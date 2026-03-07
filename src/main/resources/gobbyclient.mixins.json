@@ -9,7 +9,6 @@
       	"MixinKeyboard",
 		"MixinScreen",
 		"MixinHandledScreen",
-		"MixinItemStack",
 		"render.MixinWorldRenderer",
 		"render.MixinLightmapTextureManager",
 		"render.MixinSplashTextResourceSupplier",
