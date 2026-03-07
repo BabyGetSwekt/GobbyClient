@@ -65,7 +65,7 @@ object GobbyCommand {
                         modMessage("§e/gobby blockselector §7- Pick a block for the brush")
                         modMessage("§e/gobby brush §7- Toggle brush mode")
                         modMessage("§e/gobby sendcoords §7- Send your coords in chat")
-                        modMessage("§e/gobby path <x> <y> <z> §7- Pathfind to coordinates")
+                        modMessage("§e/gobby path <x> <y> <z> §7- Pathfind to coordinates (BETA + WIP)")
                         modMessage("§e/gobby pathstop §7- Stop following a path")
                         modMessage("§b§m                              ")
                         Command.SINGLE_SUCCESS
