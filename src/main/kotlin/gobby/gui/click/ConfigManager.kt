@@ -28,6 +28,7 @@ object ConfigManager {
                         is ColorSetting -> mj.addProperty(setting.name, setting.value.rgb)
                         is KeybindSetting -> mj.addProperty(setting.name, setting.value)
                         is ActionSetting -> {}
+                        is DropDownSetting -> {}
                     }
                 }
                 modulesJson.add(module.name, mj)
@@ -75,6 +76,7 @@ object ConfigManager {
                             is ColorSetting -> setting.value = Color(mj.get(setting.name).asInt, true)
                             is KeybindSetting -> setting.value = mj.get(setting.name).asInt
                             is ActionSetting -> {}
+                            is DropDownSetting -> {}
                         }
                     } catch (_: Exception) {}
                 }

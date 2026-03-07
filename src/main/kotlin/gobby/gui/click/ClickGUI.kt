@@ -53,6 +53,7 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
     internal var tooltipText: String? = null
     internal var tooltipX = 0
     internal var tooltipY = 0
+    internal var searchSelectAll = false
 
     override fun shouldPause() = false
 
@@ -94,11 +95,14 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
 
     internal fun settingHeight(s: Setting<*>): Int {
         if (s is ColorSetting && s.expanded) return SH + COLOR_PICKER_H
+        if (s is DropDownSetting && s.expanded) {
+            return SH + s.children.filter { it.isVisible }.sumOf { settingHeight(it) }
+        }
         return SH
     }
 
     internal fun settingsHeight(m: Module): Int {
-        return m.allSettings().filter { it.isVisible }.sumOf { settingHeight(it) }
+        return m.allSettings().filter { it.isVisible && it.parentDropdown == null }.sumOf { settingHeight(it) }
     }
 
     internal fun getModulesForPanel(panel: PanelState): List<Module> {

@@ -1,5 +1,6 @@
 package gobby.gui.click
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.ClickGUITheme.ALPHA_BAR_H
 import gobby.gui.click.ClickGUITheme.COLOR_PICKER_H
 import gobby.gui.click.ClickGUITheme.HH
@@ -17,6 +18,7 @@ object InputHandler {
     fun handleMouseClick(gui: ClickGUI, mx: Int, my: Int, button: Int): Boolean {
         gui.hexEditSetting = null
         gui.numberEditSetting = null
+        gui.searchSelectAll = false
 
         // Search bar click
         val sw = SearchBarRenderer.SEARCH_W
@@ -75,6 +77,7 @@ object InputHandler {
                 if (module.expanded) {
                     for (setting in module.allSettings()) {
                         if (!setting.isVisible) continue
+                        if (setting.parentDropdown != null) continue
                         val sh = gui.settingHeight(setting)
                         if (my in y..(y + sh)) {
                             handleSettingClick(gui, panel.x.toInt(), y, mx, my, setting, button)
@@ -129,6 +132,25 @@ object InputHandler {
             }
             is ColorSetting -> handleColorSettingClick(gui, px, y, mx, my, setting, button)
             is ActionSetting -> setting.action()
+            is DropDownSetting -> handleDropDownClick(gui, px, y, mx, my, setting, button)
+        }
+    }
+
+    private fun handleDropDownClick(gui: ClickGUI, px: Int, y: Int, mx: Int, my: Int, s: DropDownSetting, button: Int) {
+        if (my < y + SH) {
+            s.expanded = !s.expanded
+            return
+        }
+        if (!s.expanded) return
+        var childY = y + SH
+        for (child in s.children) {
+            if (!child.isVisible) continue
+            val ch = gui.settingHeight(child)
+            if (my in childY..(childY + ch)) {
+                handleSettingClick(gui, px, childY, mx, my, child, button)
+                return
+            }
+            childY += ch
         }
     }
 
@@ -334,7 +356,13 @@ object InputHandler {
             return true
         }
 
+        if (gui.searchListening && key == GLFW.GLFW_KEY_A && isCtrlHeld()) {
+            if (gui.searchQuery.isNotEmpty()) gui.searchSelectAll = true
+            return true
+        }
+
         if (key == GLFW.GLFW_KEY_ESCAPE) {
+            gui.searchSelectAll = false
             if (gui.searchListening && gui.searchQuery.isNotEmpty()) {
                 gui.searchQuery = ""
                 gui.searchListening = false
@@ -343,9 +371,16 @@ object InputHandler {
             gui.close()
             return true
         }
-        if (gui.searchListening && key == GLFW.GLFW_KEY_BACKSPACE && gui.searchQuery.isNotEmpty()) {
-            gui.searchQuery = gui.searchQuery.dropLast(1)
-            return true
+        if (gui.searchListening && key == GLFW.GLFW_KEY_BACKSPACE) {
+            if (gui.searchSelectAll) {
+                gui.searchQuery = ""
+                gui.searchSelectAll = false
+                return true
+            }
+            if (gui.searchQuery.isNotEmpty()) {
+                gui.searchQuery = gui.searchQuery.dropLast(1)
+                return true
+            }
         }
         return false
     }
@@ -377,7 +412,12 @@ object InputHandler {
         }
 
         if (gui.searchListening && (chr.isLetterOrDigit() || chr == ' ')) {
-            gui.searchQuery += chr
+            if (gui.searchSelectAll) {
+                gui.searchQuery = chr.toString()
+                gui.searchSelectAll = false
+            } else {
+                gui.searchQuery += chr
+            }
             return true
         }
         if (!gui.searchListening && chr.isLetterOrDigit()) {
@@ -392,6 +432,12 @@ object InputHandler {
         val parsed = gui.numberInput.toIntOrNull() ?: return
         s.value = parsed.coerceIn(s.min, s.max)
         ConfigManager.save()
+    }
+
+    private fun isCtrlHeld(): Boolean {
+        val handle = mc.window.handle
+        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+               GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
     }
 
     private fun applyHexInput(gui: ClickGUI, s: ColorSetting) {

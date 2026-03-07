@@ -2,6 +2,7 @@ package gobby.features.floor7.terminals
 
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
+import gobby.gui.click.DropDownSetting
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.gui.click.SelectorSetting
@@ -17,4 +18,14 @@ object AutoTerminals : Module(
     val melodySkip by SelectorSetting("Melody Skip", 1, listOf("None", "Edges", "All"), desc = "When to skip melody rows")
     val melodySkipDelay by NumberSetting("Skip Delay", 50, 0, 150, 50, desc = "Delay in ms between skip clicks")
         .withDependency { melodySkip != 0 }
+
+    private val auraDropdown = DropDownSetting("Terminal Aura", desc = "Automatically open nearby inactive terminals").also { settings.add(it) }
+    val auraEnabled by BooleanSetting("Enabled", false, desc = "Toggle terminal aura on/off")
+        .childOf(auraDropdown)
+    val auraDelay by NumberSetting("Aura Delay", 1000, 200, 1500, 100, desc = "Delay in ms between aura clicks")
+        .childOf(auraDropdown).withDependency { auraEnabled }
+    val auraDistance by NumberSetting("Aura Distance", 4, 1, 4, desc = "Max distance in blocks to open terminals")
+        .childOf(auraDropdown).withDependency { auraEnabled }
+    val auraOnlyGround by BooleanSetting("Only on Ground", false, desc = "Only aura terminals when on the ground")
+        .childOf(auraDropdown).withDependency { auraEnabled }
 }

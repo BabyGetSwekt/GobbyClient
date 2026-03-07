@@ -9,6 +9,7 @@ import kotlin.reflect.KProperty
 sealed class Setting<T>(val name: String, val description: String, default: T, val hidden: Boolean = false) {
     var value: T = default
     protected var dependency: (() -> Boolean)? = null
+    internal var parentDropdown: DropDownSetting? = null
 
     val isVisible: Boolean get() = !hidden && (dependency?.invoke() != false)
 }
@@ -22,6 +23,7 @@ class BooleanSetting(
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Boolean) { value = v }
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): BooleanSetting {
         thisRef.settings.add(this)
@@ -41,6 +43,7 @@ class NumberSetting(
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v.coerceIn(min, max) }
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): NumberSetting {
         thisRef.settings.add(this)
@@ -140,4 +143,13 @@ class KeybindSetting(
             else -> "KEY $value"
         }
     }
+}
+
+class DropDownSetting(
+    name: String,
+    desc: String = "",
+    hidden: Boolean = false
+) : Setting<Unit>(name, desc, Unit, hidden) {
+    var expanded = false
+    val children = mutableListOf<Setting<*>>()
 }

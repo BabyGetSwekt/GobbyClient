@@ -3,6 +3,7 @@ package gobby.gui.click
 import gobby.gui.click.ClickGUITheme.cAccent
 import gobby.gui.click.ClickGUITheme.cBorder
 import gobby.gui.click.ClickGUITheme.cSearchBg
+import gobby.gui.click.ClickGUITheme.cSelectHighlight
 import gobby.gui.click.ClickGUITheme.cText
 import gobby.gui.click.ClickGUITheme.cTextBright
 import gobby.gui.click.ClickGUITheme.cTextDark
@@ -34,9 +35,14 @@ object SearchBarRenderer {
             if (gui.searchListening) "" else "Search..."
         } else gui.searchQuery
         val textCol = if (gui.searchQuery.isEmpty() && !gui.searchListening) cTextDark else cText
+
+        if (gui.searchSelectAll && gui.searchQuery.isNotEmpty()) {
+            val selW = ClickGUITheme.textW(gui.searchQuery)
+            ClickGUITheme.fill(ctx, textX, sy + 3, selW, SEARCH_H - 6, cSelectHighlight)
+        }
         ClickGUITheme.drawText(ctx, textX, textY, display, textCol)
 
-        if (gui.searchListening && (System.currentTimeMillis() / 500) % 2 == 0L) {
+        if (gui.searchListening && !gui.searchSelectAll && (System.currentTimeMillis() / 500) % 2 == 0L) {
             val cursorX = textX + ClickGUITheme.textW(gui.searchQuery)
             ClickGUITheme.fill(ctx, cursorX, sy + 5, 1, SEARCH_H - 10, cText)
         }
