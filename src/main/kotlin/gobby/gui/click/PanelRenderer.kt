@@ -85,6 +85,7 @@ object PanelRenderer {
             if (module.expanded) {
                 for (setting in module.allSettings()) {
                     if (!setting.isVisible) continue
+                    if (setting.parentDropdown != null) continue
                     SettingRenderer.drawSettingRow(ctx, gui, px, y, setting, mx, my, py + HH, py + HH + visH)
                     y += gui.settingHeight(setting)
                 }

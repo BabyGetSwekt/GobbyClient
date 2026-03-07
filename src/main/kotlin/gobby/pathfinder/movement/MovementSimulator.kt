@@ -20,6 +20,12 @@ object MovementSimulator {
     private const val FALL_BASE_COST = 1.0
     private const val FALL_PER_BLOCK = 0.3
     private const val MAX_FALL_SCAN = 40
+    private const val MAX_JUMP_HEIGHT = 1.25
+
+    private fun effectiveFeetOffset(pos: BlockPos): Double {
+        val posHeight = BlockCache.getCollisionHeight(pos)
+        return if (posHeight > 0) posHeight else BlockCache.getCollisionHeight(pos.down()) - 1.0
+    }
 
     private val CARDINAL_DIRS = arrayOf(
         intArrayOf(0, 1),
@@ -52,6 +58,16 @@ object MovementSimulator {
         val speedFactor = playerSpeed / BASE_WALK_SPEED
         val neighbors = mutableListOf<Neighbor>()
 
+        if (!BlockCache.isSolid(pos.down()) && BlockCache.isPassable(pos)) {
+            val landing = findLanding(pos)
+            if (landing != null) {
+                val fallDist = pos.y - landing.y
+                val cost = (FALL_BASE_COST + fallDist * FALL_PER_BLOCK) / speedFactor
+                neighbors.add(Neighbor(landing, MoveAction.FORWARD, cost))
+            }
+            return neighbors
+        }
+
         for (dir in CARDINAL_DIRS) {
             val dx = dir[0]
             val dz = dir[1]
@@ -62,16 +78,18 @@ object MovementSimulator {
             }
 
             val jumpTarget = pos.add(dx, 1, dz)
-            if (BlockCache.isPassable(pos.up(2)) && BlockCache.isWalkable(jumpTarget)) {
+            val feetOffset = effectiveFeetOffset(pos)
+            val obstacleHeight = BlockCache.getCollisionHeight(pos.add(dx, 0, dz))
+            if (obstacleHeight - feetOffset <= MAX_JUMP_HEIGHT
+                && BlockCache.isPassable(pos.up(2))
+                && BlockCache.isWalkable(jumpTarget)) {
                 neighbors.add(Neighbor(jumpTarget, MoveAction.JUMP, JUMP_COST / speedFactor))
             }
 
             if (BlockCache.isPassable(flatTarget) && BlockCache.isPassable(flatTarget.up())) {
                 val landing = findLanding(flatTarget)
                 if (landing != null) {
-                    val fallDist = pos.y - landing.y
-                    val cost = (FALL_BASE_COST + fallDist * FALL_PER_BLOCK) / speedFactor
-                    neighbors.add(Neighbor(landing, MoveAction.FORWARD, cost))
+                    neighbors.add(Neighbor(flatTarget, MoveAction.FORWARD, CARDINAL_COST / speedFactor))
                 }
             }
         }

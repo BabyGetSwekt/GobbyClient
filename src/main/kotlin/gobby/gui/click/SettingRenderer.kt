@@ -40,7 +40,7 @@ import java.awt.Color
 object SettingRenderer {
 
     fun drawSettingRow(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
-        if (setting !is ColorSetting) {
+        if (setting !is ColorSetting && setting !is DropDownSetting) {
             ClickGUITheme.fill(ctx, px, y, PW, SH, cSettingBg)
         }
 
@@ -51,6 +51,7 @@ object SettingRenderer {
             is SelectorSetting -> drawSelectorSetting(ctx, px, y, setting)
             is ColorSetting -> drawColorSetting(ctx, gui, px, y, setting)
             is ActionSetting -> drawActionSetting(ctx, px, y, setting, mx, my, clipTop, clipBot)
+            is DropDownSetting -> drawDropDownSetting(ctx, gui, px, y, setting, mx, my, clipTop, clipBot)
         }
 
         // Setting tooltip on hover
@@ -233,6 +234,35 @@ object SettingRenderer {
         if (isEditingHex && (System.currentTimeMillis() / 500) % 2 == 0L) {
             val curX = padX + (hexW - hexTW) / 2 + ClickGUITheme.textWSmall("#${gui.hexInput}")
             ClickGUITheme.fill(ctx, curX, hexTop + 3, 1, hexH - 6, cAccent)
+        }
+    }
+
+    private fun drawDropDownSetting(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, s: DropDownSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+        ClickGUITheme.fill(ctx, px, y, PW, SH, cSettingBg)
+        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+        ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
+
+        // Draw arrow: ▼ closed, ▲ open
+        val arrowX = px + PW - PAD - 5
+        val arrowY = y + (SH - 3) / 2
+        if (s.expanded) {
+            ClickGUITheme.fill(ctx, arrowX + 2, arrowY, 1, 1, cAccent)
+            ClickGUITheme.fill(ctx, arrowX + 1, arrowY + 1, 3, 1, cAccent)
+            ClickGUITheme.fill(ctx, arrowX, arrowY + 2, 5, 1, cAccent)
+        } else {
+            ClickGUITheme.fill(ctx, arrowX, arrowY, 5, 1, cAccent)
+            ClickGUITheme.fill(ctx, arrowX + 1, arrowY + 1, 3, 1, cAccent)
+            ClickGUITheme.fill(ctx, arrowX + 2, arrowY + 2, 1, 1, cAccent)
+        }
+
+        if (!s.expanded) return
+
+        // Render children
+        var childY = y + SH
+        for (child in s.children) {
+            if (!child.isVisible) continue
+            drawSettingRow(ctx, gui, px, childY, child, mx, my, clipTop, clipBot)
+            childY += gui.settingHeight(child)
         }
     }
 

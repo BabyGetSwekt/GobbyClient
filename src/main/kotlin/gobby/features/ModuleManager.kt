@@ -23,6 +23,7 @@ import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
+import gobby.utils.interactions.AuraManager
 import gobby.utils.timer.Executor
 
 object ModuleManager {
@@ -73,6 +74,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(GuiElementManager)
         EVENT_MANAGER.subscribe(YouAreAKingGG)
 
+        EVENT_MANAGER.subscribe(AuraManager)
         EVENT_MANAGER.subscribe(TerminalUtils)
         EVENT_MANAGER.subscribe(NumbersTerminal)
         EVENT_MANAGER.subscribe(ColorsTerminal)
@@ -81,6 +83,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(RedGreenTerminal)
         EVENT_MANAGER.subscribe(MelodyTerminal)
         EVENT_MANAGER.subscribe(TerminalOverlay)
+        EVENT_MANAGER.subscribe(TerminalAura)
 
         EVENT_MANAGER.subscribe(SimulateCommand)
         EVENT_MANAGER.subscribe(ClipCommand)

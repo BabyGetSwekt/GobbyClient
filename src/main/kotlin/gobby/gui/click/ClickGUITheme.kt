@@ -68,6 +68,7 @@ object ClickGUITheme {
     val cHueIndicator = Color(255, 255, 255, 230).rgb
     val cHexBoxBg   = Color(32, 32, 40, 255).rgb
     val cTooltipBg  = Color(14, 14, 20, 240).rgb
+    val cSelectHighlight = Color(0, 140, 170, 100).rgb
 
     // Text renderer shortcut
     val tr get() = mc.textRenderer
