@@ -24,17 +24,6 @@ public abstract class MixinMinecraftClient {
     @Unique
     private long gobbyclien$lastChecked = 0;
 
-
-    /**
-     * Changes the window title
-     * @param cir window title
-     */
-    @Inject(method = "getWindowTitle()Ljava/lang/String;", at = @At("HEAD"), cancellable = true)
-    private void gobbyclient$onGetWindowTitle(CallbackInfoReturnable<String> cir) {
-       cir.setReturnValue("Gobbyclient - " + Gobbyclient.MOD_VERSION + " - " + Gobbyclient.BETA_MODE);
-       cir.cancel();
-    }
-
     /**
      * Injects before the tick happens (at HEAD), preTickEvent
      */
