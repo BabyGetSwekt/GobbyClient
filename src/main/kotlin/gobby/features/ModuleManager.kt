@@ -103,6 +103,7 @@ object ModuleManager {
         DisableBlockParticles
         WardrobeSwapper
         DevMode
+        DrawSlotNumbers
         ModIdHiderModule
     }
 

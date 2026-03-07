@@ -16,6 +16,7 @@
 		"render.MixinInGameHud",
 		"accessor.MinecraftClientAccessor",
 		"accessor.KeyBindingAccessor",
+		"accessor.HandledScreenAccessor",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
 		"MixinFabricLoaderImpl",
