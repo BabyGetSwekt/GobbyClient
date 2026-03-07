@@ -23,7 +23,7 @@ public class MixinKeyboard {
     private void gobbyclient$onKeyPressed(long window, int action, KeyInput input, CallbackInfo ci) {
         int key = input.key();
 
-        if ((action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT) && key != GLFW.GLFW_KEY_UNKNOWN && client.world != null) {
+        if (action == GLFW.GLFW_PRESS && key != GLFW.GLFW_KEY_UNKNOWN && client.world != null) {
             KeyPressGuiEvent event = Gobbyclient.EVENT_MANAGER.publish(new KeyPressGuiEvent(key));
 
             if (event.isCanceled()) {
