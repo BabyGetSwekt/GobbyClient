@@ -1,4 +1,4 @@
-package gobby.utils.interactions
+package gobby.utils.managers
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent

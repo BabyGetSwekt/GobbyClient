@@ -24,8 +24,9 @@ import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
-import gobby.utils.interactions.AuraManager
-import gobby.utils.interactions.WardrobeManager
+import gobby.utils.managers.AuraManager
+import gobby.utils.managers.EquipmentManager
+import gobby.utils.managers.WardrobeManager
 import gobby.utils.timer.Executor
 
 object ModuleManager {
@@ -79,6 +80,8 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(WardrobeSwapper)
         EVENT_MANAGER.subscribe(AuraManager)
         EVENT_MANAGER.subscribe(WardrobeManager)
+        EVENT_MANAGER.subscribe(EquipmentManager)
+        EVENT_MANAGER.subscribe(MaskSwapper)
         EVENT_MANAGER.subscribe(TerminalUtils)
         EVENT_MANAGER.subscribe(NumbersTerminal)
         EVENT_MANAGER.subscribe(ColorsTerminal)
@@ -102,6 +105,7 @@ object ModuleManager {
         NoFire
         DisableBlockParticles
         WardrobeSwapper
+        MaskSwapper
         DevMode
         DrawSlotNumbers
         ModIdHiderModule
