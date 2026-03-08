@@ -7,6 +7,7 @@ import gobby.events.WorldUnloadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
 import gobby.utils.ChatUtils.errorMessage
+import gobby.utils.LocationUtils
 import gobby.utils.skyblockID
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
@@ -54,6 +55,7 @@ object EquipmentManager {
     }
 
     private fun startSwap(equipSlot: Int, vararg skyblockIds: String) {
+        if (!LocationUtils.onSkyblock) return
         val slot = findItemInInventory(*skyblockIds)
         if (slot == -1) {
             errorMessage("Item not found in inventory")
