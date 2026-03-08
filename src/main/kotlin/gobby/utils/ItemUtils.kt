@@ -89,6 +89,12 @@ fun ItemStack.getTunedTransmission(): Int {
     return this.getItemData.getInt("tuned_transmission").orElse(0)
 }
 
+fun getHelmetID(): String =
+    mc.player?.inventory?.getStack(39)?.skyblockID ?: ""
+
+fun hasHelmetWithID(id: String): Boolean =
+    getHelmetID() == id
+
 fun isHoldingSkyblockItem(vararg ids: String): Boolean {
     val player = mc.player ?: return false
     return player.mainHandStack.skyblockID in ids

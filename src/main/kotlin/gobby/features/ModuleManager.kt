@@ -68,6 +68,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AutoPre4)
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
         EVENT_MANAGER.subscribe(LeverTriggerbot)
+        EVENT_MANAGER.subscribe(CowHatReminder)
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
 

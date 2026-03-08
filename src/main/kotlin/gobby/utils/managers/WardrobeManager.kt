@@ -6,6 +6,7 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.WorldUnloadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
+import gobby.utils.LocationUtils
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
@@ -40,6 +41,7 @@ object WardrobeManager {
     }
 
     private fun startSwap(wardrobeSlot: Int) {
+        if (!LocationUtils.onSkyblock) return
         targetSlot = SLOT_OFFSET + wardrobeSlot - 1
         state = State.WAITING_SCREEN
         ticksWaiting = 0
