@@ -3,7 +3,7 @@ package gobby.features.floor7.terminals
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
-import gobby.utils.interactions.AuraManager
+import gobby.utils.managers.AuraManager
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import gobby.utils.timer.Clock
 import net.minecraft.entity.decoration.ArmorStandEntity

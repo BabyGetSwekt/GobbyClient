@@ -7,7 +7,7 @@ import gobby.gui.click.Category
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
 import gobby.utils.LocationUtils
-import gobby.utils.interactions.WardrobeManager
+import gobby.utils.managers.WardrobeManager
 import gobby.utils.render.TitleUtils
 import java.awt.Color
 
