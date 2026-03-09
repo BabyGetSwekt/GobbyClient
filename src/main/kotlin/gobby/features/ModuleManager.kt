@@ -69,6 +69,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
         EVENT_MANAGER.subscribe(LeverTriggerbot)
         EVENT_MANAGER.subscribe(CowHatReminder)
+        EVENT_MANAGER.subscribe(PadTimers)
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
 
@@ -98,7 +99,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(EventDispatcher)
         EVENT_MANAGER.subscribe(KeybindListener)
         EVENT_MANAGER.subscribe(Welcome)
-        TitleUtils
+        EVENT_MANAGER.subscribe(TitleUtils)
 
         // Reference module objects to trigger init/registration
         P5DebuffHelper

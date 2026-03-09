@@ -43,6 +43,10 @@ object DungeonUtils {
         Healer, Mage, Berserk, Archer, Tank, Unknown
     }
 
+    enum class DungeonPad {
+        Green, Yellow, Purple, Red, None
+    }
+
     inline val dungeonTeammates get() = DungeonListener.teammates
     inline val doorOpener get() = DungeonListener.doorOpener
     inline val inP3 get() = DungeonListener.inP3
@@ -106,6 +110,18 @@ object DungeonUtils {
             posX in -2.0..19.0 && posZ in 52.0..121.0 -> 3
             posX in 19.0..88.0 && posZ in 30.0..50.0 -> 3
             else -> 0
+        }
+    }
+
+    fun getCurrentPad(): DungeonPad {
+        if (dungeonFloor != 7 || !inBoss || getPhase() != 2) return DungeonPad.None
+
+        return when {
+            posX in 22.0..56.0 && posZ in 86.0..106.0 -> DungeonPad.Yellow
+            posX in 88.0..125.0 && posZ in 86.0..106.0 -> DungeonPad.Purple
+            posX in 88.0..125.0 && posZ in 0.0..20.0 -> DungeonPad.Red
+            posX in 22.0..56.0 && posZ in 0.0..20.0 -> DungeonPad.Green
+            else -> DungeonPad.None
         }
     }
 

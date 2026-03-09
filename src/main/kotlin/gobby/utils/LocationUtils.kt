@@ -2,6 +2,7 @@ package gobby.utils
 
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
+import gobby.features.developer.DevMode
 import gobby.events.network.ClientConnectedToServerEvent
 import gobby.utils.ChatUtils.kuudraTierRegex
 import gobby.utils.ChatUtils.modMessage
@@ -31,8 +32,14 @@ object LocationUtils {
     var onSkyblock = false
     var area = "Unknown"
     var location = "Unknown"
-    var inDungeons = false
-    var dungeonFloor = -1
+    private var _inDungeons = false
+    var inDungeons: Boolean
+        get() = _inDungeons || (DevMode.enabled && DevMode.forceDungeons)
+        set(value) { _inDungeons = value }
+    private var _dungeonFloor = -1
+    var dungeonFloor: Int
+        get() = if (DevMode.enabled && DevMode.forceFloor7) 7 else _dungeonFloor
+        set(value) { _dungeonFloor = value }
     val inBoss: Boolean get() = inBoss()
 
     fun update() {
