@@ -61,7 +61,4 @@ object Utils {
     fun Double.toRadians(): Double = Math.toRadians(this)
     fun Float.toRadians(): Double = Math.toRadians(this.toDouble())
 
-    inline fun withPlayer(block: ClientPlayerEntity.() -> Unit) {
-        mc.player?.let(block)
-    }
 }
