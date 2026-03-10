@@ -3,6 +3,7 @@ package gobby.mixin;
 import gobby.Gobbyclient;
 import gobby.events.*;
 import gobby.events.gui.GuiOpenEvent;
+import gobby.features.skyblock.FreeCam;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.world.ClientWorld;
@@ -93,5 +94,10 @@ public abstract class MixinMinecraftClient {
     private void gobbyclient$onDoItemUse(CallbackInfo ci) {
         RightClickEvent event = new RightClickEvent();
         if (Gobbyclient.EVENT_MANAGER.publish(event).isCanceled()) ci.cancel();
+    }
+
+    @Inject(method = "handleBlockBreaking", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$onHandleBlockBreaking(boolean breaking, CallbackInfo ci) {
+        if (FreeCam.INSTANCE.getEnabled()) ci.cancel();
     }
 }

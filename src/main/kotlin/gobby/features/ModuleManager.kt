@@ -84,6 +84,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(WardrobeManager)
         EVENT_MANAGER.subscribe(EquipmentManager)
         EVENT_MANAGER.subscribe(MaskSwapper)
+        EVENT_MANAGER.subscribe(FreeCam)
         EVENT_MANAGER.subscribe(TerminalUtils)
         EVENT_MANAGER.subscribe(NumbersTerminal)
         EVENT_MANAGER.subscribe(ColorsTerminal)
