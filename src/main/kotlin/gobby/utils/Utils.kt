@@ -3,6 +3,7 @@ package gobby.utils
 import gobby.Gobbyclient.Companion.mc
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.Block
+import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.world.ClientWorld
 import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.attribute.EntityAttributes
@@ -48,7 +49,19 @@ object Utils {
 
     fun getRandomInt(min: Int, max: Int): Int = (min..max).random()
 
-    inline val posX get() = mc.player!!.x
-    inline val posY get() = mc.player!!.y
-    inline val posZ get() = mc.player!!.z
+    inline val posX get() = mc.player?.x ?: 0.0
+    inline val posY get() = mc.player?.y ?: 0.0
+    inline val posZ get() = mc.player?.z ?: 0.0
+    inline val yaw get() = mc.player?.yaw ?: 0f
+    inline val pitch get() = mc.player?.pitch ?: 0f
+    inline val eyePosX get() = mc.player?.eyePos?.x ?: 0.0
+    inline val eyePosY get() = mc.player?.eyePos?.y ?: 0.0
+    inline val eyePosZ get() = mc.player?.eyePos?.z ?: 0.0
+
+    fun Double.toRadians(): Double = Math.toRadians(this)
+    fun Float.toRadians(): Double = Math.toRadians(this.toDouble())
+
+    inline fun withPlayer(block: ClientPlayerEntity.() -> Unit) {
+        mc.player?.let(block)
+    }
 }
