@@ -12,7 +12,7 @@ import gobby.utils.render.TitleUtils
 import java.awt.Color
 
 object WardrobeSwapper : Module(
-    "Auto Wardrobe", "Instantly equip wardrobe slots with keybinds",
+    "Wardrobe Swapper", "Instantly equip wardrobe slots with keybinds",
     Category.SKYBLOCK
 ) {
     val slot1 by KeybindSetting("Wardrobe 1", desc = "Keybind for wardrobe slot 1")

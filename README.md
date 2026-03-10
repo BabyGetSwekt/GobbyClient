@@ -35,7 +35,7 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 
 - **Terminator Autoclick** - Automatically left clicks to use salvating when using a term
 - **Cancel Interact** - Allows you to freely throw ender pearls
-- **Auto Wardrobe** - Automatically swaps to certain wardrobe slots
+- **Wardrobe Swapper** - Automatically swaps to certain wardrobe slots
 - **Mask Swapper** - Automatically swaps to certain masks (bonzo, spirit mask & cow head)
 - **Free Cam** - Allows you to move your camera freely. Compatible with brush mode
 - **Mod ID Hider** - Hides the mod ID from certain mods from accessing it. Allows you to add other id's too
