@@ -12,6 +12,6 @@ public class MixinSplashTextResourceSupplier {
 
     @Inject(method = "get()Lnet/minecraft/client/gui/screen/SplashTextRenderer;", at = @At("HEAD"), cancellable = true)
     public void gobbyclient$getSplashText(CallbackInfoReturnable<SplashTextRenderer> cir) {
-        cir.setReturnValue(new SplashTextRenderer("Man, I fucking love Gobby Client!"));
+        cir.setReturnValue(new SplashTextRenderer("Jaminul stinks!"));
     }
 }
