@@ -13,7 +13,12 @@ import gobby.utils.render.BlockRenderUtils.draw3DBox
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Box
 import java.awt.Color
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
 object PathExecutor {
 
@@ -37,7 +42,7 @@ object PathExecutor {
     private const val JUMP_LAND_V = 0.55
     private const val DROP_LAND_H_SQ = 0.81
     private const val DROP_LAND_V = 0.5
-    private const val DROP_THRESHOLD = 2
+    private const val DROP_SEGMENT_DELTA = 0.625
     private const val GROUND_TICKS_TO_JUMP = 2
     private const val JUMP_FORWARD_MAX = 1.3
     private const val JUMP_SIDE_MAX = 0.3
@@ -98,14 +103,14 @@ object PathExecutor {
         if (maxIdx <= fromIndex + 1) return maxIdx
 
         val baseDx = path[fromIndex + 1].pos.x - path[fromIndex].pos.x
-        val baseDy = path[fromIndex + 1].pos.y - path[fromIndex].pos.y
+        val baseDy = path[fromIndex + 1].feetY - path[fromIndex].feetY
         val baseDz = path[fromIndex + 1].pos.z - path[fromIndex].pos.z
 
         for (i in (fromIndex + 1) until maxIdx) {
             if (path[i + 1].action == MoveAction.JUMP) return i
             if (isDropLanding(path, i + 1)) return i
             val dx = path[i + 1].pos.x - path[i].pos.x
-            val dy = path[i + 1].pos.y - path[i].pos.y
+            val dy = path[i + 1].feetY - path[i].feetY
             val dz = path[i + 1].pos.z - path[i].pos.z
             if (dx != baseDx || dz != baseDz || dy != baseDy) {
                 return min(i, fromIndex + 2)
@@ -115,7 +120,7 @@ object PathExecutor {
     }
 
     private fun isDropLanding(path: List<PathNode>, index: Int): Boolean {
-        return index > 0 && path[index - 1].pos.y - path[index].pos.y > DROP_THRESHOLD
+        return index > 0 && path[index - 1].feetY - path[index].feetY > DROP_SEGMENT_DELTA
     }
 
     private fun repath(player: net.minecraft.client.network.ClientPlayerEntity) {
@@ -158,7 +163,7 @@ object PathExecutor {
             val hdx = px - (np.x + 0.5)
             val hdz = pz - (np.z + 0.5)
             val hDistSq = hdx * hdx + hdz * hdz
-            val vDist = abs(py - np.y)
+            val vDist = abs(py - path[i].feetY)
 
             if (path[i].action == MoveAction.JUMP) {
                 if (hDistSq < JUMP_LAND_H_SQ && vDist < JUMP_LAND_V && player.isOnGround) {
@@ -204,7 +209,7 @@ object PathExecutor {
         val currentNode = path[currentIndex]
         val needsJump = currentNode.action == MoveAction.JUMP
         val inJumpArc = needsJump && !player.isOnGround
-        val isDropSegment = currentIndex > 0 && path[currentIndex - 1].pos.y - currentNode.pos.y > DROP_THRESHOLD
+        val isDropSegment = currentIndex > 0 && path[currentIndex - 1].feetY - currentNode.feetY > DROP_SEGMENT_DELTA
         val isFreefall = !player.isOnGround && !needsJump && isDropSegment
 
         val lookIdx = adaptiveLookahead(path, currentIndex, maxLookahead)

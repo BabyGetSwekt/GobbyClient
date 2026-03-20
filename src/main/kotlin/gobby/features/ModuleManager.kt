@@ -26,6 +26,7 @@ import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.managers.AuraManager
 import gobby.utils.managers.EquipmentManager
+import gobby.utils.managers.SwapManager
 import gobby.utils.managers.WardrobeManager
 import gobby.utils.timer.Executor
 
@@ -64,12 +65,14 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(LastBreathHelper)
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)
         EVENT_MANAGER.subscribe(AutoAlign)
+        EVENT_MANAGER.subscribe(SimonSays)
         EVENT_MANAGER.subscribe(AlignHelper)
         EVENT_MANAGER.subscribe(AutoPre4)
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
         EVENT_MANAGER.subscribe(LeverTriggerbot)
         EVENT_MANAGER.subscribe(CowHatReminder)
         EVENT_MANAGER.subscribe(PadTimers)
+        EVENT_MANAGER.subscribe(Relics)
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
 
@@ -81,6 +84,7 @@ object ModuleManager {
 
         EVENT_MANAGER.subscribe(WardrobeSwapper)
         EVENT_MANAGER.subscribe(AuraManager)
+        EVENT_MANAGER.subscribe(SwapManager)
         EVENT_MANAGER.subscribe(WardrobeManager)
         EVENT_MANAGER.subscribe(EquipmentManager)
         EVENT_MANAGER.subscribe(MaskSwapper)

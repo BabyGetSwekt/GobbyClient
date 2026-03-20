@@ -17,8 +17,10 @@ import gobby.utils.VecUtils.rotateToNorth
 import gobby.utils.VecUtils.subtractVec
 import gobby.utils.VecUtils.toBlockPos
 import gobby.utils.isHoldingSkyblockItem
+import gobby.utils.skyblockID
 import gobby.utils.swapToSkyblockItem
 import gobby.utils.skyblock.dungeon.tiles.Room
+import net.minecraft.item.ItemStack
 import net.minecraft.block.AbstractSkullBlock
 import net.minecraft.block.Blocks
 import net.minecraft.block.entity.SkullBlockEntity
@@ -47,10 +49,31 @@ object DungeonUtils {
         Green, Yellow, Purple, Red, None
     }
 
+    enum class Relic(
+        val skyblockID: String,
+        val spawnPos: Vec3d,
+        val cauldronPos: BlockPos
+    ) {
+        Red("RED_KING_RELIC", Vec3d(22.5, 6.5, 59.5), BlockPos(51, 7, 42)),
+        Green("GREEN_KING_RELIC", Vec3d(20.5, 6.5, 94.5), BlockPos(49, 7, 44)),
+        Blue("BLUE_KING_RELIC", Vec3d(91.5, 6.5, 94.5), BlockPos(59, 7, 44)),
+        Orange("ORANGE_KING_RELIC", Vec3d(90.5, 6.5, 56.5), BlockPos(57, 7, 42)),
+        Purple("PURPLE_KING_RELIC", Vec3d(56.5, 8.5, 132.5), BlockPos(54, 7, 41)),
+        None("", Vec3d(0.0, 0.0, 0.0), BlockPos(0, 0, 0));
+
+        companion object {
+            fun fromItemID(id: String?): Relic =
+                entries.firstOrNull { it.skyblockID == id } ?: None
+        }
+    }
+
     inline val dungeonTeammates get() = DungeonListener.teammates
     inline val doorOpener get() = DungeonListener.doorOpener
     inline val inP3 get() = DungeonListener.inP3
 
+    private val secretDrops = listOf("DUNGEON_DECOY", "TRAINING_WEIGHTS", "SPIRIT_LEAP",
+        "DEFUSE_KIT", "CANDYCOMB", "ARCHITECT_FIRST_DRAFT", "INFLATABLE_JERRY", "DUNGEON_TRAP",
+        "DYE_SECRET", "DUNGEON_CHEST_KEY", "POTION", "TREASURE_TALISMAN", "REVIVE_STONE")
     private const val SPIRIT_LEAP = "SPIRIT_LEAP"
     private const val INFINITE_SPIRIT_LEAP = "INFINITE_SPIRIT_LEAP"
 
@@ -75,6 +98,9 @@ object DungeonUtils {
         leapTarget = name
         rightClick()
     }
+
+    fun ItemStack.isSecret(): Boolean =
+        skyblockID in secretDrops
 
     fun isSecret(pos: BlockPos): Boolean {
         val world = mc.world ?: return false
