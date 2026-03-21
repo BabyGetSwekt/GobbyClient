@@ -17,6 +17,8 @@ abstract class TerminalSolver {
     open fun onActivate(screen: GenericContainerScreen) {}
     open fun onDeactivate() {}
 
+    fun isActive(): Boolean = active
+
     protected fun tickScreen(): GenericContainerScreen? {
         if (TerminalUtils.isGuardFailed() || !isEnabled) return null
 

@@ -21,21 +21,21 @@ public class MixinHandledScreen {
 
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.isOverlayActive()) {
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
 			cir.setReturnValue(true);
 		}
 	}
 
 	@Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseReleased(Click click, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.isOverlayActive()) {
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
 			cir.setReturnValue(true);
 		}
 	}
 
 	@Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseDragged(Click click, double offsetX, double offsetY, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.isOverlayActive()) {
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
 			cir.setReturnValue(true);
 		}
 	}

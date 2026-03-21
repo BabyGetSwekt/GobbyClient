@@ -1,19 +1,26 @@
 package gobby.utils.skyblock.dungeon
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.events.PacketReceivedEvent
+import gobby.events.core.SubscribeEvent
 import gobby.features.floor7.terminals.AutoTerminals
+import gobby.features.floor7.terminals.TerminalClick
 import gobby.utils.timer.Clock
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.item.ItemStack
+import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
+import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
 import net.minecraft.screen.slot.SlotActionType
 
 object TerminalUtils {
 
     private val clickClock = Clock()
     private var isFirstClick = true
-    private var waitingForResponse = false
-    private var lastSignature = 0
+    private var clickedWindow = false
+    private val clickedSlots = mutableSetOf<Int>()
+    private var currentWindowId = -1
+    val solution = mutableListOf<TerminalClick>()
 
     val NUMBERS_SLOTS = intArrayOf(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25)
     val COLORS_SLOTS = intArrayOf(
@@ -46,21 +53,39 @@ object TerminalUtils {
     fun onTerminalOpen(screen: GenericContainerScreen) {
         clickClock.update()
         isFirstClick = true
-        waitingForResponse = false
-        lastSignature = containerSignature(screen)
+        clickedWindow = false
+        clickedSlots.clear()
+        currentWindowId = screen.screenHandler.syncId
+        solution.clear()
     }
 
-    fun tryClick(screen: GenericContainerScreen, slot: Int, button: Int = 2): Boolean {
-        val sig = containerSignature(screen)
-        if (sig != lastSignature) {
-            lastSignature = sig
-            waitingForResponse = false
-        }
+    @SubscribeEvent
+    fun onPacketReceived(event: PacketReceivedEvent) {
+        if (currentWindowId == -1) return
 
-        if (waitingForResponse) {
-            val timeout = AutoTerminals.breakThreshold.toLong()
-            if (timeout > 0 && clickClock.hasTimePassed(timeout)) {
-                waitingForResponse = false
+        if (event.packet is OpenScreenS2CPacket) {
+            clickedWindow = false
+            clickedSlots.clear()
+        } else if (event.packet is ScreenHandlerSlotUpdateS2CPacket && clickedWindow) {
+            val pkt = event.packet as ScreenHandlerSlotUpdateS2CPacket
+            if (pkt.syncId == currentWindowId) {
+                clickedWindow = false
+                clickedSlots.clear()
+            }
+        }
+    }
+
+    /**
+     * Called every tick by TerminalSolver.
+     * Solver provides a fresh solution each tick — we only click
+     * the first one that we haven't already clicked this window.
+     */
+    fun tryClick(screen: GenericContainerScreen, slot: Int, button: Int = 2): Boolean {
+        if (clickedWindow) {
+            // Break threshold: if server never re-opens window
+            if (clickClock.hasTimePassed(AutoTerminals.breakThreshold.toLong())) {
+                clickedWindow = false
+                clickedSlots.clear()
             } else {
                 return false
             }
@@ -70,7 +95,8 @@ object TerminalUtils {
         if (!clickClock.hasTimePassed(delay)) return false
 
         clickSlot(screen.screenHandler.syncId, slot, button)
-        lastSignature = containerSignature(screen)
+        if (button == 2) clickedSlots.add(slot)
+        clickedWindow = true
         return true
     }
 
@@ -79,27 +105,15 @@ object TerminalUtils {
         mc.interactionManager?.clickSlot(syncId, slotId, button, action, mc.player)
         clickClock.update()
         isFirstClick = false
-        waitingForResponse = true
     }
 
     fun clickSlotDirect(syncId: Int, slotId: Int) {
         mc.interactionManager?.clickSlot(syncId, slotId, 2, SlotActionType.CLONE, mc.player)
     }
 
-    /**
-     * Checks if a terminal item has been completed (clicked) by looking for the
-     * ENCHANTMENT_GLINT_OVERRIDE component specifically. Unlike vanilla hasGlint(),
-     * this ignores items that naturally have enchantments, only detecting the explicit
-     * glint override that Hypixel adds to mark completed terminal items.
-     */
+    fun isItemDone(slot: Int, stack: ItemStack): Boolean =
+        slot in clickedSlots || isTerminalItemDone(stack)
+
     fun isTerminalItemDone(stack: ItemStack): Boolean =
         stack.componentChanges.get(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE)?.isPresent == true
-
-    private fun containerSignature(screen: GenericContainerScreen): Int =
-        screen.screenHandler.slots.fold(0) { hash, slot ->
-            val stack = slot.stack
-            var h = hash * 31 + System.identityHashCode(stack.item)
-            h = h * 31 + stack.count
-            h * 31 + if (isTerminalItemDone(stack)) 1 else 0
-        }
 }
