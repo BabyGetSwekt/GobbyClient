@@ -103,7 +103,14 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
         cachedSyncId = screen.screenHandler.syncId
         buttons = buildButtonsFromSlots(screen).sortedBy { CLASS_SORT_ORDER[it.teammate.dungeonClass] ?: 5 }
+        val wasActive = isActive
         isActive = buttons.isNotEmpty()
+
+        if (isActive && !wasActive) {
+            val cx = mc.window.width / 2.0
+            val cy = mc.window.height / 2.0
+            GLFW.glfwSetCursorPos(mc.window.handle, cx, cy)
+        }
     }
 
     private fun buildButtonsFromSlots(screen: GenericContainerScreen): List<LeapButton> {
