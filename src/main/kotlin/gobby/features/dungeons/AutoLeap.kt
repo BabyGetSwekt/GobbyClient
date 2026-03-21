@@ -19,7 +19,7 @@ object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", 
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (!inDungeons || mode != 0) return
+        if (!enabled || !inDungeons || mode != 0) return
         if (!witherDoorRegex.matches(event.message)) return
 
         val opener = doorOpener
@@ -30,7 +30,7 @@ object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", 
 
     @SubscribeEvent
     fun onLeftClick(event: LeftClickEvent) {
-        if (!inDungeons || mode != 1) return
+        if (!enabled || !inDungeons || mode != 1) return
 
         val opener = doorOpener
         if (opener.isEmpty() || opener == mc.player?.name?.string) return
