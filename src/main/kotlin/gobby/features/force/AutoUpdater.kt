@@ -98,6 +98,8 @@ object AutoUpdater {
         appendLine("timeout /t 1 >nul")
         oldJars.forEach { appendLine("del \"${it.absolutePath}\"") }
         appendLine("move /Y \"${tempFile.absolutePath}\" \"${modsDir.absolutePath}\\gobbyclient-$version.jar\"")
+        appendLine("echo Update complete!")
+        appendLine("pause")
         appendLine("start /b \"\" cmd /c \"timeout /t 1 >nul & move /Y \"%~f0\" \"${tempBatDir.absolutePath}\\gobbyclient-update.bat\"\"")
         appendLine("exit")
     }
