@@ -17,7 +17,7 @@ object StartsWithTerminal : TerminalSolver() {
 
         val slot = TerminalUtils.STARTS_WITH_SLOTS.firstOrNull { s ->
             val stack = screen.screenHandler.slots[s].stack
-            if (stack.isEmpty || TerminalUtils.isTerminalItemDone(stack)) return@firstOrNull false
+            if (stack.isEmpty || TerminalUtils.isItemDone(s, stack)) return@firstOrNull false
             val name = Formatting.strip(stack.name.string)?.trim()?.lowercase()
             !name.isNullOrEmpty() && name.startsWith(letter)
         } ?: return null

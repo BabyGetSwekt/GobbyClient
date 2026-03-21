@@ -55,6 +55,7 @@ object TerminalOverlay : Module(
     private val cMelodyIndicator = Color(180, 50, 180, 200).rgb
 
     private var mouseWasDown = false
+    private var rightMouseWasDown = false
     private var gridOffX = 0
     private var gridOffY = 0
     private var gridCols = 0
@@ -112,10 +113,15 @@ object TerminalOverlay : Module(
         return detect(screen.title.string) != null
     }
 
+    fun shouldBlockClicks(): Boolean = isOverlayActive()
+
+    private val COLORS_REGEX = Regex("Select all the [\\w ]+ items!")
+    private val STARTS_WITH_REGEX = Regex("What starts with: \\W\\w\\W")
+
     private fun detect(title: String): Terminal? = when {
         title.contains("Click in order!") -> Terminal.NUMBERS
-        Regex("Select all the [\\w ]+ items!").containsMatchIn(Formatting.strip(title) ?: "") -> Terminal.COLORS
-        Regex("What starts with: \\W\\w\\W").containsMatchIn(Formatting.strip(title) ?: "") -> Terminal.STARTS_WITH
+        COLORS_REGEX.containsMatchIn(Formatting.strip(title) ?: "") -> Terminal.COLORS
+        STARTS_WITH_REGEX.containsMatchIn(Formatting.strip(title) ?: "") -> Terminal.STARTS_WITH
         title.contains("Correct all the panes!") -> Terminal.RED_GREEN
         title.contains("Change all to same color!") -> Terminal.RUBIX
         title.contains("Click the button on time!") -> Terminal.MELODY
@@ -177,32 +183,49 @@ object TerminalOverlay : Module(
     }
 
     private fun handleMouse(lmx: Int, lmy: Int, screen: GenericContainerScreen, type: Terminal) {
-        val down = GLFW.glfwGetMouseButton(mc.window.handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS
-        if (type == Terminal.RUBIX && !AutoTerminals.enabled && mouseWasDown && !down) {
-            val cx = if (lmx >= gridOffX) (lmx - gridOffX) / STRIDE else -1
-            val cy = if (lmy >= gridOffY) (lmy - gridOffY) / STRIDE else -1
-            if (cx in 0 until gridCols && cy in 0 until gridRows) {
-                val slot = compactToSlot(type, cx, cy)
+        val leftDown = GLFW.glfwGetMouseButton(mc.window.handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS
+        val rightDown = GLFW.glfwGetMouseButton(mc.window.handle, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS
+        val leftReleased = mouseWasDown && !leftDown
+        val rightReleased = rightMouseWasDown && !rightDown
+
+        if (AutoTerminals.enabled || (!leftReleased && !rightReleased)) {
+            mouseWasDown = leftDown
+            rightMouseWasDown = rightDown
+            return
+        }
+
+        val cx = if (lmx >= gridOffX) (lmx - gridOffX) / STRIDE else -1
+        val cy = if (lmy >= gridOffY) (lmy - gridOffY) / STRIDE else -1
+
+        if (cx in 0 until gridCols && cy in 0 until gridRows) {
+            val slot = compactToSlot(type, cx, cy)
+            val syncId = screen.screenHandler.syncId
+
+            if (type == Terminal.RUBIX) {
                 val idx = TerminalUtils.RUBIX_SLOTS.indexOf(slot)
                 if (idx != -1) {
                     val solution = RubixTerminal.getFullSolution(screen)
                     if (solution != null) {
                         val clicks = solution[idx]
                         val button = when {
-                            clicks > 0 -> 0
-                            clicks < 0 -> 1
+                            leftReleased && clicks > 0 -> 0
+                            rightReleased && clicks < 0 -> 1
+                            leftReleased && clicks < 0 -> 1
+                            rightReleased && clicks > 0 -> 0
                             else -> -1
                         }
                         if (button >= 0) {
-                            mc.interactionManager?.clickSlot(
-                                screen.screenHandler.syncId, slot, button, SlotActionType.PICKUP, mc.player
-                            )
+                            mc.interactionManager?.clickSlot(syncId, slot, button, SlotActionType.PICKUP, mc.player)
                         }
                     }
                 }
+            } else {
+                mc.interactionManager?.clickSlot(syncId, slot, 2, SlotActionType.CLONE, mc.player)
             }
         }
-        mouseWasDown = down
+
+        mouseWasDown = leftDown
+        rightMouseWasDown = rightDown
     }
 
     private fun drawNumbers(ctx: DrawContext, screen: GenericContainerScreen) {
