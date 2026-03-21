@@ -9,6 +9,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
+import gobby.features.force.AutoUpdater
 import gobby.pathfinder.PathExecutor
 import gobby.pathfinder.core.PathFinder
 import gobby.utils.ChatUtils.modMessage
@@ -67,6 +68,7 @@ object GobbyCommand {
                         modMessage("§e/gobby sendcoords §7- Send your coords in chat")
                         modMessage("§e/gobby path <x> <y> <z> §7- Pathfind to coordinates (BETA + WIP)")
                         modMessage("§e/gobby pathstop §7- Stop following a path")
+                        modMessage("§e/gobby update §7- Force check for updates")
                         modMessage("§b§m                              ")
                         Command.SINGLE_SUCCESS
                     }
@@ -131,6 +133,17 @@ object GobbyCommand {
             )
     }
 
+    private fun updateCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("update")
+                    .executes {
+                        AutoUpdater.forceCheck()
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
     @SubscribeEvent
     fun register(event: CommandRegisterEvent) {
         event.register(openConfig("gobby"))
@@ -141,5 +154,6 @@ object GobbyCommand {
         event.register(helpCommand())
         event.register(pathCommand())
         event.register(pathStopCommand())
+        event.register(updateCommand())
     }
 }

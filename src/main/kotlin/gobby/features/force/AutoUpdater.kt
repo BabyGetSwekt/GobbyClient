@@ -30,19 +30,30 @@ object AutoUpdater {
     fun onWorldLoad(event: WorldLoadEvent) {
         if (updateChecked) return
         updateChecked = true
-        scope.launch(Dispatchers.IO) { checkForUpdates() }
+        scope.launch(Dispatchers.IO) { checkForUpdates(silent = true) }
     }
 
-    private suspend fun checkForUpdates() {
+    fun forceCheck() {
+        scope.launch(Dispatchers.IO) { checkForUpdates(silent = false) }
+    }
+
+    private suspend fun checkForUpdates(silent: Boolean) {
         try {
-            val json = HttpUtils.getString(RELEASES_URL) ?: return
+            val json = HttpUtils.getString(RELEASES_URL) ?: run {
+                if (!silent) modMessage("§cFailed to reach GitHub API.")
+                return
+            }
             val updatedAt = extractField(json, "updated_at") ?: return
 
             if (UpdaterConfig.lastUpdatedAt.isEmpty()) {
                 UpdaterConfig.save(updatedAt)
+                if (!silent) modMessage("§eSaved current release. You're up to date.")
                 return
             }
-            if (updatedAt == UpdaterConfig.lastUpdatedAt) return
+            if (updatedAt == UpdaterConfig.lastUpdatedAt) {
+                if (!silent) modMessage("§aYou're already on the latest version.")
+                return
+            }
 
             val version = extractVersion(json) ?: "unknown"
             val downloadUrl = extractJarUrl(json) ?: return
@@ -53,6 +64,7 @@ object AutoUpdater {
             modMessage("§aUpdate ready! §eRestart Minecraft to apply v$version.")
         } catch (e: Exception) {
             logger.error("Auto-update check failed", e)
+            if (!silent) modMessage("§cUpdate check failed: ${e.message}")
         }
     }
 
