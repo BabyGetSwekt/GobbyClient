@@ -12,13 +12,14 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Auto leap** - Automatically leaps to someone who opened a wither door
 - **Spirit Leap Overlay** - New GUI for leaping
 - **Etherwarp** - Auto etherwarps to certain brush blocks, also highlights etherwarp block
-- **Auto Close Chest** — Automatically closes chest screens in dungeons
+- **Auto Close Chest** — Automatically closes chest screens in dungeons. Supports texturepacks.
 - **Starred Mob ESP** - Highlights starred mobs & minibosses
 - **You Are A King GG** - Draws victory royale banner from fortnite on a dungeon end LOL
+- **Livid Helper** - Renders a box around the correct livid, also has aim lock (for mage lcm'ers)
 
 ### Floor 7
 
-- **Lever Triggerbot** — Autoclicks levers in p3 (and has an option for lights device (s2), aswell)
+- **Levers** — Autoclicks levers in p3, has an option to aura them aswell
 - **Auto Align** — Aura's third device
 - **Align Helper** — Prevents u from overclicking the frames
 - **Auto Pre4** — Auto-aims and shoots emerald blocks on 4th device
@@ -30,6 +31,7 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Terminal Overlay** - Draws a terminal GUI
 - **Cow Hat Reminder** - Reminds you when to put cow hat on p5. Can also automatically put it on
 - **Pad Timers** - Tells you when to pad on green or purple (depending on where you are)
+- **Simon Says** - Useful features for SS. Also has auto SS as an option
 
 ### Skyblock
 
@@ -41,6 +43,7 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Mod ID Hider** - Hides the mod ID from certain mods from accessing it. Allows you to add other id's too
 
 It has more features, but these are the main ones. Use `/gobby` to open up the config.
+GobbyClient has an auto-updater, so you will always be on the latest version.
 
 
 
