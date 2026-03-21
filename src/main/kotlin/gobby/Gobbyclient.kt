@@ -58,7 +58,7 @@ class Gobbyclient : ClientModInitializer {
 
 	companion object {
 		const val MOD_ID = "gobbyclient"
-		const val MOD_VERSION = "1.0.4"
+		const val MOD_VERSION = BuildConfig.MOD_VERSION
 
 		val mc =  MinecraftClient.getInstance()
 		val scope = CoroutineScope(SupervisorJob() + EmptyCoroutineContext)

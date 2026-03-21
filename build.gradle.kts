@@ -82,6 +82,33 @@ dependencies {
 	implementation(kotlin("stdlib-jdk8"))
 }
 
+val generateBuildConfig by tasks.registering {
+	val outputDir = layout.buildDirectory.dir("generated/sources/buildconfig/kotlin")
+	outputs.dir(outputDir)
+	inputs.property("mod_version", mod_version)
+	doLast {
+		val dir = outputDir.get().asFile.resolve("gobby")
+		dir.mkdirs()
+		dir.resolve("BuildConfig.kt").writeText(
+			"""
+			|package gobby
+			|
+			|object BuildConfig {
+			|    const val MOD_VERSION = "$mod_version"
+			|}
+			""".trimMargin()
+		)
+	}
+}
+
+sourceSets.main {
+	kotlin.srcDir(generateBuildConfig.map { layout.buildDirectory.dir("generated/sources/buildconfig/kotlin") })
+}
+
+tasks.compileKotlin {
+	dependsOn(generateBuildConfig)
+}
+
 tasks.processResources {
 	inputs.property("version", mod_version)
 	inputs.property("minecraft_version", minecraft_version)

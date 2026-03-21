@@ -18,7 +18,7 @@ import net.minecraft.util.Formatting
 
 object DungeonListener {
 
-    private val teammateRegex = Regex("""\[(\d+)]\s+(\w+)\s+(?:(.)\s+)?\((\w+)\s+([IVXLC]+)\)""")
+    private val teammateRegex = Regex("""\[(\d+)]\s+(\w+)\s+(?:(.{1,2})\s+)?\((\w+)\s+([IVXLC]+)\)""")
 
     val teammates = mutableMapOf<String, DungeonTeammate>()
     var doorOpener = ""
