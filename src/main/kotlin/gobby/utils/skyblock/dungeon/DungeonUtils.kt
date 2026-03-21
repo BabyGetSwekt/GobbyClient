@@ -70,6 +70,8 @@ object DungeonUtils {
     inline val dungeonTeammates get() = DungeonListener.teammates
     inline val doorOpener get() = DungeonListener.doorOpener
     inline val inP3 get() = DungeonListener.inP3
+    inline val isDead: Boolean
+        get() = mc.player?.inventory?.getStack(0)?.skyblockID == "HAUNT_ABILITY"
 
     private val secretDrops = listOf("DUNGEON_DECOY", "TRAINING_WEIGHTS", "SPIRIT_LEAP",
         "DEFUSE_KIT", "CANDYCOMB", "ARCHITECT_FIRST_DRAFT", "INFLATABLE_JERRY", "DUNGEON_TRAP",

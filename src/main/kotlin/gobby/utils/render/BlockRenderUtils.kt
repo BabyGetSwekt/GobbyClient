@@ -8,6 +8,10 @@ import net.minecraft.util.math.Box
 import net.minecraft.util.math.Vec3d
 import org.joml.Matrix4f
 import java.awt.Color
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Contents of this file are based on Aoba-Client and the work of coltonk9043 under GNU General Public License v3.0.
@@ -158,5 +162,105 @@ object BlockRenderUtils {
 
         buffer.vertex(matrix4f, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
             .color(r, g, b, a).normal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
+    }
+
+    fun drawCylinder(
+        matrixStack: MatrixStack,
+        camera: Camera,
+        centerX: Double, centerY: Double, centerZ: Double,
+        widthX: Double, widthZ: Double,
+        height: Double,
+        color: Color,
+        filled: Boolean = false,
+        segments: Int = 64,
+        depthTest: Boolean = false
+    ) {
+        val cameraPos = camera.pos
+        val entry = matrixStack.peek()
+        val matrix4f = entry.positionMatrix
+        val vertexConsumerProvider = mc.bufferBuilders.entityVertexConsumers
+
+        val r = color.red.toFloat() / 255f
+        val g = color.green.toFloat() / 255f
+        val b = color.blue.toFloat() / 255f
+        val a = color.alpha.toFloat() / 255f
+
+        val radiusX = widthX / 2.0
+        val radiusZ = widthZ / 2.0
+        val yBottom = (centerY - cameraPos.y).toFloat()
+        val yTop = (centerY + height - cameraPos.y).toFloat()
+        val cx = centerX - cameraPos.x
+        val cz = centerZ - cameraPos.z
+
+        val cosValues = DoubleArray(segments + 1) { i -> cos(2.0 * PI * i / segments) }
+        val sinValues = DoubleArray(segments + 1) { i -> sin(2.0 * PI * i / segments) }
+
+        if (filled) {
+            val quadsLayer = if (depthTest) RenderLayers.DEPTH_QUADS else RenderLayers.ESP_QUADS
+            val buf = vertexConsumerProvider.getBuffer(quadsLayer)
+
+            for (i in 0 until segments) {
+                val x1 = (cx + cosValues[i] * radiusX).toFloat()
+                val z1 = (cz + sinValues[i] * radiusZ).toFloat()
+                val x2 = (cx + cosValues[i + 1] * radiusX).toFloat()
+                val z2 = (cz + sinValues[i + 1] * radiusZ).toFloat()
+
+                buf.vertex(matrix4f, x1, yBottom, z1).color(r, g, b, a)
+                buf.vertex(matrix4f, x2, yBottom, z2).color(r, g, b, a)
+                buf.vertex(matrix4f, x2, yTop, z2).color(r, g, b, a)
+                buf.vertex(matrix4f, x1, yTop, z1).color(r, g, b, a)
+            }
+
+            vertexConsumerProvider.draw(quadsLayer)
+        }
+
+        val linesLayer = if (depthTest) RenderLayers.DEPTH_LINES else RenderLayers.ESP_LINES
+        val lineBuf = vertexConsumerProvider.getBuffer(linesLayer)
+
+        for (i in 0 until segments) {
+            val wx1 = cx + cosValues[i] * radiusX
+            val wz1 = cz + sinValues[i] * radiusZ
+            val wx2 = cx + cosValues[i + 1] * radiusX
+            val wz2 = cz + sinValues[i + 1] * radiusZ
+
+            buildLineRaw(entry, lineBuf, wx1, yBottom.toDouble(), wz1, wx2, yBottom.toDouble(), wz2, r, g, b, a)
+            buildLineRaw(entry, lineBuf, wx1, yTop.toDouble(), wz1, wx2, yTop.toDouble(), wz2, r, g, b, a)
+        }
+
+        vertexConsumerProvider.draw(linesLayer)
+    }
+
+    fun drawRing(
+        matrixStack: MatrixStack,
+        camera: Camera,
+        centerX: Double, centerY: Double, centerZ: Double,
+        widthX: Double, widthZ: Double,
+        height: Double,
+        color: Color,
+        segments: Int = 64,
+        depthTest: Boolean = false
+    ) {
+        drawCylinder(matrixStack, camera, centerX, centerY, centerZ, widthX, widthZ, height, color, filled = false, segments = segments, depthTest = depthTest)
+    }
+
+    private fun buildLineRaw(
+        entry: MatrixStack.Entry,
+        buffer: VertexConsumer,
+        x1: Double, y1: Double, z1: Double,
+        x2: Double, y2: Double, z2: Double,
+        r: Float, g: Float, b: Float, a: Float
+    ) {
+        val dx = (x2 - x1).toFloat()
+        val dy = (y2 - y1).toFloat()
+        val dz = (z2 - z1).toFloat()
+        val len = sqrt((dx * dx + dy * dy + dz * dz).toDouble()).toFloat()
+        val nx = if (len > 0) dx / len else 0f
+        val ny = if (len > 0) dy / len else 1f
+        val nz = if (len > 0) dz / len else 0f
+
+        buffer.vertex(entry.positionMatrix, x1.toFloat(), y1.toFloat(), z1.toFloat())
+            .color(r, g, b, a).normal(entry, nx, ny, nz)
+        buffer.vertex(entry.positionMatrix, x2.toFloat(), y2.toFloat(), z2.toFloat())
+            .color(r, g, b, a).normal(entry, nx, ny, nz)
     }
 }

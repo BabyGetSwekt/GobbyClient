@@ -69,7 +69,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AlignHelper)
         EVENT_MANAGER.subscribe(AutoPre4)
         EVENT_MANAGER.subscribe(ShootingDeviceEsp)
-        EVENT_MANAGER.subscribe(LeverTriggerbot)
+        EVENT_MANAGER.subscribe(P3Levers)
         EVENT_MANAGER.subscribe(CowHatReminder)
         EVENT_MANAGER.subscribe(PadTimers)
         EVENT_MANAGER.subscribe(Relics)
