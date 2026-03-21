@@ -34,8 +34,11 @@ object RotationUtils {
     }
 
     fun easeToBlock(pos: BlockPos, timeMs: Long, onComplete: (() -> Unit)? = null) {
-        val center = Vec3d(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
-        val (yaw, pitch) = calcAimAngles(center) ?: return
+        easeToVec(Vec3d(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, onComplete)
+    }
+
+    fun easeToVec(target: Vec3d, timeMs: Long, onComplete: (() -> Unit)? = null) {
+        val (yaw, pitch) = calcAimAngles(target) ?: return
         easeTo(yaw, pitch, timeMs, onComplete)
     }
 

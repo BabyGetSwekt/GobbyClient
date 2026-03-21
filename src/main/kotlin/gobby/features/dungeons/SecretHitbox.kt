@@ -1,6 +1,6 @@
 package gobby.features.dungeons
 
-import gobby.features.floor7.LeverTriggerbot
+import gobby.features.floor7.P3Levers
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -29,7 +29,7 @@ object SecretHitbox : Module(
     fun shouldExpandLever(pos: BlockPos): Boolean {
         val normalLeverHitbox = shouldExpand() && lever
         val f7LeverHitbox = enabled && f7levers && dungeonFloor == 7 && inBoss &&
-            LeverTriggerbot.leverPositions.containsKey(pos)
+            P3Levers.leverPositions.containsKey(pos)
         return normalLeverHitbox || f7LeverHitbox
     }
 

@@ -108,6 +108,8 @@ class KeybindSetting(
 ) : Setting<Int>(name, desc, 0, hidden), ReadWriteProperty<Any?, Int> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v }
+    fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun withDependency(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): KeybindSetting {
         thisRef.settings.add(this)
         return this
