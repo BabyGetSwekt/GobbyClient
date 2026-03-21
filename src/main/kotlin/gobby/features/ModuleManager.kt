@@ -79,6 +79,7 @@ object ModuleManager {
 
         EVENT_MANAGER.subscribe(PathExecutor)
         EVENT_MANAGER.subscribe(RotationUtils)
+        EVENT_MANAGER.subscribe(AutoUpdater)
 
         EVENT_MANAGER.subscribe(GuiElementManager)
         EVENT_MANAGER.subscribe(YouAreAKingGG)
