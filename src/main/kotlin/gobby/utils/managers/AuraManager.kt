@@ -46,7 +46,6 @@ object AuraManager {
             val target = entityPos.add(0.0, entity.height.toDouble() / 2.0, 0.0)
             val hitVec = expanded.raycast(player.eyePos, target).orElse(null)?.subtract(entityPos) ?: return
 
-            modMessage("Interacting with ${entity.name.string} at ${hitVec.x}, ${hitVec.y}, ${hitVec.z}")
             mc.networkHandler?.sendPacket(PlayerInteractEntityC2SPacket.interactAt(entity, sneaking, Hand.MAIN_HAND, hitVec))
         }
 
