@@ -1,5 +1,6 @@
 package gobby.mixin.render;
 
+import gobby.features.render.NoBlockOverlay;
 import gobby.features.render.NoFire;
 import net.minecraft.client.gui.hud.InGameOverlayRenderer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -16,5 +17,10 @@ public abstract class MixinInGameOverlayRenderer {
     @Inject(method = "renderFireOverlay(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;Lnet/minecraft/client/texture/Sprite;)V", at = @At("HEAD"), cancellable = true)
     private static void gobbyclient$cancelFireOverlay(MatrixStack matrices, VertexConsumerProvider vertexConsumers, Sprite sprite, CallbackInfo ci) {
         if (NoFire.INSTANCE.getEnabled()) ci.cancel();
+    }
+
+    @Inject(method = "renderInWallOverlay", at = @At("HEAD"), cancellable = true)
+    private static void gobbyclient$cancelBlockOverlay(CallbackInfo ci) {
+        if (NoBlockOverlay.INSTANCE.getEnabled()) ci.cancel();
     }
 }

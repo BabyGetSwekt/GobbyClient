@@ -1,5 +1,6 @@
 package gobby.features.force
 
+import gobby.Gobbyclient.Companion.MOD_VERSION
 import gobby.Gobbyclient.Companion.logger
 import gobby.Gobbyclient.Companion.scope
 import gobby.events.WorldLoadEvent
@@ -25,6 +26,11 @@ object AutoUpdater {
     private val tempBatDir = File(UpdaterConfig.updatesFolder, "temp").also { it.mkdirs() }
 
     private var updateChecked = false
+
+    init {
+        modsDir.listFiles { f -> f.name.startsWith("gobbyclient-") && f.name.endsWith(".tmp") }
+            ?.forEach { it.delete() }
+    }
 
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
@@ -56,6 +62,11 @@ object AutoUpdater {
             }
 
             val version = extractVersion(json) ?: "unknown"
+            if (version == MOD_VERSION) {
+                UpdaterConfig.save(updatedAt)
+                if (!silent) modMessage("§aYou're already on v$MOD_VERSION.")
+                return
+            }
             val downloadUrl = extractJarUrl(json) ?: return
 
             modMessage("§aNew version available: §e$version§a! Downloading...")

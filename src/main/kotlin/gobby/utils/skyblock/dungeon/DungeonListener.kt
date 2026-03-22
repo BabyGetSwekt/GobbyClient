@@ -132,6 +132,11 @@ object DungeonListener {
         DungeonUtils.leapTarget = null
     }
 
+    fun refreshTeammates() {
+        val tabList = mc.networkHandler?.playerList ?: return
+        updateDungeonTeammates(tabList)
+    }
+
     private fun updateDungeonTeammates(tabList: Collection<PlayerListEntry>) {
         for (entry in tabList) {
             val displayText = entry.displayName ?: continue

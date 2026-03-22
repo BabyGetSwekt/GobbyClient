@@ -76,8 +76,8 @@ object DungeonUtils {
     private val secretDrops = listOf("DUNGEON_DECOY", "TRAINING_WEIGHTS", "SPIRIT_LEAP",
         "DEFUSE_KIT", "CANDYCOMB", "ARCHITECT_FIRST_DRAFT", "INFLATABLE_JERRY", "DUNGEON_TRAP",
         "DYE_SECRET", "DUNGEON_CHEST_KEY", "POTION", "TREASURE_TALISMAN", "REVIVE_STONE")
-    private const val SPIRIT_LEAP = "SPIRIT_LEAP"
-    private const val INFINITE_SPIRIT_LEAP = "INFINITE_SPIRIT_LEAP"
+    const val SPIRIT_LEAP = "SPIRIT_LEAP"
+    const val INFINILEAP = "INFINITE_SPIRIT_LEAP"
 
     var leapTarget: String? = null
 
@@ -89,8 +89,8 @@ object DungeonUtils {
         }
 
         if (autoSwap) {
-            if (!isHoldingSkyblockItem(SPIRIT_LEAP, INFINITE_SPIRIT_LEAP)) {
-                if (!swapToSkyblockItem(SPIRIT_LEAP, INFINITE_SPIRIT_LEAP)) {
+            if (!isHoldingSkyblockItem(SPIRIT_LEAP, INFINILEAP)) {
+                if (!swapToSkyblockItem(SPIRIT_LEAP, INFINILEAP)) {
                     modMessage("No Spirit Leap found in hotbar!")
                     return
                 }
@@ -136,7 +136,7 @@ object DungeonUtils {
             posX in 90.0..110.0 && posZ in 52.0..121.0 -> 1
             posX in 19.0..88.0 && posZ in 122.0..142.0 -> 2
             posX in -2.0..19.0 && posZ in 52.0..121.0 -> 3
-            posX in 19.0..88.0 && posZ in 30.0..50.0 -> 3
+            posX in 19.0..88.0 && posZ in 30.0..50.0 -> 4
             else -> 0
         }
     }

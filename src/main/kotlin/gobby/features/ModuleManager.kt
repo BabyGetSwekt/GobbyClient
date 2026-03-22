@@ -112,6 +112,7 @@ object ModuleManager {
         P5DebuffHelper
         AutoTerminals
         NoFire
+        NoBlockOverlay
         DisableBlockParticles
         WardrobeSwapper
         MaskSwapper
