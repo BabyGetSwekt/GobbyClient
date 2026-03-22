@@ -14,7 +14,10 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
 import net.minecraft.item.ItemStack
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
 import net.minecraft.screen.slot.SlotActionType
+import net.minecraft.screen.sync.ItemStackHash
 import net.minecraft.util.Formatting
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
@@ -243,6 +246,8 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         val button = buttons.firstOrNull {
             mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        mc.interactionManager?.clickSlot(cachedSyncId, button.slotId, 0, SlotActionType.PICKUP, mc.player)
+        mc.networkHandler?.sendPacket(
+            ClickSlotC2SPacket(cachedSyncId, 0, button.slotId.toShort(), 0.toByte(), SlotActionType.PICKUP, Int2ObjectOpenHashMap<ItemStackHash>(), ItemStackHash.EMPTY)
+        )
     }
 }

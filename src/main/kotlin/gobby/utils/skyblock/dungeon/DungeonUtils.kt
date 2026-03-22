@@ -79,28 +79,6 @@ object DungeonUtils {
     const val SPIRIT_LEAP = "SPIRIT_LEAP"
     const val INFINILEAP = "INFINITE_SPIRIT_LEAP"
 
-    var leapTarget: String? = null
-
-    fun leapTo(name: String, autoSwap: Boolean = false) {
-        val player = mc.player ?: return
-        if (name == player.name?.string) {
-            errorMessage("GG code tries to leap to itself. Report this to me, thanks")
-            return
-        }
-
-        if (autoSwap) {
-            if (!isHoldingSkyblockItem(SPIRIT_LEAP, INFINILEAP)) {
-                if (!swapToSkyblockItem(SPIRIT_LEAP, INFINILEAP)) {
-                    modMessage("No Spirit Leap found in hotbar!")
-                    return
-                }
-            }
-        }
-
-        leapTarget = name
-        rightClick()
-    }
-
     fun ItemStack.isSecret(): Boolean =
         skyblockID in secretDrops
 

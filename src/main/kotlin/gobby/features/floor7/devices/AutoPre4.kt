@@ -20,16 +20,11 @@ import gobby.utils.getShotCooldown
 import gobby.utils.hasItemID
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
-import gobby.utils.skyblock.dungeon.DungeonListener
+import gobby.utils.managers.LeapManager
 import gobby.utils.skyblock.dungeon.DungeonUtils
-import gobby.utils.skyblock.dungeon.DungeonUtils.INFINILEAP
-import gobby.utils.skyblock.dungeon.DungeonUtils.SPIRIT_LEAP
 import gobby.utils.skyblock.dungeon.DungeonUtils.getSection
 import gobby.utils.skyblockID
-import gobby.utils.managers.SwapManager
-import gobby.utils.managers.SwapResult
 import gobby.utils.timer.Clock
-import gobby.utils.timer.Executor
 import net.minecraft.block.Blocks
 import net.minecraft.state.property.Properties
 import net.minecraft.util.math.BlockPos
@@ -48,8 +43,6 @@ object AutoPre4 : Module(
     private val autoLeap by BooleanSetting("Auto Leap", false, desc = "Automatically leaps after device completion")
     private val leapTo by SelectorSetting("Leap To", 3, listOf("Archer", "Berserk", "Mage", "Tank", "Healer"), desc = "Which class to leap to")
         .withDependency { autoLeap }
-
-    private var leapScheduled = false
 
     val shootPositions = listOf(
         BlockPos(68, 130, 50),
@@ -200,11 +193,11 @@ object AutoPre4 : Module(
         val name = mc.player?.gameProfile?.name ?: return
         if (event.message.startsWith("$name completed a device!") && getSection() == 4) {
             deviceCompleted = true
-            if (autoLeap && !leapScheduled) scheduleLeap()
+            if (autoLeap) scheduleLeap()
         }
     }
 
-    private val leapClasses = listOf(
+    private val LEAP_CLASSES = arrayOf(
         DungeonUtils.DungeonClass.Archer,
         DungeonUtils.DungeonClass.Berserk,
         DungeonUtils.DungeonClass.Mage,
@@ -213,30 +206,7 @@ object AutoPre4 : Module(
     )
 
     private fun scheduleLeap() {
-        leapScheduled = true
-        val targetClass = leapClasses.getOrNull(leapTo) ?: return
-
-        DungeonListener.refreshTeammates()
-        val teammate = DungeonUtils.dungeonTeammates.values
-            .firstOrNull { it.dungeonClass == targetClass && it.name != mc.player?.name?.string }
-
-        if (teammate == null) {
-            modMessage("§cNo ${targetClass.name} found to leap to.")
-            leapScheduled = false
-            return
-        }
-
-        val result = SwapManager.swapToSkyblockID(SPIRIT_LEAP, INFINILEAP)
-        if (result == SwapResult.NOT_FOUND) {
-            modMessage("§cNo Spirit Leap found in hotbar!")
-            leapScheduled = false
-            return
-        }
-
-        DungeonUtils.leapTarget = teammate.name
-        Executor.schedule(1) {
-            rightClick()
-            leapScheduled = false
-        }
+        val targetClass = LEAP_CLASSES.getOrNull(leapTo) ?: return
+        LeapManager.scheduleLeap(targetClass)
     }
 }

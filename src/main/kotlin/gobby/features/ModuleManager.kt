@@ -26,6 +26,7 @@ import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.managers.AuraManager
 import gobby.utils.managers.EquipmentManager
+import gobby.utils.managers.LeapManager
 import gobby.utils.managers.SwapManager
 import gobby.utils.managers.WardrobeManager
 import gobby.utils.timer.Executor
@@ -88,6 +89,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AuraManager)
         EVENT_MANAGER.subscribe(SwapManager)
         EVENT_MANAGER.subscribe(WardrobeManager)
+        EVENT_MANAGER.subscribe(LeapManager)
         EVENT_MANAGER.subscribe(EquipmentManager)
         EVENT_MANAGER.subscribe(MaskSwapper)
         EVENT_MANAGER.subscribe(FreeCam)

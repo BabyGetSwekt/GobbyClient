@@ -8,7 +8,7 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.inDungeons
-import gobby.utils.skyblock.dungeon.DungeonUtils
+import gobby.utils.managers.LeapManager
 import gobby.utils.skyblock.dungeon.DungeonUtils.doorOpener
 
 object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", Category.DUNGEONS) {
@@ -25,7 +25,7 @@ object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", 
         val opener = doorOpener
         if (opener.isEmpty() || opener == mc.player?.name?.string) return
 
-        DungeonUtils.leapTo(opener, autoSwap = true)
+        LeapManager.scheduleLeap(opener)
     }
 
     @SubscribeEvent
@@ -35,6 +35,6 @@ object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", 
         val opener = doorOpener
         if (opener.isEmpty() || opener == mc.player?.name?.string) return
 
-        DungeonUtils.leapTo(opener, autoSwap = false)
+        LeapManager.scheduleLeap(opener)
     }
 }

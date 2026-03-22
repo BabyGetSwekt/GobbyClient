@@ -10,10 +10,8 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
 import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket
-import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.util.Formatting
 
 object DungeonListener {
@@ -27,9 +25,6 @@ object DungeonListener {
         private set
     var inP3 = false
         private set
-
-    private var leapTicks = 0
-    private const val LEAP_TIMEOUT_TICKS = 40
 
     val endDialogues = mapOf(
         1 to listOf("[BOSS] Bonzo: Just you wait..."),
@@ -91,36 +86,6 @@ object DungeonListener {
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (inBoss && doorOpener.isNotEmpty()) doorOpener = ""
-
-        val target = DungeonUtils.leapTarget ?: run {
-            leapTicks = 0
-            return
-        }
-
-        if (++leapTicks > LEAP_TIMEOUT_TICKS) {
-            DungeonUtils.leapTarget = null
-            leapTicks = 0
-            return
-        }
-
-        val screen = mc.currentScreen as? GenericContainerScreen ?: return
-        if (!screen.title.string.contains("Spirit Leap")) return
-        val handler = screen.screenHandler
-
-        for (slotIndex in 10..18) {
-            val slot = handler.slots.getOrNull(slotIndex) ?: continue
-            val stack = slot.stack ?: continue
-            if (stack.isEmpty) continue
-            val itemName = Formatting.strip(stack.name.string) ?: continue
-            if (itemName.equals(target, ignoreCase = true)) {
-                mc.interactionManager?.clickSlot(
-                    handler.syncId, slot.id, 0, SlotActionType.PICKUP, mc.player
-                )
-                DungeonUtils.leapTarget = null
-                leapTicks = 0
-                return
-            }
-        }
     }
 
     @SubscribeEvent
@@ -129,7 +94,6 @@ object DungeonListener {
         doorOpener = ""
         isBloodOpened = false
         inP3 = false
-        DungeonUtils.leapTarget = null
     }
 
     fun refreshTeammates() {
