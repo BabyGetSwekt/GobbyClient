@@ -83,6 +83,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AutoUpdater)
 
         EVENT_MANAGER.subscribe(GuiElementManager)
+        EVENT_MANAGER.subscribe(NotificationRenderer)
         EVENT_MANAGER.subscribe(YouAreAKingGG)
 
         EVENT_MANAGER.subscribe(WardrobeSwapper)

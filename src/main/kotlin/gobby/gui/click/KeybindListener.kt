@@ -3,7 +3,7 @@ package gobby.gui.click
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.KeyPressGuiEvent
 import gobby.events.core.SubscribeEvent
-import gobby.utils.ChatUtils.modMessage
+import gobby.utils.render.NotificationRenderer
 
 object KeybindListener {
 
@@ -18,8 +18,7 @@ object KeybindListener {
             val kb = module.keybindSetting ?: continue
             if (kb.value == key && module.toggled && !module.isAlwaysEnabled) {
                 module.enabled = !module.enabled
-                val state = if (module.enabled) "§aenabled" else "§cdisabled"
-                modMessage("${module.name} $state")
+                NotificationRenderer.show(module.name, module.enabled)
                 ConfigManager.save()
             }
         }
