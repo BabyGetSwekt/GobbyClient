@@ -16,6 +16,9 @@ object AutoGFS : Module("Auto GFS", "Automatically retrieves certain items from 
 
     private val enderPearls by BooleanSetting("Ender Pearls", false, desc = "Restock ender pearls from sacks")
     private val inflatableJerry by BooleanSetting("Inflatable Jerry", false, desc = "Restock inflatable jerry from sacks")
+    private val superBoomTnt by BooleanSetting("Super Boom TNT", false, desc = "Restock super boom tnt from sacks")
+    private val spiritLeap by BooleanSetting("Spirit Leap", false, desc = "Restock spirit leaps from sacks")
+    private val decoys by BooleanSetting("Decoys", false, desc = "Restock decoys from sacks")
 
     private data class TrackedItem(
         val id: String,
@@ -30,7 +33,10 @@ object AutoGFS : Module("Auto GFS", "Automatically retrieves certain items from 
 
     private val items = listOf(
         TrackedItem("ENDER_PEARL", 16, 3000L, { enderPearls }),
-        TrackedItem("INFLATABLE_JERRY", 64, 5000L, { inflatableJerry })
+        TrackedItem("INFLATABLE_JERRY", 64, 5000L, { inflatableJerry }),
+        TrackedItem("SUPERBOOM_TNT", 64, 5000L, { superBoomTnt }),
+        TrackedItem("SPIRIT_LEAP", 16, 3000L, { spiritLeap }),
+        TrackedItem("DUNGEON_DECOY", 64, 5000, { decoys })
     )
 
     @SubscribeEvent
@@ -45,7 +51,9 @@ object AutoGFS : Module("Auto GFS", "Automatically retrieves certain items from 
         if (!enabled || !inDungeons) return
         items.filter { it.ready() }.forEach { item ->
             item.pending = false
-            val missing = item.max - countInHotbar(item.id)
+            val count = countInHotbar(item.id)
+            if (count == 0) return@forEach
+            val missing = item.max - count
             if (missing <= 0) return@forEach
             ChatUtils.sendCommand("gfs ${item.id} $missing")
             item.cooldown.update()
