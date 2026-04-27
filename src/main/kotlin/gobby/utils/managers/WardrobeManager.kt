@@ -3,7 +3,7 @@ package gobby.utils.managers
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
 import gobby.utils.LocationUtils
@@ -61,6 +61,7 @@ object WardrobeManager {
 
             is ScreenHandlerSlotUpdateS2CPacket -> {
                 if (state != State.WAITING_SLOT) return
+                if (packet.syncId != syncId) return
                 val slot = packet.slot
                 if (slot == targetSlot) {
                     mc.networkHandler?.sendPacket(
@@ -90,7 +91,7 @@ object WardrobeManager {
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         reset()
         clearQueue()
     }

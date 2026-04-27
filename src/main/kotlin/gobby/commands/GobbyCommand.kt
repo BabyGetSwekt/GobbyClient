@@ -6,7 +6,6 @@ import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import gobby.gui.MapTestScreen
 import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
@@ -232,16 +231,6 @@ object GobbyCommand {
             )
     }
 
-    private fun mapTestCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(
-                ClientCommandManager.literal("mapTest")
-                    .executes {
-                        mc.send { mc.setScreen(MapTestScreen()) }
-                        Command.SINGLE_SUCCESS
-                    }
-            )
-    }
 
     private fun hudCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal("gobby")
@@ -268,7 +257,6 @@ object GobbyCommand {
         event.register(hudCommand())
         event.register(lookingAtCommand())
         event.register(mapCommand())
-        event.register(mapTestCommand())
         event.register(getCoreCommand())
         event.register(etherwarpCommand())
         event.register(bloodCommand())

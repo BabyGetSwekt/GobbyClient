@@ -13,6 +13,11 @@ import java.util.Locale
 
 object Utils {
 
+    fun setClipboard(text: String) {
+        val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
+        clipboard.setContents(java.awt.datatransfer.StringSelection(text), null)
+    }
+
     /**
      * Checks if the current object is equal to at least one of the specified objects.
      *
@@ -33,6 +38,8 @@ object Utils {
     }
 
     fun ClientWorld.getBlockAtPos(pos: BlockPos): Block = getBlockState(pos).block
+
+    fun ClientWorld.setBlockAtPos(pos: BlockPos, block: Block) = setBlockState(pos, block.defaultState, 3)
 
     fun getBlockIdAt(blockPos: BlockPos): Int? {
         val blockState = mc.world?.getBlockState(blockPos) ?: return null

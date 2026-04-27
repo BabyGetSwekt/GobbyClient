@@ -49,6 +49,15 @@ object VecUtils {
             else -> this
         }
 
+    fun Vec3d.rotateAroundNorth(rotation: Rotations): Vec3d =
+        when (rotation) {
+            Rotations.NORTH -> Vec3d(-this.x, this.y, -this.z)
+            Rotations.WEST ->  Vec3d(-this.z, this.y, this.x)
+            Rotations.SOUTH -> Vec3d(this.x, this.y, this.z)
+            Rotations.EAST ->  Vec3d(this.z, this.y, -this.x)
+            else -> this
+        }
+
     fun Vec3i.toBlockPos(add: Double = 0.0): BlockPos =
         BlockPos((this.x + add).toInt(), (this.y + add).toInt(), (this.z + add).toInt())
 }
