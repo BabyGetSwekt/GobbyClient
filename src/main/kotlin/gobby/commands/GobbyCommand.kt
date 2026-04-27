@@ -19,7 +19,6 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.pathfinder.PathExecutor
 import gobby.pathfinder.core.PathFinder
-import gobby.pathfinder.etherwarp.*
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
@@ -258,7 +257,6 @@ object GobbyCommand {
         event.register(lookingAtCommand())
         event.register(mapCommand())
         event.register(getCoreCommand())
-        event.register(etherwarpCommand())
         event.register(bloodCommand())
         event.register(saveMapCommand())
         event.register(copyMapCommand())
@@ -384,41 +382,4 @@ object GobbyCommand {
             )
     }
 
-    private fun etherwarpCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("etherwarp")
-                .then(ClientCommandManager.argument("x", IntegerArgumentType.integer())
-                    .then(ClientCommandManager.argument("y", IntegerArgumentType.integer())
-                        .then(ClientCommandManager.argument("z", IntegerArgumentType.integer())
-                            .executes { ctx ->
-                                val x = IntegerArgumentType.getInteger(ctx, "x")
-                                val y = IntegerArgumentType.getInteger(ctx, "y")
-                                val z = IntegerArgumentType.getInteger(ctx, "z")
-                                val player = mc.player ?: return@executes 0
-                                val start = player.blockPos.down()
-                                val goal = GoalBlockPos(BlockPos(x, y, z))
-                                val config = EtherwarpConfig(startPos = start)
-
-                                EtherwarpExecutor.pathAndExecute(start, goal, config)
-                                Command.SINGLE_SUCCESS
-                            }
-                        )
-                    )
-                )
-                .then(ClientCommandManager.literal("stop")
-                    .executes {
-                        EtherwarpExecutor.stop()
-                        EtherwarpRenderer.clear()
-                        Command.SINGLE_SUCCESS
-                    }
-                )
-                .then(ClientCommandManager.literal("clear")
-                    .executes {
-                        EtherwarpRenderer.clear()
-                        modMessage("§cCleared etherwarp path")
-                        Command.SINGLE_SUCCESS
-                    }
-                )
-            )
-    }
 }
