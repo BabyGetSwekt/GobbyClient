@@ -157,7 +157,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         if (tickCount <= 2) return
         if (isBlinking() && isDead) { errorMessage("§cBlood Blink stopped. You died lol"); resetState(); state = State.DONE; return }
         when (state) {
-            State.IDLE -> if (autoBlink) { KeyBinding.unpressAll(); state = State.INIT; initSequence(player) }
+            State.IDLE -> if (autoBlink && ScanUtils.currentRoom?.data?.type == RoomType.ENTRANCE) { KeyBinding.unpressAll(); state = State.INIT; initSequence(player) }
             State.INIT -> initSequence(player)
             State.PEARL_UP_1 -> pearl(player.yaw, -90f) { state = State.AWAIT_PEARL_UP_1_LAND }
             State.EXPLORE -> exploreForBlood()
@@ -309,6 +309,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled) return
         val room = startRoom ?: ScanUtils.currentRoom ?: return
+        if (room.data.type != RoomType.ENTRANCE) return
         for (slab in Slab.entries) {
             val p = room.getRealCoords(slab.offset)
             val box = Box(p.x.toInt().toDouble(), p.y.toInt().toDouble(), p.z.toInt().toDouble(),
