@@ -3,7 +3,6 @@ package gobby.features.skyblock
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.LeftClickEvent
-import gobby.events.PacketSentEvent
 import gobby.events.RightClickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
@@ -16,7 +15,6 @@ import gobby.utils.Utils.pitch
 import gobby.utils.Utils.toRadians
 import gobby.utils.Utils.yaw
 import gobby.utils.timer.Clock
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
 import net.minecraft.util.math.MathHelper
 import kotlin.math.abs
 import kotlin.math.cos
@@ -135,12 +133,6 @@ object FreeCam : Module(
         if (enabled && !wasEnabled) enable()
         if (!enabled && wasEnabled) disable()
         wasEnabled = enabled
-    }
-
-    @SubscribeEvent
-    fun onPacket(event: PacketSentEvent) {
-        if (!enabled) return
-        if (event.packet is PlayerMoveC2SPacket) event.cancel()
     }
 
     @SubscribeEvent

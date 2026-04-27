@@ -21,6 +21,7 @@
 		"accessor.LimbAnimatorAccessor",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
+		"network.MixinClientPlayerInteractionManager",
 		"MixinFabricLoaderImpl",
 		"MixinClientWorld",
 		"MixinParticleManager",
