@@ -2,6 +2,7 @@ package gobby.mixin;
 
 import gobby.features.skyblock.FreeCam;
 import gobby.mixin.accessor.LimbAnimatorAccessor;
+import gobby.utils.managers.PacketOrderManager;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,5 +25,10 @@ public class MixinClientPlayerEntity {
             limb.setSpeed(0f);
             limb.setLastSpeed(0f);
         }
+    }
+
+    @Inject(method = "sendMovementPackets", at = @At("HEAD"))
+    private void gobbyclient$beforeSendMovement(CallbackInfo ci) {
+        PacketOrderManager.INSTANCE.execute(PacketOrderManager.Phase.ITEM_USE);
     }
 }

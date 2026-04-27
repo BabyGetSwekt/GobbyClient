@@ -3,7 +3,7 @@ package gobby.utils.managers
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
 import gobby.utils.ChatUtils.errorMessage
@@ -12,7 +12,6 @@ import gobby.utils.skyblockID
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
-import net.minecraft.network.packet.s2c.play.InventoryS2CPacket
 import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
 import net.minecraft.screen.slot.SlotActionType
@@ -94,15 +93,9 @@ object EquipmentManager {
                 event.cancel()
             }
 
-            is InventoryS2CPacket -> {
-                if (state != State.WAITING_SLOT) return
-                if (packet.syncId == syncId) event.cancel()
-            }
-
             is ScreenHandlerSlotUpdateS2CPacket -> {
                 if (state != State.WAITING_SLOT) return
                 if (packet.syncId != syncId) return
-                event.cancel()
                 val slot = packet.slot
                 if (slot == targetSlot) {
                     val containerSlot = invToContainerSlot(itemSlot)
@@ -132,7 +125,7 @@ object EquipmentManager {
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         reset()
         pendingAction = null
     }

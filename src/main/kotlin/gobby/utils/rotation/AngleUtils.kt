@@ -1,6 +1,7 @@
 package gobby.utils.rotation
 
 import gobby.utils.PlayerUtils.getEyePosition
+import net.minecraft.util.math.Direction
 import net.minecraft.util.math.Vec3d
 import kotlin.math.atan
 import kotlin.math.atan2
@@ -23,5 +24,13 @@ object AngleUtils {
 
         if (pitch < -90 || pitch > 90 || yaw.isNaN() || pitch.isNaN()) return null
         return Pair(yaw.toFloat(), pitch.toFloat())
+    }
+
+    fun Direction.horizontalDegrees(): Float = when (this) {
+        Direction.SOUTH -> 0f
+        Direction.WEST -> 90f
+        Direction.NORTH -> 180f
+        Direction.EAST -> 270f
+        else -> 0f
     }
 }

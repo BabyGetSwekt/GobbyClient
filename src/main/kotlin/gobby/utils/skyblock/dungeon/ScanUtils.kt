@@ -170,7 +170,7 @@ object ScanUtils {
         return getCoreAtHeight(vec2, getTopLayerOfRoom(vec2, chunk), chunk)
     }
 
-    private fun getCoreAtHeight(vec2: Vec2, roomHeight: Int, chunk: WorldChunk): Int {
+    fun getCoreAtHeight(vec2: Vec2, roomHeight: Int, chunk: WorldChunk): Int {
         val sb = StringBuilder(150)
         val clampedHeight = roomHeight.coerceIn(11..140)
         sb.append(CharArray(140 - clampedHeight) { '0' })

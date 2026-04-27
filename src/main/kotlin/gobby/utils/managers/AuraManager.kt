@@ -3,7 +3,7 @@ package gobby.utils.managers
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketSentEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.ShapeContext
@@ -85,7 +85,7 @@ object AuraManager {
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         queue.clear()
         ready = false
     }

@@ -65,7 +65,8 @@ object LividHelper : EntityHighlighter(
 
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
-        if (!enabled || dungeonFloor != 5) return
+        if (!enabled) return
+        if (dungeonFloor != 5) return
 
         if (inBoss && serverTickCounter == -1) {
             serverTickCounter = 0

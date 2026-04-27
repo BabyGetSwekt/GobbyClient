@@ -19,7 +19,6 @@ import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
 import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.screen.sync.ItemStackHash
 import net.minecraft.util.Formatting
-import org.lwjgl.glfw.GLFW
 import java.awt.Color
 
 object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS, defaultEnabled = true) {
@@ -27,8 +26,8 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
     val scale by NumberSetting("Scale", 100, 50, 200, desc = "Scale of the overlay UI (percent)")
 
     private data class LeapButton(
+        val targetName: String,
         val teammate: DungeonTeammate,
-        val slotId: Int,
         val headStack: ItemStack,
         var x: Int = 0,
         var y: Int = 0,
@@ -40,7 +39,6 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
     private var isActive = false
     private var hoveredButton: LeapButton? = null
     private var cachedSyncId = -1
-    private var mouseWasDown = false
 
     private const val CARD_WIDTH = 160
     private const val CARD_HEIGHT = 55
@@ -106,14 +104,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
         cachedSyncId = screen.screenHandler.syncId
         buttons = buildButtonsFromSlots(screen).sortedBy { CLASS_SORT_ORDER[it.teammate.dungeonClass] ?: 5 }
-        val wasActive = isActive
         isActive = buttons.isNotEmpty()
-
-        if (isActive && !wasActive) {
-            val cx = mc.window.width / 2.0
-            val cy = mc.window.height / 2.0
-            GLFW.glfwSetCursorPos(mc.window.handle, cx, cy)
-        }
     }
 
     private fun buildButtonsFromSlots(screen: GenericContainerScreen): List<LeapButton> {
@@ -122,13 +113,13 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             val slot = screen.screenHandler.slots.getOrNull(slotIndex) ?: continue
             val stack = slot.stack ?: continue
             if (stack.isEmpty) continue
-            val itemName = Formatting.strip(stack.name.string) ?: continue
+            val itemName = Formatting.strip(stack.name.string)?.trim() ?: continue
             if (itemName.isBlank()) continue
 
             val teammate = DungeonListener.teammates[itemName]
                 ?: DungeonTeammate(name = itemName, dungeonClass = DungeonClass.Unknown, classLevel = "?", playerLevel = 0)
 
-            result.add(LeapButton(teammate = teammate, slotId = slot.id, headStack = stack.copy()))
+            result.add(LeapButton(targetName = itemName, teammate = teammate, headStack = stack.copy()))
         }
         return result
     }
@@ -138,7 +129,6 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         buttons = emptyList()
         hoveredButton = null
         cachedSyncId = -1
-        mouseWasDown = false
     }
 
     @SubscribeEvent
@@ -157,7 +147,6 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         val scaledMouseX = ((event.mouseX - centerX) / uiScale + centerX).toInt()
         val scaledMouseY = ((event.mouseY - centerY) / uiScale + centerY).toInt()
 
-        handleMouseInput(scaledMouseX, scaledMouseY)
         drawDarkOverlay(context, screenWidth, screenHeight)
 
         context.matrices.pushMatrix()
@@ -166,12 +155,17 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         context.matrices.popMatrix()
     }
 
-    private fun handleMouseInput(mouseX: Int, mouseY: Int) {
-        val mouseDown = GLFW.glfwGetMouseButton(mc.window.handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS
-        if (mouseWasDown && !mouseDown) {
-            clickButton(mouseX, mouseY)
-        }
-        mouseWasDown = mouseDown
+    fun handleClick(mouseX: Double, mouseY: Double): Boolean {
+        if (!isActive) return false
+        val screenWidth = mc.window.scaledWidth
+        val screenHeight = mc.window.scaledHeight
+        val uiScale = scale / 100f
+        val centerX = screenWidth / 2f
+        val centerY = screenHeight / 2f
+        val scaledMouseX = ((mouseX - centerX) / uiScale + centerX).toInt()
+        val scaledMouseY = ((mouseY - centerY) / uiScale + centerY).toInt()
+        clickButton(scaledMouseX, scaledMouseY)
+        return true
     }
 
     private fun drawDarkOverlay(context: DrawContext, width: Int, height: Int) {
@@ -244,10 +238,48 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
     private fun clickButton(mouseX: Int, mouseY: Int) {
         val button = buttons.firstOrNull {
-            mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
+            it.width > 0 && it.height > 0 &&
+                mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        mc.networkHandler?.sendPacket(
-            ClickSlotC2SPacket(cachedSyncId, 0, button.slotId.toShort(), 0.toByte(), SlotActionType.PICKUP, Int2ObjectOpenHashMap<ItemStackHash>(), ItemStackHash.EMPTY)
+        val screen = mc.currentScreen as? GenericContainerScreen ?: return
+        val handler = screen.screenHandler
+        val player = mc.player ?: return
+        val connection = mc.networkHandler ?: return
+
+        val targetName = button.targetName
+        var slotId = -1
+        for (slot in handler.slots) {
+            val stack = slot.stack ?: continue
+            if (stack.isEmpty) continue
+            val itemName = Formatting.strip(stack.name.string)?.trim() ?: continue
+            if (itemName.equals(targetName, ignoreCase = true)) {
+                slotId = slot.id
+                break
+            }
+        }
+        if (slotId < 0) return
+
+        val slots = handler.slots
+        val before = slots.map { it.stack.copy() }
+        handler.onSlotClick(slotId, 0, SlotActionType.CLONE, player)
+
+        val changed = Int2ObjectOpenHashMap<ItemStackHash>()
+        for (i in before.indices) {
+            if (!ItemStack.areEqual(before[i], slots[i].stack)) {
+                changed.put(i, ItemStackHash.fromItemStack(slots[i].stack, connection.componentHasher))
+            }
+        }
+
+        connection.sendPacket(
+            ClickSlotC2SPacket(
+                handler.syncId,
+                handler.revision,
+                slotId.toShort(),
+                0.toByte(),
+                SlotActionType.CLONE,
+                changed,
+                ItemStackHash.fromItemStack(handler.cursorStack, connection.componentHasher)
+            )
         )
     }
 }

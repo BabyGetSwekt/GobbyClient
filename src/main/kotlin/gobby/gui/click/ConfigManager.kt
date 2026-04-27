@@ -3,6 +3,7 @@ package gobby.gui.click
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import gobby.Gobbyclient
+import gobby.gui.hud.HudManager
 import java.awt.Color
 import java.io.File
 
@@ -28,6 +29,7 @@ object ConfigManager {
                         is ColorSetting -> mj.addProperty(setting.name, setting.value.rgb)
                         is KeybindSetting -> mj.addProperty(setting.name, setting.value)
                         is ActionSetting -> {}
+                        is HudButton -> {}
                         is DropDownSetting -> {}
                     }
                 }
@@ -35,7 +37,6 @@ object ConfigManager {
             }
             root.add("modules", modulesJson)
 
-            // Panel positions
             val panelsJson = JsonObject()
             for ((cat, pos) in ClickGUI.panelPositions) {
                 val pj = JsonObject()
@@ -44,6 +45,16 @@ object ConfigManager {
                 panelsJson.add(cat.name, pj)
             }
             root.add("panels", panelsJson)
+
+            val hudsJson = JsonObject()
+            for (hud in HudManager.getAll()) {
+                val hj = JsonObject()
+                hj.addProperty("x", hud.hudX)
+                hj.addProperty("y", hud.hudY)
+                hj.addProperty("scale", hud.hudScale)
+                hudsJson.add(hud.name, hj)
+            }
+            root.add("huds", hudsJson)
 
             configFile.parentFile.mkdirs()
             configFile.writeText(gson.toJson(root))
@@ -76,13 +87,13 @@ object ConfigManager {
                             is ColorSetting -> setting.value = Color(mj.get(setting.name).asInt, true)
                             is KeybindSetting -> setting.value = mj.get(setting.name).asInt
                             is ActionSetting -> {}
+                            is HudButton -> {}
                             is DropDownSetting -> {}
                         }
                     } catch (_: Exception) {}
                 }
             }
 
-            // Panel positions
             val panelsJson = root.getAsJsonObject("panels")
             if (panelsJson != null) {
                 for (cat in Category.entries) {
@@ -90,6 +101,16 @@ object ConfigManager {
                     val x = pj.get("x")?.asFloat ?: continue
                     val y = pj.get("y")?.asFloat ?: continue
                     ClickGUI.panelPositions[cat] = Pair(x, y)
+                }
+            }
+
+            val hudsJson = root.getAsJsonObject("huds")
+            if (hudsJson != null) {
+                for (hud in HudManager.getAll()) {
+                    val hj = hudsJson.getAsJsonObject(hud.name) ?: continue
+                    hud.hudX = hj.get("x")?.asFloat ?: 0f
+                    hud.hudY = hj.get("y")?.asFloat ?: 0f
+                    hud.hudScale = hj.get("scale")?.asFloat ?: 1f
                 }
             }
         } catch (e: Exception) {

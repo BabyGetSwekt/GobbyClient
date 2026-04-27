@@ -1,6 +1,7 @@
 package gobby.mixin;
 
 import gobby.features.developer.DrawSlotNumbers;
+import gobby.features.dungeons.LeapOverlay;
 import gobby.features.floor7.terminals.TerminalOverlay;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -21,22 +22,21 @@ public class MixinHandledScreen {
 
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
+		if (LeapOverlay.INSTANCE.isOverlayActive()) {
+			if (click.button() == 0) LeapOverlay.INSTANCE.handleClick(click.x(), click.y());
 			cir.setReturnValue(true);
+			return;
 		}
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) cir.setReturnValue(true);
 	}
 
 	@Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseReleased(Click click, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
-			cir.setReturnValue(true);
-		}
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks() || LeapOverlay.INSTANCE.isOverlayActive()) cir.setReturnValue(true);
 	}
 
 	@Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseDragged(Click click, double offsetX, double offsetY, CallbackInfoReturnable<Boolean> cir) {
-		if (TerminalOverlay.INSTANCE.shouldBlockClicks()) {
-			cir.setReturnValue(true);
-		}
+		if (TerminalOverlay.INSTANCE.shouldBlockClicks() || LeapOverlay.INSTANCE.isOverlayActive()) cir.setReturnValue(true);
 	}
 }

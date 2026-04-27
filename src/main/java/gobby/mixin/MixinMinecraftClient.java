@@ -69,15 +69,6 @@ public abstract class MixinMinecraftClient {
         }
     }
 
-    // Doesn't work yet, I don't know why
-    @Inject(method = "setWorld", at = @At("TAIL"))
-    private void gobbyclient$onWorldUnload(ClientWorld world, CallbackInfo info) {
-        if (world == null) {
-            System.out.println("World unloaded");
-            Gobbyclient.EVENT_MANAGER.publish(new WorldUnloadEvent());
-        }
-    }
-
     @Inject(method = "setScreen(Lnet/minecraft/client/gui/screen/Screen;)V", at = @At("TAIL"))
     private void gobbyclient$onSetScreen(Screen screen, CallbackInfo info) {
         if (screen == null) return;

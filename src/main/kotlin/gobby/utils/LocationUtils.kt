@@ -38,7 +38,7 @@ object LocationUtils {
         set(value) { _inDungeons = value }
     private var _dungeonFloor = -1
     var dungeonFloor: Int
-        get() = if (DevMode.enabled && DevMode.forceFloor7) 7 else _dungeonFloor
+        get() = if (DevMode.enabled && DevMode.forceDungeons && DevMode.forceFloor7) 7 else _dungeonFloor
         set(value) { _dungeonFloor = value }
     val inBoss: Boolean get() = inBoss()
 

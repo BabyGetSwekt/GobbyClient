@@ -132,6 +132,7 @@ object InputHandler {
             }
             is ColorSetting -> handleColorSettingClick(gui, px, y, mx, my, setting, button)
             is ActionSetting -> setting.action()
+            is HudButton -> setting.onClick()
             is DropDownSetting -> handleDropDownClick(gui, px, y, mx, my, setting, button)
         }
     }

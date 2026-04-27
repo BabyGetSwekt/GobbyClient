@@ -119,9 +119,10 @@ object BlockRenderUtils {
         matrixStack: MatrixStack,
         camera: Camera,
         pos1: Vec3d, pos2: Vec3d,
-        color: Color
+        color: Color,
+        depthTest: Boolean = false
     ) {
-        drawLine3D(matrixStack, camera, pos1.x, pos1.y, pos1.z, pos2.x, pos2.y, pos2.z, color)
+        drawLine3D(matrixStack, camera, pos1.x, pos1.y, pos1.z, pos2.x, pos2.y, pos2.z, color, depthTest)
     }
 
     fun drawLine3D(
@@ -129,10 +130,11 @@ object BlockRenderUtils {
         camera: Camera,
         x1: Double, y1: Double, z1: Double,
         x2: Double, y2: Double, z2: Double,
-        color: Color
+        color: Color,
+        depthTest: Boolean = false
     ) {
         val vertexConsumers = mc.bufferBuilders.entityVertexConsumers
-        val layer = RenderLayers.ESP_LINES
+        val layer = if (depthTest) RenderLayers.DEPTH_LINES else RenderLayers.ESP_LINES
         val buffer = vertexConsumers.getBuffer(layer)
         buildLine3D(matrixStack, camera, buffer, x1, y1, z1, x2, y2, z2, color)
         vertexConsumers.draw(layer)

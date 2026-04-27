@@ -2,14 +2,14 @@ package gobby.features.floor7
 
 import gobby.events.ChatReceivedEvent
 import gobby.events.ServerTickEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.Category
 import gobby.gui.click.ClickGUITheme
 import gobby.gui.click.Module
+import gobby.gui.hud.HudSetting
 import gobby.utils.Utils.equalsOneOf
 import gobby.utils.render.Interpolate.interpolateColorC
-import gobby.utils.render.TitleUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonPad
 import net.minecraft.text.Text
@@ -26,13 +26,28 @@ object PadTimers : Module(
     private val COL_TIMER_LOW = Color(170, 0, 0)
 
     private const val PURPLE_CRUSH = 96
-    private const val GREEN_CRUSH = 171  // purple + 75 ticks
+    private const val GREEN_CRUSH = 171
 
     private const val STORM_MSG_1 = "[BOSS] Storm: THUNDER LET ME BE YOUR CATALYST!"
     private const val STORM_MSG_2 = "[BOSS] Storm: ENERGY HEED MY CALL!"
 
     private var ticks = 0
     private var active = false
+    private var displayText: Text? = null
+
+    private val padHud by HudSetting("Pad Timer", "Shows when to crush the pad.") { example ->
+        if (example) {
+            styledText(
+                Text.empty()
+                    .append(styledColored("Crush ", Color.WHITE))
+                    .append(styledColored("Purple", COL_PURPLE))
+                    .append(styledColored(" in ", Color.WHITE))
+                    .append(styledColored("50 ticks", COL_TIMER_HIGH))
+            )
+        } else {
+            displayText?.let { styledText(it) }
+        }
+    }
 
     private fun styledColored(s: String, color: Color): Text {
         val argb = (0xFF shl 24) or (color.red shl 16) or (color.green shl 8) or color.blue
@@ -49,20 +64,20 @@ object PadTimers : Module(
 
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
-        if (!active) return
+        if (!active) { displayText = null; return }
         ticks++
-        if (ticks > GREEN_CRUSH) { active = false; return }
+        if (ticks > GREEN_CRUSH) { active = false; displayText = null; return }
 
         val (crushAt, name, padColor) = when (DungeonUtils.getCurrentPad()) {
             DungeonPad.Purple -> Triple(PURPLE_CRUSH, "Purple", COL_PURPLE)
             DungeonPad.Green -> Triple(GREEN_CRUSH, "Green", COL_GREEN)
-            else -> return
+            else -> { displayText = null; return }
         }
 
         val remaining = crushAt - ticks
-        if (remaining < 0) return
+        if (remaining < 0) { displayText = null; return }
 
-        val text = if (remaining == 0) {
+        displayText = if (remaining == 0) {
             Text.empty()
                 .append(styledColored("Crush ", Color.WHITE))
                 .append(styledColored(name, padColor))
@@ -75,13 +90,12 @@ object PadTimers : Module(
                 .append(styledColored(" in ", Color.WHITE))
                 .append(styledColored("$remaining ticks", interpolateColorC(COL_TIMER_LOW, COL_TIMER_HIGH, ratio)))
         }
-
-        TitleUtils.displayStyledTextServerTicks(text, if (remaining == 0) 20 else 2)
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         active = false
         ticks = 0
+        displayText = null
     }
 }

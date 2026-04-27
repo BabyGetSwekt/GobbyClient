@@ -3,18 +3,21 @@ package gobby.utils.managers
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
-import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
+import net.minecraft.item.Items
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
 import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
+import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.screen.sync.ItemStackHash
 import net.minecraft.util.Formatting
@@ -29,7 +32,7 @@ object LeapManager {
         private set
     var leapTarget: String? = null
         private set
-    private var windowId = -1
+    private var container: ScreenHandler? = null
     private var ticks = 0
 
     fun scheduleLeap(name: String): Boolean {
@@ -63,7 +66,10 @@ object LeapManager {
 
         if (result == SwapResult.ALREADY_HELD) {
             state = State.OPENING_MENU
-            rightClick()
+            PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
+                val p = mc.player ?: return@register
+                SwapManager.sendAirC08(p.yaw, p.pitch)
+            }
         } else {
             state = State.SWAPPING
         }
@@ -77,7 +83,10 @@ object LeapManager {
 
         if (state == State.SWAPPING && SwapManager.canUseAbility) {
             state = State.OPENING_MENU
-            rightClick()
+            PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
+                val p = mc.player ?: return@register
+                SwapManager.sendAirC08(p.yaw, p.pitch)
+            }
         }
 
         if (++ticks > TIMEOUT_TICKS) reset()
@@ -91,40 +100,85 @@ object LeapManager {
             is OpenScreenS2CPacket -> {
                 if (state != State.OPENING_MENU) return
                 if (!packet.name.string.contains("Spirit Leap")) return
-                windowId = packet.syncId
+                if (packet.syncId < 1 || packet.syncId > 100) return
+                val player = mc.player ?: return
+                container = packet.screenHandlerType.create(packet.syncId, player.inventory)
                 state = State.MENU_OPENED
                 event.cancel()
             }
 
             is ScreenHandlerSlotUpdateS2CPacket -> {
                 if (state != State.MENU_OPENED) return
-                if (packet.syncId != windowId) return
+                val handler = container ?: return
+                if (packet.syncId != handler.syncId) return
                 val slot = packet.slot
-                if (slot !in 10..18) return
+                if (slot < 11) return
+
+                handler.setStackInSlot(slot, packet.revision, packet.stack)
+
+                if (slot > 16) {
+                    modMessage("§cFailed to find leap target!")
+                    close()
+                    return
+                }
+
                 val stack = packet.stack
-                if (stack.isEmpty) return
+                if (stack.item != Items.PLAYER_HEAD) return
                 val itemName = Formatting.strip(stack.name.string) ?: return
                 if (!itemName.equals(leapTarget, ignoreCase = true)) return
 
                 state = State.LEAPING
-                mc.networkHandler?.sendPacket(
-                    ClickSlotC2SPacket(windowId, 0, slot.toShort(), 0.toByte(), SlotActionType.PICKUP, Int2ObjectOpenHashMap<ItemStackHash>(), ItemStackHash.EMPTY)
-                )
-                mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(windowId))
+                sendWindowClick(slot, mc.player ?: return, handler)
+                modMessage("§e[Leap] Sent a packet to slot $slot")
                 modMessage("§aAuto leaped to $leapTarget!")
                 reset()
             }
         }
     }
 
+    private fun sendWindowClick(slotNumber: Int, player: PlayerEntity, handler: ScreenHandler) {
+        val connection = mc.networkHandler ?: return
+        val slots = handler.slots
+        val before = slots.map { it.stack.copy() }
+
+        handler.onSlotClick(slotNumber, 0, SlotActionType.CLONE, player)
+
+        val changed = Int2ObjectOpenHashMap<ItemStackHash>()
+        for (i in before.indices) {
+            if (!ItemStack.areEqual(before[i], slots[i].stack)) {
+                changed.put(i, ItemStackHash.fromItemStack(slots[i].stack, connection.componentHasher))
+            }
+        }
+
+        val cursorHash = ItemStackHash.fromItemStack(handler.cursorStack, connection.componentHasher)
+        connection.sendPacket(
+            ClickSlotC2SPacket(
+                handler.syncId,
+                handler.revision,
+                slotNumber.toShort(),
+                0.toByte(),
+                SlotActionType.CLONE,
+                changed,
+                cursorHash
+            )
+        )
+        connection.sendPacket(CloseHandledScreenC2SPacket(handler.syncId))
+    }
+
+    private fun close() {
+        val handler = container ?: return
+        mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(handler.syncId))
+        reset()
+    }
+
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         reset()
     }
 
     private fun reset() {
         leapTarget = null
-        windowId = -1
+        container = null
         ticks = 0
         state = State.IDLE
     }

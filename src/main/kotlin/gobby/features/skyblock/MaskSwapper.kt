@@ -6,7 +6,9 @@ import gobby.events.core.SubscribeEvent
 import gobby.gui.click.Category
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
+import gobby.utils.BONZO_MASK_IDS
 import gobby.utils.LocationUtils
+import gobby.utils.SPIRIT_MASK_IDS
 import gobby.utils.managers.EquipmentManager
 import gobby.utils.render.TitleUtils
 import java.awt.Color
@@ -30,14 +32,14 @@ object MaskSwapper : Module("Mask Swapper", "Swap masks with keybinds", Category
         if (key == 0) return
 
         when (key) {
-            bonzoKey -> swap("Bonzo Mask", COL_BONZO, "BONZO_MASK", "STARRED_BONZO_MASK")
-            spiritKey -> swap("Spirit Mask", COL_SPIRIT, "SPIRIT_MASK", "STARRED_SPIRIT_MASK")
-            cowKey -> swap("Cow Head", COL_COW, "COW_HEAD")
+            bonzoKey -> swap("Bonzo Mask", COL_BONZO, BONZO_MASK_IDS)
+            spiritKey -> swap("Spirit Mask", COL_SPIRIT, SPIRIT_MASK_IDS)
+            cowKey -> swap("Cow Head", COL_COW, setOf("COW_HEAD"))
         }
     }
 
-    private fun swap(name: String, color: Color, vararg ids: String) {
-        EquipmentManager.swapHead(*ids)
+    private fun swap(name: String, color: Color, ids: Set<String>) {
+        EquipmentManager.swapHead(*ids.toTypedArray())
         TitleUtils.displayStyledTitleTicks(name, 20, color)
     }
 }

@@ -21,9 +21,12 @@ public class MixinClientConnection implements IClientConnectionAccessor {
 
     @Unique public int interactSequence;
 
-    @Inject(method = "send(Lnet/minecraft/network/packet/Packet;Lio/netty/channel/ChannelFutureListener;)V", at = @At("HEAD"))
+    @Inject(method = "send(Lnet/minecraft/network/packet/Packet;Lio/netty/channel/ChannelFutureListener;)V", at = @At("HEAD"), cancellable = true)
     private void gobbyclient$onSendPacket(Packet<?> packet, @Nullable ChannelFutureListener listener, CallbackInfo ci) {
-        Gobbyclient.EVENT_MANAGER.publish(new PacketSentEvent(packet));
+        if (Gobbyclient.EVENT_MANAGER.publish(new PacketSentEvent(packet)).isCanceled()) {
+            ci.cancel();
+            return;
+        }
 
         if (packet instanceof PlayerInteractItemC2SPacket) interactSequence++;
     }

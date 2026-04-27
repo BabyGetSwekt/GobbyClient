@@ -4,7 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
@@ -89,7 +89,7 @@ object DungeonListener {
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldLoad(event: WorldLoadEvent) {
         teammates.clear()
         doorOpener = ""
         isBloodOpened = false

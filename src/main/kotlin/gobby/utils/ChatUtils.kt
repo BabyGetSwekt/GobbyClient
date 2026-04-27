@@ -62,6 +62,12 @@ object ChatUtils {
         mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
     }
 
+    fun modMessage(text: Text, showPrefix: Boolean = true) {
+        if (mc.player == null || mc.world == null) return
+        val msg = if (showPrefix) Text.literal("$PREFIX ").append(text) else text
+        mc.execute { mc.inGameHud?.chatHud?.addMessage(msg) }
+    }
+
     fun devMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.world == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled || !gobby.features.developer.DevMode.enableDevMessages) return
         val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()

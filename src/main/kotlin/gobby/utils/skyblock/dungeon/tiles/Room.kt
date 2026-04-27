@@ -30,6 +30,7 @@ data class RoomComponent(val x: Int, val z: Int, val core: Int = 0) {
 data class RoomData(
     val name: String, val type: RoomType, val cores: List<Int>,
     val crypts: Int, val secrets: Int, val trappedChests: Int,
+    val shape: String = "1x1",
 )
 
 class RoomDataDeserializer : JsonDeserializer<RoomData> {
@@ -42,7 +43,8 @@ class RoomDataDeserializer : JsonDeserializer<RoomData> {
         val crypts = jsonObject?.get("crypts")?.asInt ?: 0
         val secrets = jsonObject?.get("secrets")?.asInt ?: 0
         val trappedChests = jsonObject?.get("trappedChests")?.asInt ?: 0
+        val shape = jsonObject?.get("shape")?.asString ?: "1x1"
 
-        return RoomData(name, type, cores, crypts, secrets, trappedChests)
+        return RoomData(name, type, cores, crypts, secrets, trappedChests, shape)
     }
 }

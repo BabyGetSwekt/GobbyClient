@@ -9,6 +9,8 @@ import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
+import gobby.utils.BONZO_MASK_IDS
+import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.PlayerUtils.rightClick
@@ -19,6 +21,8 @@ import gobby.utils.getShotCooldown
 import gobby.utils.hasItemID
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
+import gobby.utils.managers.EquipmentManager
+import gobby.utils.managers.InvincibilityManager
 import gobby.utils.managers.LeapManager
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getSection
@@ -42,6 +46,12 @@ object AutoPre4 : Module(
     private val autoLeap by BooleanSetting("Auto Leap", false, desc = "Automatically leaps after device completion")
     private val leapTo by SelectorSetting("Leap To", 3, listOf("Archer", "Berserk", "Mage", "Tank", "Healer"), desc = "Which class to leap to")
         .withDependency { autoLeap }
+    private val autoBonzo by BooleanSetting("Auto Bonzo", false, desc = "Automatically swaps to Bonzo mask if you're about to die due to death ticks. Only works if you have Spirit Mask equipped.")
+
+    enum class State { IDLE, PREFIRING, ROTATING, SHOOTING, LEAPING }
+
+    private const val LEAP_DELAY_TICKS = 2
+    private var bonzoSwapDelayTicks = 0
 
     val shootPositions = listOf(
         BlockPos(68, 130, 50),
@@ -70,8 +80,13 @@ object AutoPre4 : Module(
     private var prefires = 0
     private val shotClock = Clock()
     private var bowShootSpeedMs = 300L
-    var deviceCompleted = false
+    private var leapDelayTicks = 0
+
+    var state: State = State.IDLE
         private set
+    var deviceCompleted: Boolean = false
+        private set
+    val isShootingPhase: Boolean get() = state == State.PREFIRING || state == State.ROTATING || state == State.SHOOTING
     var currentAimTarget: Vec3d? = null
         private set
 
@@ -81,9 +96,9 @@ object AutoPre4 : Module(
 
     fun isPlateDown(): Boolean {
         val world = mc.world ?: return false
-        val state = world.getBlockState(platePos)
-        if (state.block != Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE) return false
-        return state.get(Properties.POWER) > 0
+        val blockState = world.getBlockState(platePos)
+        if (blockState.block != Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE) return false
+        return blockState.get(Properties.POWER) > 0
     }
 
     private fun aimCoords(pos: BlockPos): Vec3d {
@@ -128,6 +143,13 @@ object AutoPre4 : Module(
         return aimCoords(target)
     }
 
+    private fun resetShooting() {
+        shotAt.clear()
+        resetPrefire()
+        deviceCompleted = false
+        state = State.IDLE
+    }
+
     @SubscribeEvent
     fun onBlockChange(event: BlockStateChangeEvent) {
         if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss) return
@@ -144,56 +166,115 @@ object AutoPre4 : Module(
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss || !enabled || DungeonUtils.isDead) return
-        if (!isNearPlate()) return
+        if (mc.world == null || mc.player == null) return
 
-        val player = mc.player ?: return
-        val heldItem = player.mainHandStack
-        if (!heldItem.hasItemID("minecraft:bow")) return
+        if (bonzoSwapDelayTicks > 0 && --bonzoSwapDelayTicks == 0) {
+            EquipmentManager.swapHead(*BONZO_MASK_IDS.toTypedArray())
+            modMessage("§aAuto Bonzo: §fSwapping to Bonzo Mask!")
+        }
 
-        bowShootSpeedMs = heldItem.getShotCooldown()?.times(1000)?.toLong() ?: 300L
+        if (dungeonFloor != 7 || !inBoss || !enabled || DungeonUtils.isDead) return
 
-        if (deviceCompleted) return
-        if (!shotClock.hasTimePassed(bowShootSpeedMs)) return
-        if (RotationUtils.isEasing) return
+        when (state) {
+            State.IDLE -> tickIdle()
+            State.PREFIRING -> tickPrefiring()
+            State.ROTATING -> tickRotating()
+            State.SHOOTING -> tickShooting()
+            State.LEAPING -> tickLeaping()
+        }
+    }
 
-        if (!isPlateDown()) {
-            shotAt.clear()
-            deviceCompleted = false
+    private fun isAtPlateWithBow(): Boolean {
+        val player = mc.player ?: return false
+        return isNearPlate() && isPlateDown() && player.mainHandStack.hasItemID("minecraft:bow")
+    }
+
+    private fun tickIdle() {
+        if (deviceCompleted) {
+            if (!isPlateDown()) resetShooting()
             return
         }
+        if (isAtPlateWithBow()) state = State.PREFIRING
+    }
+
+    private fun tickPrefiring() {
+        if (!isAtPlateWithBow()) { resetShooting(); return }
+
+        val player = mc.player ?: return
+        bowShootSpeedMs = player.mainHandStack.getShotCooldown()?.times(1000)?.toLong() ?: 300L
+
+        if (!shotClock.hasTimePassed(bowShootSpeedMs)) return
 
         val target = getShootCoord() ?: return
         currentAimTarget = target
         val (yaw, pitch) = calcAimAngles(target) ?: return
 
-        when (aimStyle) {
-            1 -> RotationUtils.easeTo(yaw, pitch, 60) {
-                rightClick()
-                shotClock.update()
-                prefires++
-                currentAimTarget = null
-            }
-            else -> {
-                RotationUtils.snapTo(yaw, pitch)
-                rightClick()
-                shotClock.update()
-                prefires++
-                currentAimTarget = null
-            }
+        if (aimStyle == 1) {
+            state = State.ROTATING
+            RotationUtils.easeTo(yaw, pitch, 60) { state = State.SHOOTING }
+        } else {
+            RotationUtils.snapTo(yaw, pitch)
+            state = State.SHOOTING
         }
+    }
+
+    private fun tickRotating() {
+        if (!isAtPlateWithBow()) { resetShooting(); return }
+    }
+
+    private fun tickShooting() {
+        if (!isAtPlateWithBow()) { resetShooting(); return }
+        rightClick()
+        shotClock.update()
+        prefires++
+        currentAimTarget = null
+        state = State.PREFIRING
+    }
+
+    private fun tickLeaping() {
+        if (leapDelayTicks > 0) {
+            leapDelayTicks--
+            return
+        }
+        val targetClass = LEAP_CLASSES.getOrNull(leapTo)
+        if (targetClass != null) LeapManager.scheduleLeap(targetClass)
+        state = State.IDLE
     }
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (mc.world == null || mc.player == null) return
-        if (event.message.startsWith("[BOSS] Goldor: Who dares trespass into my domain?")) deviceCompleted = false
+        if (event.message.startsWith("[BOSS] Goldor: Who dares trespass into my domain?")) {
+            resetShooting()
+            return
+        }
+
+        if (event.message == "Second Wind Activated! Your Spirit Mask saved your life!") {
+            tryScheduleBonzoSwap()
+            return
+        }
 
         val name = mc.player?.gameProfile?.name ?: return
         if (event.message.startsWith("$name completed a device!") && getSection() == 4) {
             deviceCompleted = true
-            if (autoLeap) scheduleLeap()
+            if (autoLeap) {
+                state = State.LEAPING
+                leapDelayTicks = LEAP_DELAY_TICKS
+            } else {
+                state = State.IDLE
+            }
         }
+    }
+
+    private fun tryScheduleBonzoSwap() {
+        if (!enabled || !autoBonzo) return
+        if (dungeonFloor != 7 || !inBoss) return
+        if (!InvincibilityManager.isWearingSpiritMask()) return
+        if (!isNearPlate() || !isPlateDown()) return
+        if (!isShootingPhase) return
+        if (bonzoSwapDelayTicks > 0) return
+        bonzoSwapDelayTicks = (45..53).random()
+        modMessage("§aAuto Bonzo: §fSpirit Mask popped, swapping in §e$bonzoSwapDelayTicks §fticks")
     }
 
     private val LEAP_CLASSES = arrayOf(
@@ -203,9 +284,4 @@ object AutoPre4 : Module(
         DungeonUtils.DungeonClass.Tank,
         DungeonUtils.DungeonClass.Healer
     )
-
-    private fun scheduleLeap() {
-        val targetClass = LEAP_CLASSES.getOrNull(leapTo) ?: return
-        LeapManager.scheduleLeap(targetClass)
-    }
 }

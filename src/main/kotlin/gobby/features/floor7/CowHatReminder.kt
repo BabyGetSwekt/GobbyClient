@@ -2,7 +2,7 @@ package gobby.features.floor7
 
 import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
@@ -70,7 +70,7 @@ object CowHatReminder : Module(
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         wearReminderSent = false
         unwearReminderSent = false
         previousHelmetId = ""

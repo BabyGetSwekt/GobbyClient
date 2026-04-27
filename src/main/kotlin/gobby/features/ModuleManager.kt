@@ -7,28 +7,23 @@ import gobby.commands.developer.SimulateCommand
 import gobby.events.core.EventDispatcher
 import gobby.features.developer.*
 import gobby.features.dungeons.*
+import gobby.features.dungeons.puzzles.*
 import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
 import gobby.features.floor7.terminals.*
 import gobby.features.force.*
 import gobby.features.galatea.*
 import gobby.features.render.*
-import gobby.features.skyblock.WardrobeSwapper
 import gobby.features.skyblock.*
 import gobby.gui.GuiElementManager
+import gobby.gui.hud.HudManager
 import gobby.gui.click.KeybindListener
-import gobby.utils.LocationUtils
+import gobby.utils.*
 import gobby.utils.render.*
-import gobby.utils.skyblock.dungeon.DungeonListener
-import gobby.utils.skyblock.dungeon.ScanUtils
-import gobby.utils.skyblock.dungeon.TerminalUtils
+import gobby.utils.skyblock.dungeon.*
 import gobby.pathfinder.PathExecutor
 import gobby.utils.rotation.RotationUtils
-import gobby.utils.managers.AuraManager
-import gobby.utils.managers.EquipmentManager
-import gobby.utils.managers.LeapManager
-import gobby.utils.managers.SwapManager
-import gobby.utils.managers.WardrobeManager
+import gobby.utils.managers.*
 import gobby.utils.timer.Executor
 
 object ModuleManager {
@@ -63,6 +58,9 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(EtherwarpHighlighter)
         EVENT_MANAGER.subscribe(SecretHitbox)
         EVENT_MANAGER.subscribe(AutoCloseChest)
+        EVENT_MANAGER.subscribe(DungeonMap)
+        EVENT_MANAGER.subscribe(BloodBlink)
+        EVENT_MANAGER.subscribe(AutoGFS)
         EVENT_MANAGER.subscribe(LividHelper)
         EVENT_MANAGER.subscribe(LastBreathHelper)
         EVENT_MANAGER.subscribe(DebuffAreaRenderer)
@@ -74,9 +72,11 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(P3Levers)
         EVENT_MANAGER.subscribe(CowHatReminder)
         EVENT_MANAGER.subscribe(PadTimers)
+        EVENT_MANAGER.subscribe(FuckDiorite)
         EVENT_MANAGER.subscribe(Relics)
         EVENT_MANAGER.subscribe(Brush)
         EVENT_MANAGER.subscribe(BrushCommand)
+        EVENT_MANAGER.subscribe(IceFill)
 
         EVENT_MANAGER.subscribe(PathExecutor)
         EVENT_MANAGER.subscribe(RotationUtils)
@@ -84,15 +84,27 @@ object ModuleManager {
 
         EVENT_MANAGER.subscribe(GuiElementManager)
         EVENT_MANAGER.subscribe(NotificationRenderer)
+        EVENT_MANAGER.subscribe(HudManager)
         EVENT_MANAGER.subscribe(YouAreAKingGG)
 
         EVENT_MANAGER.subscribe(WardrobeSwapper)
         EVENT_MANAGER.subscribe(AuraManager)
+        EVENT_MANAGER.subscribe(HotbarTracker)
+        EVENT_MANAGER.subscribe(DungeonMapSaver)
+        EVENT_MANAGER.subscribe(gobby.utils.StructureCopier)
         EVENT_MANAGER.subscribe(SwapManager)
         EVENT_MANAGER.subscribe(WardrobeManager)
         EVENT_MANAGER.subscribe(LeapManager)
         EVENT_MANAGER.subscribe(EquipmentManager)
+        EVENT_MANAGER.subscribe(AbilityManager)
+        EVENT_MANAGER.subscribe(InvincibilityManager)
         EVENT_MANAGER.subscribe(MaskSwapper)
+        EVENT_MANAGER.subscribe(PacketOrderManager)
+        EVENT_MANAGER.subscribe(LagSwitch)
+        EVENT_MANAGER.subscribe(VelocityBuffer)
+        EVENT_MANAGER.subscribe(SpeedHud)
+        EVENT_MANAGER.subscribe(gobby.pathfinder.etherwarp.EtherwarpRenderer)
+        EVENT_MANAGER.subscribe(gobby.pathfinder.etherwarp.EtherwarpExecutor)
         EVENT_MANAGER.subscribe(FreeCam)
         EVENT_MANAGER.subscribe(TerminalUtils)
         EVENT_MANAGER.subscribe(NumbersTerminal)
@@ -106,6 +118,10 @@ object ModuleManager {
 
         EVENT_MANAGER.subscribe(SimulateCommand)
         EVENT_MANAGER.subscribe(ClipCommand)
+        EVENT_MANAGER.subscribe(CopyGui)
+        EVENT_MANAGER.subscribe(ArmorStandSaver)
+        EVENT_MANAGER.subscribe(ParticleDebugger)
+        EVENT_MANAGER.subscribe(SoundDebugger)
         EVENT_MANAGER.subscribe(EventDispatcher)
         EVENT_MANAGER.subscribe(KeybindListener)
         EVENT_MANAGER.subscribe(Welcome)
@@ -121,6 +137,9 @@ object ModuleManager {
         MaskSwapper
         DevMode
         DrawSlotNumbers
+        CopyGui
+        ArmorStandSaver
+        ParticleDebugger
         ModIdHiderModule
     }
 

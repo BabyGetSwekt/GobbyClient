@@ -17,6 +17,9 @@ import java.awt.Color
 
 abstract class BlockHighlighter {
 
+    enum class RenderMode { FULL_BLOCK, OUTLINE, NODE }
+
+
     protected val highlightedBlocks = ObjectOpenHashSet<BlockPos>()
 
     @SubscribeEvent
@@ -97,12 +100,18 @@ abstract class BlockHighlighter {
         val camera = event.camera
         for (pos in highlightedBlocks) {
             val color = getColor(pos)
-            val blockState = world.getBlockState(pos)
-            val outline = blockState.getOutlineShape(world, pos)
-            val box = if (outline.isEmpty) {
-                Box(pos)
-            } else {
-                outline.boundingBox.offset(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+            val box = when (renderMode()) {
+                RenderMode.FULL_BLOCK -> Box(pos)
+                RenderMode.OUTLINE -> {
+                    val blockState = world.getBlockState(pos)
+                    val outline = blockState.getOutlineShape(world, pos)
+                    if (outline.isEmpty) Box(pos)
+                    else outline.boundingBox.offset(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+                }
+                RenderMode.NODE -> Box(
+                    pos.x + 0.25, pos.y.toDouble(), pos.z + 0.25,
+                    pos.x + 0.75, pos.y + 0.5, pos.z + 0.75
+                )
             }
             draw3DBox(matrixStack, camera, box, color, depthTest = depthTest())
         }
@@ -118,4 +127,5 @@ abstract class BlockHighlighter {
     abstract fun getColor(pos: BlockPos): Color
     open fun isValidPosition(pos: BlockPos): Boolean = true
     open fun depthTest(): Boolean = false
+    open fun renderMode(): RenderMode = RenderMode.FULL_BLOCK
 }

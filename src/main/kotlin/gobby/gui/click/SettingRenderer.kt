@@ -51,10 +51,10 @@ object SettingRenderer {
             is SelectorSetting -> drawSelectorSetting(ctx, px, y, setting)
             is ColorSetting -> drawColorSetting(ctx, gui, px, y, setting)
             is ActionSetting -> drawActionSetting(ctx, px, y, setting, mx, my, clipTop, clipBot)
+            is HudButton -> drawHudButton(ctx, px, y, setting, mx, my, clipTop, clipBot)
             is DropDownSetting -> drawDropDownSetting(ctx, gui, px, y, setting, mx, my, clipTop, clipBot)
         }
 
-        // Setting tooltip on hover
         val inView = y + SH > clipTop && y < clipBot
         val hovered = inView && mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + SH).coerceAtMost(clipBot)
         if (hovered && setting.description.isNotEmpty()) {
@@ -141,7 +141,6 @@ object SettingRenderer {
         val fh = (tr.fontHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
-        // Color swatch with border
         val swatchSize = 10
         val cx = px + PW - PAD - swatchSize
         val cy = y + (SH - swatchSize) / 2
@@ -150,7 +149,6 @@ object SettingRenderer {
 
         if (!s.expanded) return
 
-        // Expanded color picker
         val pickerY = y + SH
         ClickGUITheme.fill(ctx, px, pickerY, PW, COLOR_PICKER_H, cPickerBg)
 
@@ -161,7 +159,6 @@ object SettingRenderer {
         val hue = s.cachedHue
         val alpha = s.value.alpha
 
-        // Saturation-Brightness gradient
         val sbH = COLOR_PICKER_H - HUE_BAR_H - ALPHA_BAR_H - 38
         val sbTop = pickerY + 3
         val cols = areaW / SB_SIZE
@@ -178,7 +175,6 @@ object SettingRenderer {
 
         ClickGUITheme.drawBorder(ctx, padX - 1, sbTop - 1, areaW + 2, sbH + 2, cBorder)
 
-        // Crosshair indicator
         val cursorCol = (hsb[1] * (cols - 1)).toInt().coerceIn(0, cols - 1)
         val cursorRow = ((1f - hsb[2]) * (rows - 1)).toInt().coerceIn(0, rows - 1)
         val crX = padX + cursorCol * SB_SIZE
@@ -188,7 +184,6 @@ object SettingRenderer {
         ClickGUITheme.fill(ctx, crX - 1, crY, 3, 1, cCrosshairLight)
         ClickGUITheme.fill(ctx, crX, crY - 1, 1, 3, cCrosshairLight)
 
-        // Hue bar
         val hueTop = sbTop + sbH + 4
         for (i in 0 until areaW) {
             val h = i.toFloat() / areaW * 0.999f
@@ -200,7 +195,6 @@ object SettingRenderer {
         val hueX = padX + (hue * (areaW - 2)).toInt()
         ClickGUITheme.fill(ctx, hueX - 1, hueTop - 2, 3, HUE_BAR_H + 4, cHueIndicator)
 
-        // Alpha bar
         val alphaTop = hueTop + HUE_BAR_H + 4
         val baseColor = Color(Color.HSBtoRGB(hue, hsb[1], hsb[2]))
         for (i in 0 until areaW) {
@@ -210,14 +204,12 @@ object SettingRenderer {
         }
         ClickGUITheme.drawBorder(ctx, padX - 1, alphaTop - 1, areaW + 2, ALPHA_BAR_H + 2, cBorder)
 
-        // Alpha label
         val alphaLabel = "A"
         ClickGUITheme.drawTextSmall(ctx, padX - ClickGUITheme.textWSmall(alphaLabel) - 2, alphaTop + (ALPHA_BAR_H - fh) / 2, alphaLabel, cTextDark, false)
 
         val alphaX = padX + (alpha / 255f * (areaW - 2)).toInt()
         ClickGUITheme.fill(ctx, alphaX - 1, alphaTop - 2, 3, ALPHA_BAR_H + 4, cHueIndicator)
 
-        // Hex input row
         val hexTop = alphaTop + ALPHA_BAR_H + 5
         val hexH = 14
         val hexW = areaW
@@ -242,7 +234,6 @@ object SettingRenderer {
         val fh = (tr.fontHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
-        // Draw arrow: ▼ closed, ▲ open
         val arrowX = px + PW - PAD - 5
         val arrowY = y + (SH - 3) / 2
         if (s.expanded) {
@@ -257,7 +248,6 @@ object SettingRenderer {
 
         if (!s.expanded) return
 
-        // Render children
         var childY = y + SH
         for (child in s.children) {
             if (!child.isVisible) continue
@@ -278,5 +268,23 @@ object SettingRenderer {
         if (hovered) {
             ClickGUITheme.fill(ctx, textX, textY + fh, nameW, 1, cAccent)
         }
+    }
+
+    private fun drawHudButton(ctx: DrawContext, px: Int, y: Int, s: HudButton, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+        ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
+
+        val hovered = mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + SH).coerceAtMost(clipBot)
+        val col = if (hovered) cTextBright else cAccent
+
+        val iconSize = 8
+        val ix = px + PW - iconSize - PAD
+        val iy = y + (SH - iconSize) / 2
+
+        ClickGUITheme.fill(ctx, ix, iy, iconSize, 1, col)                    // top
+        ClickGUITheme.fill(ctx, ix, iy + iconSize - 1, iconSize, 1, col)     // bottom
+        ClickGUITheme.fill(ctx, ix, iy, 1, iconSize, col)                    // left
+        ClickGUITheme.fill(ctx, ix + iconSize - 1, iy, 1, iconSize, col)     // right
+        ClickGUITheme.fill(ctx, ix + 1, iy + 1, iconSize - 2, 2, col)
     }
 }

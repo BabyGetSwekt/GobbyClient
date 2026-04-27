@@ -2,7 +2,7 @@ package gobby.features.floor7.devices
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
-import gobby.events.WorldUnloadEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -74,7 +74,7 @@ object AutoAlign : Module(
     }
 
     @SubscribeEvent
-    fun onWorldUnload(event: WorldUnloadEvent) {
+    fun onWorldUnload(event: WorldLoadEvent) {
         reset()
     }
 

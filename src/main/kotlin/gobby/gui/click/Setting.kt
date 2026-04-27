@@ -104,7 +104,8 @@ class ActionSetting(
 class KeybindSetting(
     name: String = "Toggle Key",
     desc: String = "Press a key to bind",
-    hidden: Boolean = false
+    hidden: Boolean = false,
+    val notification: Boolean = false
 ) : Setting<Int>(name, desc, 0, hidden), ReadWriteProperty<Any?, Int> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v }
@@ -154,4 +155,18 @@ class DropDownSetting(
 ) : Setting<Unit>(name, desc, Unit, hidden) {
     var expanded = false
     val children = mutableListOf<Setting<*>>()
+}
+
+class HudButton(
+    name: String,
+    desc: String = "",
+    hidden: Boolean = false,
+    val onClick: () -> Unit
+) : Setting<Unit>(name, desc, Unit, hidden), ReadOnlyProperty<Any?, Unit> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>) {}
+
+    operator fun provideDelegate(thisRef: Module, property: KProperty<*>): HudButton {
+        thisRef.settings.add(this)
+        return this
+    }
 }
