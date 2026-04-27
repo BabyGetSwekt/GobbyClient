@@ -41,7 +41,8 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * Contents of this file are based on RSA by rdbtCVS, licensed under MIT.
+ * Contents of this file are inspired on RSA by rdbtCVS, licensed under MIT.
+ * But most of the code has been rewritten by me.
  * Original: https://github.com/rdbtCVS/rsa
  */
 object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Category.DUNGEONS) {
