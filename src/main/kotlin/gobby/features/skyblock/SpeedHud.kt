@@ -12,7 +12,7 @@ object SpeedHud : Module("Speed HUD", "Displays your current Skyblock ✦ Speed"
     private val speedHud by HudSetting("Speed", "Shows current Skyblock walk speed") { example ->
         val ctx = drawContext ?: return@HudSetting
         val speed = if (example) 400 else currentSkyblockSpeed()
-        val text = "§f✦ Speed §a$speed"
+        val text = "§f✦ §a$speed"
         val tr = mc.textRenderer
         ctx.drawText(tr, text, 0, 0, Color.WHITE.rgb, true)
         setSize(tr.getWidth(text), tr.fontHeight)
