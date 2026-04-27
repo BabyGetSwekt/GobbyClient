@@ -6,6 +6,7 @@ import gobby.events.PacketSentEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.errorMessage
+import gobby.utils.ChatUtils.modMessage
 import gobby.utils.skyblockID
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket
 
@@ -23,7 +24,10 @@ object SwapManager {
 
     private const val COOLDOWN_TICKS = 1
 
-    private var serverSlot = -1
+    private var serverSlot = 0
+    private var lastSentServerSlot = 0
+    private var swappedThisTick = false
+    private var requireSwap = -1
     private var cooldown = 0
     var canUseAbility = true
         private set
@@ -50,8 +54,40 @@ object SwapManager {
         return swap(slot)
     }
 
-    @SubscribeEvent()
+    fun getNextUpdateIndex(): Int {
+        if (swappedThisTick) return serverSlot
+        if (requireSwap >= 0) return requireSwap
+        return mc.player?.inventory?.selectedSlot ?: 0
+    }
+
+    fun canSwap(): Boolean = !swappedThisTick && requireSwap < 0
+
+    fun swapSlot(slot: Int): Boolean {
+        val player = mc.player ?: return false
+        if (slot == getNextUpdateIndex()) return true
+        if (swappedThisTick) return false
+        if (slot !in 0..8) return false
+        player.inventory.selectedSlot = slot
+        return true
+    }
+
+    fun swapToItem(vararg ids: String): Int {
+        val player = mc.player ?: return -1
+        if (player.inventory.getStack(getNextUpdateIndex()).skyblockID in ids) return getNextUpdateIndex()
+        if (!canSwap()) return -1
+        for (i in 0..8) {
+            if (player.inventory.getStack(i).skyblockID in ids) {
+                if (!swapSlot(i)) return -1
+                return i
+            }
+        }
+        return -1
+    }
+
+    @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
+        swappedThisTick = false
+        requireSwap = -1
         if (cooldown > 0) {
             cooldown--
             if (cooldown == 0) canUseAbility = true
@@ -63,24 +99,22 @@ object SwapManager {
         if (event.packet !is UpdateSelectedSlotC2SPacket) return
         val slot = event.packet.selectedSlot
 
-        if (slot == serverSlot) {
+        if (!swappedThisTick && slot != lastSentServerSlot) {
+            swappedThisTick = true
+            serverSlot = slot
+            lastSentServerSlot = slot
+        } else {
+            modMessage("§c[SwapManager] Prevented zero-tick swap! slot=$slot, serverSlot=$serverSlot, lastSent=$lastSentServerSlot")
             event.cancel()
-            return
         }
-
-        if (cooldown > 0 && serverSlot != -1) {
-            event.cancel()
-            errorMessage("Zero-tick swap blocked in onPacketSent")
-            mc.player?.inventory?.selectedSlot = serverSlot
-            return
-        }
-
-        serverSlot = slot
     }
 
     @SubscribeEvent
     fun onWorldUnload(event: WorldLoadEvent) {
-        serverSlot = -1
+        serverSlot = 0
+        lastSentServerSlot = 0
+        swappedThisTick = false
+        requireSwap = -1
         cooldown = 0
         canUseAbility = true
     }

@@ -3,10 +3,14 @@ package gobby.utils
 import gobby.Gobbyclient.Companion.mc
 import gobby.mixin.accessor.KeyBindingAccessor
 import gobby.mixin.accessor.MinecraftClientAccessor
+import gobby.mixinterface.IInteractionManagerAccessor
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
+import gobby.utils.skyblock.dungeon.DungeonUtils
 import net.minecraft.client.option.KeyBinding
+import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
+import net.minecraft.util.Hand
 import net.minecraft.util.math.Vec3d
 
 
@@ -32,6 +36,19 @@ object PlayerUtils {
         KeyBinding.setKeyPressed(key, true)
         KeyBinding.onKeyPressed(key)
         KeyBinding.setKeyPressed(key, false)
+    }
+
+    fun useItem(yaw: Float, pitch: Float): Boolean {
+        val player = mc.player ?: return false
+        val world = mc.world ?: return false
+        val manager = mc.interactionManager ?: return false
+        if (player.isSpectator || DungeonUtils.isDead || player.isDead) return false
+        val accessor = manager as IInteractionManagerAccessor
+        accessor.`gobbyclient$syncSelectedSlot`()
+        accessor.`gobbyclient$sendSequencedPacket`(world) { sequence ->
+            PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, yaw, pitch)
+        }
+        return true
     }
 
 

@@ -9,6 +9,7 @@ import gobby.utils.timer.Clock
 import net.minecraft.entity.Entity
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Direction
 import net.minecraft.util.math.Vec3d
 
 object RotationUtils {
@@ -120,5 +121,13 @@ object RotationUtils {
         stopAimLock()
         easing = false
         onComplete = null
+    }
+
+    fun rotateByDirection(dir: Direction, x: Double, y: Double, z: Double): Vec3d = when (dir) {
+        Direction.NORTH -> Vec3d(x, y, z)
+        Direction.EAST -> Vec3d(-z, y, x)
+        Direction.SOUTH -> Vec3d(-x, y, -z)
+        Direction.WEST -> Vec3d(z, y, -x)
+        else -> Vec3d.ZERO
     }
 }

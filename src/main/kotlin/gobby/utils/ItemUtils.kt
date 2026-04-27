@@ -93,6 +93,7 @@ private val ABILITY_HEADER_REGEX = Regex("^Ability:\\s+(.+?)\\s*$")
 private val MANA_COST_REGEX = Regex("^Mana Cost:\\s+([\\d,]+)")
 private val SOULFLOW_COST_REGEX = Regex("^Soulflow Cost:\\s+([\\d,]+)")
 private val COOLDOWN_REGEX = Regex("^Cooldown:\\s+([\\d,]+)s")
+private const val BASE_TRANSMISSION_RANGE = 8
 
 private fun splitNameAndTrigger(raw: String): Pair<String, String?> {
     for (trigger in ABILITY_TRIGGERS) {
@@ -176,6 +177,8 @@ fun ItemStack.getTunedTransmission(): Int {
     return this.getItemData.getInt("tuned_transmission").orElse(0)
 }
 
+fun ItemStack.getInstantTransmissionRange(): Int = BASE_TRANSMISSION_RANGE + getTunedTransmission()
+
 val SPIRIT_MASK_IDS = setOf("SPIRIT_MASK", "STARRED_SPIRIT_MASK")
 val BONZO_MASK_IDS = setOf("BONZO_MASK", "STARRED_BONZO_MASK")
 
@@ -190,19 +193,21 @@ fun isHoldingSkyblockItem(vararg ids: String): Boolean {
     return player.mainHandStack.skyblockID in ids
 }
 
+fun findHotbarSlot(vararg ids: String): Int {
+    val player = mc.player ?: return -1
+    for (i in 0..8) {
+        if (player.inventory.getStack(i).skyblockID in ids) return i
+    }
+    return -1
+}
+
 fun swapToSkyblockItem(vararg ids: String): Boolean {
     val player = mc.player ?: return false
     if (player.mainHandStack.skyblockID in ids) return true
-
-    val inventory = player.inventory
-    for (i in 0..8) {
-        val stack = inventory.getStack(i)
-        if (stack.skyblockID in ids) {
-            inventory.selectedSlot = i
-            return true
-        }
-    }
-    return false
+    val slot = findHotbarSlot(*ids)
+    if (slot < 0) return false
+    player.inventory.selectedSlot = slot
+    return true
 }
 
 fun countInHotbar(id: String): Int {
