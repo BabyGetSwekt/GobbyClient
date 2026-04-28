@@ -5,7 +5,6 @@ import gobby.features.render.EntityHighlighter
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.ColorSetting
-import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons

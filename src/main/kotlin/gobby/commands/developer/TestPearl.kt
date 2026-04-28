@@ -5,7 +5,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
-import gobby.mixinterface.IClientConnectionAccessor
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.PacketUtils.getSequence
 import gobby.utils.PlayerUtils.rightClick

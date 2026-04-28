@@ -1,6 +1,5 @@
 package gobby.mixin;
 
-import static gobby.utils.ChatUtils.modMessage;
 
 import gobby.Gobbyclient;
 import gobby.events.BlockStateChangeEvent;
@@ -11,7 +10,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ClientWorld.class)
 public class MixinClientWorld {

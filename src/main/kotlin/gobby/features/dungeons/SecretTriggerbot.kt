@@ -3,7 +3,6 @@
 import gobby.Gobbyclient.Companion.mc
 import gobby.features.Triggerbot
 import gobby.gui.click.Category
-import gobby.gui.click.Module
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.Utils.equalsOneOf

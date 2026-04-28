@@ -6,7 +6,6 @@ import gobby.events.core.SubscribeEvent
 import gobby.features.Triggerbot
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
-import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
