@@ -6,7 +6,7 @@ import gobby.gui.GuiElement
 import gobby.gui.GuiElementManager
 import gobby.gui.click.Category
 import gobby.gui.click.Module
-import gobby.sounds.SoundManager
+import gobby.utils.managers.SoundManager
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.util.Identifier
 
