@@ -32,6 +32,7 @@ object EquipmentManager {
     private enum class State { IDLE, WAITING_SCREEN, WAITING_SLOT }
 
     private var state = State.IDLE
+    val isSwapping: Boolean get() = state != State.IDLE
     private var targetSlot = 0
     private var itemSlot = -1
     private var syncId = -1
