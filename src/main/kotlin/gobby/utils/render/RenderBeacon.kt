@@ -1,6 +1,7 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.cameraPos
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
 import gobby.utils.render.BlockRenderUtils.buildLine3D
@@ -64,7 +65,7 @@ object RenderBeacon {
 
         val entry = matrixStack.peek()
         val matrix4f = entry.positionMatrix
-        val cameraPos = camera.pos
+        val cameraPos = camera.cameraPos
 
 
         // Color values
@@ -155,7 +156,7 @@ object RenderBeacon {
 
     private fun renderBeaconText(matrixStack: MatrixStack, camera: Camera, beacon: BeaconData) {
         val textRenderer = mc.textRenderer
-        val cameraPos = camera.pos
+        val cameraPos = camera.cameraPos
 
         val distance = calculateDistance(cameraPos, beacon.pos)
         val scale = calculateTextScale(distance)

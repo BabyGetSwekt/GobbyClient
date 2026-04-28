@@ -1,14 +1,17 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.mixin.accessor.CameraAccessor
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.Block
 import net.minecraft.client.network.ClientPlayerEntity
+import net.minecraft.client.render.Camera
 import net.minecraft.client.world.ClientWorld
 import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.attribute.EntityAttributes
 import net.minecraft.registry.Registries
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Vec3d
 import java.util.Locale
 
 object Utils {
@@ -38,6 +41,9 @@ object Utils {
     }
 
     fun ClientWorld.getBlockAtPos(pos: BlockPos): Block = getBlockState(pos).block
+
+    val Camera.cameraPos: Vec3d
+        get() = (this as CameraAccessor).`gobbyclient$getPos`()
 
     fun ClientWorld.setBlockAtPos(pos: BlockPos, block: Block) = setBlockState(pos, block.defaultState, 3)
 

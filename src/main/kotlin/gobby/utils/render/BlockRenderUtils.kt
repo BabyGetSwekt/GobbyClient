@@ -1,6 +1,7 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.cameraPos
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumer
 import net.minecraft.client.util.math.MatrixStack
@@ -31,7 +32,7 @@ object BlockRenderUtils {
         depthTest: Boolean = false
     ) {
         if (matrixStack == null) return
-        val newBox = box.offset(camera.pos.multiply(-1.0))
+        val newBox = box.offset(camera.cameraPos.multiply(-1.0))
 
         val entry = matrixStack.peek()
         val matrix4f: Matrix4f = entry.positionMatrix
@@ -150,7 +151,7 @@ object BlockRenderUtils {
     ) {
         val entry = matrixStack.peek()
         val matrix4f = entry.positionMatrix
-        val cameraPos = camera.pos
+        val cameraPos = camera.cameraPos
 
         val dir = Vec3d(x2 - x1, y2 - y1, z2 - z1).normalize()
 
@@ -159,11 +160,20 @@ object BlockRenderUtils {
         val b = color.blue.toFloat() / 255f
         val a = color.alpha.toFloat() / 255f
 
+        //? if <=1.21.10 {
         buffer.vertex(matrix4f, (x1 - cameraPos.x).toFloat(), (y1 - cameraPos.y).toFloat(), (z1 - cameraPos.z).toFloat())
             .color(r, g, b, a).normal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
 
         buffer.vertex(matrix4f, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
             .color(r, g, b, a).normal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
+        //?}
+        //? if >=1.21.11 {
+        /*buffer.vertex(matrix4f, (x1 - cameraPos.x).toFloat(), (y1 - cameraPos.y).toFloat(), (z1 - cameraPos.z).toFloat())
+            .color(r, g, b, a).normal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat()).lineWidth(3f)
+
+        buffer.vertex(matrix4f, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
+            .color(r, g, b, a).normal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat()).lineWidth(3f)*/
+        //?}
     }
 
     fun drawCylinder(
@@ -177,7 +187,7 @@ object BlockRenderUtils {
         segments: Int = 64,
         depthTest: Boolean = false
     ) {
-        val cameraPos = camera.pos
+        val cameraPos = camera.cameraPos
         val entry = matrixStack.peek()
         val matrix4f = entry.positionMatrix
         val vertexConsumerProvider = mc.bufferBuilders.entityVertexConsumers

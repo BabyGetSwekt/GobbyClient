@@ -48,11 +48,19 @@ class Gobbyclient : ClientModInitializer {
 	}
 
 	private fun initEvents() {
+		//? if <=1.21.10 {
 		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource?>?, _: CommandRegistryAccess? ->
 			dispatcher?.let {
 				EVENT_MANAGER.publish(CommandRegisterEvent(it))
 			}
 		})
+		//?}
+		//? if >=1.21.11 {
+		/*ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandRegistryAccess ->
+			@Suppress("UNCHECKED_CAST")
+			EVENT_MANAGER.publish(CommandRegisterEvent(dispatcher as CommandDispatcher<FabricClientCommandSource?>))
+		})*/
+		//?}
 
 	}
 

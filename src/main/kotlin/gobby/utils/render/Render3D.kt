@@ -1,6 +1,7 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.cameraPos
 import gobby.events.render.NewRender3DEvent
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.RenderLayer
@@ -49,7 +50,7 @@ object Render3D {
             val sleepDirection: Direction? = entity.sleepingDirection
 
             val interpolatedEntityPosition: Vec3d = getEntityPositionInterpolated(entity, partialTicks)
-                .subtract(camera.pos)
+                .subtract(camera.cameraPos)
             var interpolatedBodyYaw = MathHelper.lerpAngleDegrees(
                 partialTicks, entity.lastBodyYaw,
                 entity.bodyYaw

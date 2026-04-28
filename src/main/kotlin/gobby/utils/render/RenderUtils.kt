@@ -1,6 +1,7 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.cameraPos
 import net.minecraft.client.font.TextRenderer
 import net.minecraft.client.render.Camera
 import net.minecraft.client.util.math.MatrixStack
@@ -20,7 +21,7 @@ object RenderUtils {
         scale: Float = 0.4f
     ) {
         val textRenderer = mc.textRenderer
-        val cameraPos = camera.pos
+        val cameraPos = camera.cameraPos
 
         matrixStack.push()
 

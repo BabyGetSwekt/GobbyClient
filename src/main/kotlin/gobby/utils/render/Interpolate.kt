@@ -1,6 +1,7 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.Utils.cameraPos
 import net.minecraft.entity.Entity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.util.math.BlockPos
@@ -126,11 +127,11 @@ object Interpolate {
     }
 
     val renderPosX: Double
-        get() = mc.gameRenderer.camera.pos.x
+        get() = mc.gameRenderer.camera.cameraPos.x
 
     val renderPosY: Double
-        get() = mc.gameRenderer.camera.pos.y
+        get() = mc.gameRenderer.camera.cameraPos.y
 
     val renderPosZ: Double
-        get() = mc.gameRenderer.camera.pos.z
+        get() = mc.gameRenderer.camera.cameraPos.z
 }
