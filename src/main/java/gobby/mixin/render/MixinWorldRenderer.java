@@ -4,8 +4,10 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import gobby.Gobbyclient;
 import gobby.events.render.NewRender3DEvent;
+import gobby.mixin.accessor.CameraAccessor;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.ObjectAllocator;
@@ -31,7 +33,10 @@ public class MixinWorldRenderer {
 
         RenderSystem.getModelViewStack().pushMatrix().mul(positionMatrix);
         Frustum frustum = new Frustum(positionMatrix, projectionMatrix);
+        //? if <=1.21.10
         frustum.setPosition(camera.getPos().x, camera.getPos().y, camera.getPos().z);
+        //? if >=1.21.11
+        /*{ Vec3d cp = ((CameraAccessor)(Object) camera).gobbyclient$getPos(); frustum.setPosition(cp.x, cp.y, cp.z); }*/
 
         MatrixStack matrixStack = new MatrixStack();
         NewRender3DEvent renderEvent = new NewRender3DEvent(matrixStack, frustum, tickCounter, camera);

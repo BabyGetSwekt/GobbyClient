@@ -47,20 +47,40 @@ public abstract class MixinMinecraftClient {
         }
     }
 
+    //? if <=1.21.10 {
     @Inject(method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;Z)V", at = @At("HEAD"))
     private void gobbyclient$onDisconnect(Screen screen, boolean transferring, CallbackInfo info) {
         if (world != null) {
             Gobbyclient.EVENT_MANAGER.publish(new DisconnectEvent());
         }
     }
+    //?}
+    //? if >=1.21.11 {
+    /*@Inject(method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;ZZ)V", at = @At("HEAD"))
+    private void gobbyclient$onDisconnect(Screen screen, boolean transferring, boolean savingWorld, CallbackInfo info) {
+        if (world != null) {
+            Gobbyclient.EVENT_MANAGER.publish(new DisconnectEvent());
+        }
+    }*/
+    //?}
 
+    //? if <=1.21.10 {
     @Inject(method = "setWorld", at = @At("HEAD"))
     private void gobbyclient$onWorldLoad(ClientWorld world, CallbackInfo info) {
+        gobbyclient$handleWorldLoad(world);
+    }
+    //?}
+    //? if >=1.21.11 {
+    /*@Inject(method = "setWorld(Lnet/minecraft/client/world/ClientWorld;Z)V", at = @At("HEAD"))
+    private void gobbyclient$onWorldLoad(ClientWorld world, boolean refresh, CallbackInfo info) {
+        gobbyclient$handleWorldLoad(world);
+    }*/
+    //?}
+
+    @Unique
+    private void gobbyclient$handleWorldLoad(ClientWorld world) {
         if (world != null) {
             long now = System.currentTimeMillis();
-
-            // TODO: Code to make it fire the onscoreboard event, so it gets the scoreboard when u join a world
-            // Make sure it only fires once every 300 ms, for some reason it fires multiple times
             if (now - gobbyclien$lastChecked >= 300) {
                 System.out.println("World loaded");
                 Gobbyclient.EVENT_MANAGER.publish(new WorldLoadEvent());

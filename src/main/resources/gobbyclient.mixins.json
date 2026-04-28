@@ -19,6 +19,7 @@
 		"accessor.KeyBindingAccessor",
 		"accessor.HandledScreenAccessor",
 		"accessor.LimbAnimatorAccessor",
+		"accessor.CameraAccessor",
 		"network.MixinClientPlayNetworkHandler",
 		"network.MixinClientConnection",
 		"network.MixinClientPlayerInteractionManager",

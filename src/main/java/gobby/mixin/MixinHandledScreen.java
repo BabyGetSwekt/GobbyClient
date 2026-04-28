@@ -15,10 +15,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(HandledScreen.class)
 public class MixinHandledScreen {
 
+	//? if <=1.21.10 {
 	@Inject(method = "drawSlots", at = @At("RETURN"))
 	private void gobbyclient$onDrawSlots(DrawContext context, CallbackInfo ci) {
 		DrawSlotNumbers.INSTANCE.onDrawSlots((HandledScreen<?>)(Object)this, context);
 	}
+	//?}
+	//? if >=1.21.11 {
+	/*@Inject(method = "drawSlots(Lnet/minecraft/client/gui/DrawContext;II)V", at = @At("RETURN"))
+	private void gobbyclient$onDrawSlots(DrawContext context, int mouseX, int mouseY, CallbackInfo ci) {
+		DrawSlotNumbers.INSTANCE.onDrawSlots((HandledScreen<?>)(Object)this, context);
+	}*/
+	//?}
 
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void gobbyclient$cancelMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
