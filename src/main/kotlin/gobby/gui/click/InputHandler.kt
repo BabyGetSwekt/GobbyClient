@@ -211,7 +211,7 @@ object InputHandler {
         val alphaTop = hueBot + 4
         val alphaBot = alphaTop + ALPHA_BAR_H
         if (my in alphaTop until alphaBot && mx in padX until (padX + areaW)) {
-            val alpha = ((mx - padX).toFloat() / areaW * 255).toInt().coerceIn(0, 255)
+            val alpha = ((mx - padX).toFloat() / areaW * 255).toInt().coerceIn(1, 255)
             s.value = Color(s.value.red, s.value.green, s.value.blue, alpha)
             gui.draggingColorAlpha = s
             gui.colorPickerBaseX = padX
@@ -276,7 +276,7 @@ object InputHandler {
         }
 
         gui.draggingColorAlpha?.let { s ->
-            val alpha = ((currentX.toInt() - gui.colorPickerBaseX).toFloat() / gui.colorPickerBaseW * 255).toInt().coerceIn(0, 255)
+            val alpha = ((currentX.toInt() - gui.colorPickerBaseX).toFloat() / gui.colorPickerBaseW * 255).toInt().coerceIn(1, 255)
             s.value = Color(s.value.red, s.value.green, s.value.blue, alpha)
             ConfigManager.save()
             return true
@@ -448,7 +448,7 @@ object InputHandler {
                 val r = (v ushr 24) and 0xFF
                 val g = (v ushr 16) and 0xFF
                 val b = (v ushr 8) and 0xFF
-                val a = v and 0xFF
+                val a = (v and 0xFF).coerceAtLeast(1)
                 s.value = Color(r, g, b, a)
                 s.cachedHue = Color.RGBtoHSB(r, g, b, null)[0]
                 ConfigManager.save()
