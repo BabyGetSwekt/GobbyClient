@@ -102,7 +102,7 @@ object DungeonListener {
     }
 
     private fun updateDungeonTeammates(tabList: Collection<PlayerListEntry>) {
-        for (entry in tabList) {
+        for (entry in tabList.toList()) {
             val displayText = entry.displayName ?: continue
             val line = Formatting.strip(displayText.string) ?: continue
             if (line.isBlank()) continue
