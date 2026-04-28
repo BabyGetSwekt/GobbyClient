@@ -60,6 +60,7 @@ object ModuleManager {
         EVENT_MANAGER.subscribe(AutoCloseChest)
         EVENT_MANAGER.subscribe(DungeonMap)
         EVENT_MANAGER.subscribe(BloodBlink)
+        EVENT_MANAGER.subscribe(DoorKeyEsp)
         EVENT_MANAGER.subscribe(AutoGFS)
         EVENT_MANAGER.subscribe(LividHelper)
         EVENT_MANAGER.subscribe(LastBreathHelper)
