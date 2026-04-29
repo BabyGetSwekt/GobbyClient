@@ -40,7 +40,7 @@ object AutoPre4 : Module(
     Category.FLOOR7
 ) {
 
-    val aimStyle by SelectorSetting("Aim Style", 1, listOf("Snap", "Ease"), desc = "How the aim rotates to the target")
+    private val aimStyle by SelectorSetting("Aim Style", 1, listOf("Snap", "Ease"), desc = "How the aim rotates to the target")
     val shootingDeviceEsp by BooleanSetting("Shooting Device ESP", false, desc = "Highlights shot positions and shows aim target")
     private val autoLeap by BooleanSetting("Auto Leap", false, desc = "Automatically leaps after device completion")
     private val leapTo by SelectorSetting("Leap To", 3, listOf("Archer", "Berserk", "Mage", "Tank", "Healer"), desc = "Which class to leap to")
@@ -59,7 +59,7 @@ object AutoPre4 : Module(
     private val offsetMap = mapOf(68 to -0.7, 66 to -0.5, 64 to 1.5)
     private val platePos = BlockPos(63, 127, 35)
 
-    val shotAt = mutableListOf<BlockPos>()
+    private val shotAt = mutableListOf<BlockPos>()
     private val tempShot = mutableListOf<BlockPos>()
     private val shotClock = Clock()
     private val prefireGate = Clock()
@@ -73,13 +73,12 @@ object AutoPre4 : Module(
     private var lastWasTerminator = false
     private var bossSpoken = false
 
-    var state: State = State.IDLE
-        private set
+    private var state: State = State.IDLE
     var deviceCompleted: Boolean = false
         private set
     var currentAimTarget: Vec3d? = null
         private set
-    val isShootingPhase: Boolean get() = state in SHOOTING_STATES
+    private val isShootingPhase: Boolean get() = state in SHOOTING_STATES
 
     private fun isNearPlate() = posY == 127.0 && posX in 62.0..65.0 && posZ in 34.0..37.0
 
