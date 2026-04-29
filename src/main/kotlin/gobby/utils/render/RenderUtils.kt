@@ -42,7 +42,7 @@ object RenderUtils {
             text,
             -textWidth / 2f,
             0f,
-            color.rgb and 0xFFFFFF,
+            color.rgb or 0xFF.shl(24),
             false,
             matrixStack.peek().positionMatrix,
             immediate,

@@ -270,9 +270,17 @@ object BlockRenderUtils {
         val ny = if (len > 0) dy / len else 1f
         val nz = if (len > 0) dz / len else 0f
 
+        //? if <=1.21.10 {
         buffer.vertex(entry.positionMatrix, x1.toFloat(), y1.toFloat(), z1.toFloat())
             .color(r, g, b, a).normal(entry, nx, ny, nz)
         buffer.vertex(entry.positionMatrix, x2.toFloat(), y2.toFloat(), z2.toFloat())
             .color(r, g, b, a).normal(entry, nx, ny, nz)
+        //?}
+        //? if >=1.21.11 {
+        /*buffer.vertex(entry.positionMatrix, x1.toFloat(), y1.toFloat(), z1.toFloat())
+            .color(r, g, b, a).normal(entry, nx, ny, nz).lineWidth(3f)
+        buffer.vertex(entry.positionMatrix, x2.toFloat(), y2.toFloat(), z2.toFloat())
+            .color(r, g, b, a).normal(entry, nx, ny, nz).lineWidth(3f)*/
+        //?}
     }
 }

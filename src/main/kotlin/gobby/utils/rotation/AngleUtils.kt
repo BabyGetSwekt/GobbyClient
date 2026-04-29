@@ -4,6 +4,8 @@ import gobby.utils.PlayerUtils.getEyePosition
 import net.minecraft.util.math.Direction
 import net.minecraft.util.math.Vec3d
 import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 object AngleUtils {
@@ -26,6 +28,13 @@ object AngleUtils {
 
     fun calcAimAnglesBetween(from: Vec3d, to: Vec3d): Pair<Float, Float> =
         calcAimAnglesFromDelta(to.x - from.x, to.y - from.y, to.z - from.z)
+
+    fun directionFromAngles(yaw: Float, pitch: Float): Vec3d {
+        val y = Math.toRadians(yaw.toDouble())
+        val p = Math.toRadians(pitch.toDouble())
+        val cosP = cos(p)
+        return Vec3d(-cosP * sin(y), -sin(p), cosP * cos(y))
+    }
 
     fun Direction.horizontalDegrees(): Float = when (this) {
         Direction.SOUTH -> 0f
