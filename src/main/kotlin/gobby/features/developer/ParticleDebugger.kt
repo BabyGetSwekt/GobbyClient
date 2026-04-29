@@ -45,12 +45,11 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
         val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
         val dist = sqrt(dx * dx + dy * dy + dz * dz)
         if (dist > range) return
-        val id = Registries.PARTICLE_TYPE.getId(event.type)?.toString() ?: event.type.toString()
+        val id = Registries.PARTICLE_TYPE.getId(event.effect.type)?.toString() ?: event.effect.type.toString()
         val x = "%.2f".format(pos.x); val y = "%.2f".format(pos.y); val z = "%.2f".format(pos.z)
-        val count = event.packet.count
-        val offX = "%.2f".format(event.packet.offsetX); val offY = "%.2f".format(event.packet.offsetY); val offZ = "%.2f".format(event.packet.offsetZ)
-        val speed = "%.2f".format(event.packet.speed)
-        modMessage("§7[Particle] §f$id §8| §bpos §f($x, $y, $z) §8| §7count §f$count §8| §7offset §f($offX, $offY, $offZ) §8| §7speed §f$speed")
+        val v = event.velocity
+        val vx = "%.2f".format(v.x); val vy = "%.2f".format(v.y); val vz = "%.2f".format(v.z)
+        modMessage("§7[Particle] §f$id §8| §bpos §f($x, $y, $z) §8| §7vel §f($vx, $vy, $vz)")
     }
 
     @SubscribeEvent

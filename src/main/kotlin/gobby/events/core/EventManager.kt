@@ -23,13 +23,16 @@ class EventManager {
     data class EventListener(var event: Class<out Events?>, var target: Method, var source: Any)
 
     val subscribers: ConcurrentHashMap<Class<out Events>, ArrayList<EventListener>> = ConcurrentHashMap()
+    private val subscribedSources: MutableSet<Any> = ConcurrentHashMap.newKeySet()
 
     /**
      * Subscribes any methods marked with @SubscribeEvent to the Event System.
+     * Idempotent — calling twice on the same object is a no-op.
      *
      * @param obj the object to be subscribed to events.
      */
     fun subscribe(obj: Any) {
+        if (!subscribedSources.add(obj)) return
         var clazz: Class<*>? = obj.javaClass
         while (clazz != null) {
             for (method in clazz.declaredMethods) {
