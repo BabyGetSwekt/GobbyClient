@@ -16,12 +16,15 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Starred Mob ESP** - Highlights starred mobs & minibosses
 - **You Are A King GG** - Draws victory royale banner from fortnite on a dungeon end LOL
 - **Livid Helper** - Renders a box around the correct livid, also has aim lock (for mage lcm'ers)
+- **Blaze** - A solver for blaze puzzle, automation of this puzzle is WIP
+- **Ice Fill** - A solver for ice fill, also has an option to auto complete it
+- **Door Key ESP** - Renders a box around keys
+- **Blood Blink** - Automatically does a blood rush. Requires Auto GFS to be enabled.
 
 ### Floor 7
 
-- **Levers** — Autoclicks levers in p3, has an option to aura them aswell
-- **Auto Align** — Aura's third device
-- **Align Helper** — Prevents u from overclicking the frames
+- **Levers** — Autoclicks levers in p3 (including s2 device), has an option to aura them aswell
+- **Auto Align** — Aura's third device, also has a solver (and prevents you from overclicking frames)
 - **Auto Pre4** — Auto-aims and shoots emerald blocks on 4th device
 - **Shooting Device ESP** — Highlights emerald blocks and completed shots on the 4th device
 - **Debuff Area Renderer** — Visualizes debuff zones in p5
@@ -41,6 +44,16 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Mask Swapper** - Automatically swaps to certain masks (bonzo, spirit mask & cow head)
 - **Free Cam** - Allows you to move your camera freely. Compatible with brush mode
 - **Mod ID Hider** - Hides the mod ID from certain mods from accessing it. Allows you to add other id's too
+- **Speed HUD** - A visual component showing your current speed
+
+### Developer
+GobbyClient also has debug features that developers can use, such as:
+- **Draw Slot Numbers** - Draws the index of the slot in a GUI. Useful when coding with inventories
+- **ArmorStand Saver** - Saves data about armorstands nearbyu you
+- **Particle Debugger** - Spams your chat with all the particles around you
+- **Sound Debugger** - Spams your chat with all the sounds around you
+- **Render Health** - Renders the health of entities on them
+
 
 It has more features, but these are the main ones. Use `/gobby` to open up the config.
 GobbyClient has an auto-updater, so you will always be on the latest version.
