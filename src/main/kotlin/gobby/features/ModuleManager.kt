@@ -139,6 +139,7 @@ object ModuleManager {
         DrawSlotNumbers,
         CopyGui,
         ArmorStandSaver,
+        MessageDebugger,
         ParticleDebugger,
         SoundDebugger,
         RenderHealth,

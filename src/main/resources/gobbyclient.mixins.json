@@ -28,7 +28,6 @@
 		"MixinParticleManager",
 		"MixinCamera",
 		"MixinClientPlayerEntity",
-		"MixinChatHud",
 		"MixinKeyboardInput",
 		"block.MixinAbstractBlock",
 		"block.MixinLeverBlock",
