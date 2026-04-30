@@ -1,7 +1,7 @@
 package gobby.mixin;
 
 import gobby.Gobbyclient;
-import gobby.events.ChatReceivedEvent;
+import gobby.events.GameMessageEvent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.message.MessageHandler;
 import net.minecraft.text.Text;
@@ -18,6 +18,6 @@ public class MixinMessageHandler {
         if (overlay) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) return;
-        Gobbyclient.EVENT_MANAGER.publish(new ChatReceivedEvent(message.getString()));
+        Gobbyclient.EVENT_MANAGER.publish(new GameMessageEvent(message.getString()));
     }
 }

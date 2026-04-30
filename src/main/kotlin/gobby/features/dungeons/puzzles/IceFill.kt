@@ -1,6 +1,7 @@
 package gobby.features.dungeons.puzzles
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.PacketSentEvent
@@ -25,12 +26,14 @@ import gobby.utils.rotation.AngleUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import gobby.utils.skyblock.dungeon.tiles.Room
 import net.minecraft.block.Blocks
+import net.minecraft.client.world.ClientWorld
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import java.awt.Color
+import kotlin.concurrent.thread
 import kotlin.math.sign
 
 object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle in F7", Category.DUNGEONS) {
@@ -58,8 +61,15 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     private var path: List<Vec3d>? = null
     private var lastFiredIndex = -1
     private var cancelNextMovement = false
+    @Volatile private var solving = false
 
-    private fun reset() { path = null; lastFiredIndex = -1; cancelNextMovement = false }
+    private fun reset() { path = null; lastFiredIndex = -1; cancelNextMovement = false; solving = false }
+
+    @SubscribeEvent
+    fun onChat(event: ChatReceivedEvent) {
+        if (enabled && autoIceFill && path != null && event.message == "There are blocks in the way!") event.cancel()
+    }
+
     private fun colorAt(y: Double): Color = Floor.entries.first { y < it.y + 0.5 }.color
     private fun floorOf(y: Double): Floor? = Floor.entries.firstOrNull { it.y == y.toInt() }
 
@@ -75,52 +85,113 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     fun onRoomEnter(event: RoomEnterEvent) {
         val room = event.room ?: return
         if (room.data.name != "Ice Fill") { reset(); return }
+        if (solving) return
+
+        val world = mc.world ?: return
+        val masks = Floor.entries.map { it to buildIceMask(it, room, world) }
+        solving = true
         val timer = Clock()
-        val combined = Floor.entries.flatMap { floor ->
-            solveFloor(floor, room) ?: run {
-                errorMessage("Ice Fill: no solution at Y=${floor.y}"); path = null; return
+        thread(name = "GobbyClient-IceFill", isDaemon = true) {
+            try {
+                val solved = masks.map { (floor, mask) -> floor to solveFloor(floor, mask) }
+                val combined = solved.flatMap { (floor, nodes) ->
+                    nodes ?: run {
+                        mc.execute { errorMessage("Ice Fill: no solution at Y=${floor.y}"); path = null }
+                        return@thread
+                    }
+                }.map { room.getRealCoords(it).let { r -> Vec3d(r.x + 0.5, r.y.toDouble(), r.z + 0.5) } }
+                mc.execute {
+                    path = combined
+                    modMessage("§aIce Fill: dynamically solved in ${timer.getTime()}ms, ${combined.size} nodes")
+                }
+            } finally {
+                solving = false
             }
-        }.map { room.getRealCoords(it).let { r -> Vec3d(r.x + 0.5, r.y.toDouble(), r.z + 0.5) } }
-        path = combined
-        modMessage("§aIce Fill: dynamically solved in ${timer.getTime()}ms, ${combined.size} nodes")
+        }
     }
 
-    private fun solveFloor(floor: Floor, room: Room): List<BlockPos>? {
-        val world = mc.world ?: return null
-        var iceMask = floor.bit(floor.start.x, floor.start.z) or floor.bit(floor.exit.x, floor.exit.z)
+    private fun buildIceMask(floor: Floor, room: Room, world: ClientWorld): Long {
+        var mask = floor.bit(floor.start.x, floor.start.z) or floor.bit(floor.exit.x, floor.exit.z)
         for (x in floor.xMin..floor.xMax) for (z in floor.zMin..floor.zMax) {
-            if (world.getBlockAtPos(room.getRealCoords(BlockPos(x, floor.y, z))) == Blocks.AIR) iceMask = iceMask or floor.bit(x, z)
+            if (world.getBlockAtPos(room.getRealCoords(BlockPos(x, floor.y, z))) == Blocks.AIR) mask = mask or floor.bit(x, z)
         }
+        return mask
+    }
+
+    private fun solveFloor(floor: Floor, iceMask: Long): List<BlockPos>? {
         val total = iceMask.countOneBits()
+        val exitBit = floor.bit(floor.exit.x, floor.exit.z)
         val out = mutableListOf(BlockPos(floor.start.x, floor.y, floor.start.z))
+
+        fun bitAt(x: Int, z: Int): Long =
+            if (x in floor.xMin..floor.xMax && z in floor.zMin..floor.zMax) floor.bit(x, z) else 0L
+
         fun runLength(x: Int, z: Int, dx: Int, dz: Int, filled: Long): Int {
-            var c = 0; var nx = x + dx; var nz = z + dz
-            while (nx in floor.xMin..floor.xMax && nz in floor.zMin..floor.zMax) {
-                val b = floor.bit(nx, nz)
-                if (iceMask and b == 0L || filled and b != 0L) break
-                c++; nx += dx; nz += dz
+            var len = 0
+            var nx = x + dx; var nz = z + dz
+            while (true) {
+                val b = bitAt(nx, nz)
+                if (b == 0L || iceMask and b == 0L || filled and b != 0L) return len
+                len++; nx += dx; nz += dz
             }
-            return c
         }
+
+        fun reachableFrom(startX: Int, startZ: Int, filled: Long): Long {
+            val unfilled = iceMask and filled.inv()
+            if (unfilled == 0L) return 0L
+            var visited = 0L
+            val stack = ArrayDeque<Int>()
+            DIRS.forEach { (dx, dz) ->
+                val nx = startX + dx; val nz = startZ + dz
+                val b = bitAt(nx, nz)
+                if (b != 0L && unfilled and b != 0L) {
+                    visited = visited or b
+                    stack.addLast(packCoord(nx, nz))
+                }
+            }
+            while (stack.isNotEmpty()) {
+                val packed = stack.removeLast()
+                val cx = unpackX(packed); val cz = unpackZ(packed)
+                DIRS.forEach { (dx, dz) ->
+                    val nx = cx + dx; val nz = cz + dz
+                    val b = bitAt(nx, nz)
+                    if (b != 0L && unfilled and b != 0L && visited and b == 0L) {
+                        visited = visited or b
+                        stack.addLast(packCoord(nx, nz))
+                    }
+                }
+            }
+            return visited
+        }
+
         fun dfs(x: Int, z: Int, filled: Long, lastDir: Pair<Int, Int>?): Boolean {
             if (filled.countOneBits() == total) return x == floor.exit.x && z == floor.exit.z
             val moves = DIRS.mapNotNull { (dx, dz) ->
                 val nx = x + dx; val nz = z + dz
-                if (nx !in floor.xMin..floor.xMax || nz !in floor.zMin..floor.zMax) return@mapNotNull null
-                val b = floor.bit(nx, nz)
-                if (iceMask and b == 0L || filled and b != 0L) return@mapNotNull null
+                val b = bitAt(nx, nz)
+                if (b == 0L || iceMask and b == 0L || filled and b != 0L) return@mapNotNull null
                 Move(dx to dz, b, runLength(x, z, dx, dz, filled))
             }.sortedWith(compareBy({ it.dir != lastDir }, { -it.runLength }))
+
             for (move in moves) {
+                val newFilled = filled or move.bit
+                if (move.bit and exitBit != 0L && newFilled.countOneBits() < total) continue
                 val nx = x + move.dir.first; val nz = z + move.dir.second
+                val unfilled = iceMask and newFilled.inv()
+                if (unfilled != 0L && reachableFrom(nx, nz, newFilled) != unfilled) continue
                 out.add(BlockPos(nx, floor.y, nz))
-                if (dfs(nx, nz, filled or move.bit, move.dir)) return true
+                if (dfs(nx, nz, newFilled, move.dir)) return true
                 out.removeAt(out.size - 1)
             }
             return false
         }
+
         return if (dfs(floor.start.x, floor.start.z, floor.bit(floor.start.x, floor.start.z), null)) out else null
     }
+
+    private inline fun packCoord(x: Int, z: Int): Int = (x shl 16) or (z and 0xFFFF)
+    private inline fun unpackX(packed: Int): Int = packed shr 16
+    private inline fun unpackZ(packed: Int): Int = packed.toShort().toInt()
 
     @SubscribeEvent
     fun onPacketReceived(event: PacketReceivedEvent) {
