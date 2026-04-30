@@ -64,7 +64,7 @@ object ModuleManager {
             ScanUtils,
             PathExecutor,
             RotationUtils,
-            AutoUpdater,
+//            AutoUpdater,
             NotificationRenderer,
             HotbarTracker,
             DungeonMapSaver,

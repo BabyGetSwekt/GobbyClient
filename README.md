@@ -56,7 +56,6 @@ GobbyClient also has debug features that developers can use, such as:
 
 
 It has more features, but these are the main ones. Use `/gobby` to open up the config.
-GobbyClient has an auto-updater, so you will always be on the latest version.
 
 
 

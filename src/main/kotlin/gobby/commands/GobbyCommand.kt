@@ -11,7 +11,7 @@ import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
 import gobby.features.dungeons.BloodBlink
 import gobby.features.dungeons.DungeonMap
-import gobby.features.force.AutoUpdater
+//import gobby.features.force.AutoUpdater
 import gobby.utils.skyblock.dungeon.DungeonMapSaver
 import gobby.gui.hud.HudEditor
 import gobby.utils.LocationUtils
@@ -150,16 +150,16 @@ object GobbyCommand {
             )
     }
 
-    private fun updateCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(
-                ClientCommandManager.literal("update")
-                    .executes {
-                        AutoUpdater.forceCheck()
-                        Command.SINGLE_SUCCESS
-                    }
-            )
-    }
+//    private fun updateCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+//        return ClientCommandManager.literal("gobby")
+//            .then(
+//                ClientCommandManager.literal("update")
+//                    .executes {
+//                        AutoUpdater.forceCheck()
+//                        Command.SINGLE_SUCCESS
+//                    }
+//            )
+//    }
 
     private fun lookingAtCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal("gobby")
@@ -252,7 +252,7 @@ object GobbyCommand {
         event.register(helpCommand())
         event.register(pathCommand())
         event.register(pathStopCommand())
-        event.register(updateCommand())
+//        event.register(updateCommand())
         event.register(hudCommand())
         event.register(lookingAtCommand())
         event.register(mapCommand())

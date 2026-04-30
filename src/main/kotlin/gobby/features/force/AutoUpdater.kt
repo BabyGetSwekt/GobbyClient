@@ -17,6 +17,8 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URI
 
+// Disabled for now as it doesn't really work with multiversions
+// And im lazy to fix :)
 object AutoUpdater {
 
     private const val RELEASES_URL = "https://api.github.com/repos/BabyGetSwekt/GobbyClient/releases/latest"
