@@ -16,7 +16,7 @@ val fabric_kotlin_version: String by project
 
 base.archivesName.set(archives_base_name)
 base {
-	version = mod_version
+	version = "$mod_version+$minecraft_version"
 	group = maven_group
 }
 

@@ -17,7 +17,7 @@ import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
 import gobby.utils.timer.Clock
 
-object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon", Category.DUNGEONS, defaultEnabled = true) {
+object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WORK IN PROGRESS. DO NOT USE.", Category.DUNGEONS, defaultEnabled = true) {
 
     var hasScanned = false
         private set

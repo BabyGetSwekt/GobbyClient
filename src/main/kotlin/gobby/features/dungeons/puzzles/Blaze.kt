@@ -22,7 +22,7 @@ import java.awt.Color
 
 object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Category.DUNGEONS) {
 
-    private val hideBlazes by BooleanSetting("Hide Blazes", true, desc = "Hide blaze entities and their labels client-side (server still sees them)")
+    private val hideBlazes by BooleanSetting("Hide Blazes", true, desc = "Hide blazes and their nametag client-side")
 
     private val GREEN = Color(0, 255, 0, 255)
     private val ORANGE = Color(255, 165, 0, 255)
