@@ -31,4 +31,9 @@ public class MixinClientPlayerEntity {
     private void gobbyclient$beforeSendMovement(CallbackInfo ci) {
         PacketOrderManager.INSTANCE.execute(PacketOrderManager.Phase.ITEM_USE);
     }
+
+    @Inject(method = "sendMovementPackets", at = @At("TAIL"))
+    private void gobbyclient$afterSendMovement(CallbackInfo ci) {
+        PacketOrderManager.INSTANCE.execute(PacketOrderManager.Phase.AFTER_MOVEMENT);
+    }
 }

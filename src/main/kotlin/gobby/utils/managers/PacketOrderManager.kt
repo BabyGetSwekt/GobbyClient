@@ -11,9 +11,10 @@ import java.util.concurrent.ConcurrentHashMap
 object PacketOrderManager {
 
     enum class Phase {
-        START,      // Beginning of tick (swap slots)
-        ITEM_USE,   // After swap (send use-item packets)
-        ATTACK      // After item use (attack packets)
+        START,           // Beginning of tick (swap slots, mutate rotation)
+        ITEM_USE,        // HEAD of sendMovementPackets — before vanilla's rotation send
+        AFTER_MOVEMENT,  // TAIL of sendMovementPackets — after vanilla's rotation send
+        ATTACK           // After item use (attack packets)
     }
 
     private val queues = ConcurrentHashMap<Phase, MutableList<Runnable>>()

@@ -1,7 +1,9 @@
 package gobby.features.dungeons.puzzles
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
+import gobby.events.PacketSentEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
@@ -9,6 +11,7 @@ import gobby.events.render.NewRender3DEvent
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
+import gobby.gui.click.SelectorSetting
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inDungeons
@@ -22,6 +25,8 @@ import gobby.utils.rotation.AngleUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import gobby.utils.skyblock.dungeon.tiles.Room
 import net.minecraft.block.Blocks
+import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
@@ -31,8 +36,9 @@ import kotlin.math.sign
 object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle in F7", Category.DUNGEONS) {
 
     private val solver by BooleanSetting("Puzzle Solver", true, desc = "Draw the solution path")
-    private val autoIceFill by BooleanSetting("Auto Ice Fill", false, desc = "Automatically teleports through the path")
-    private val espLines by BooleanSetting("ESP Lines", true, desc = "Render lines through walls")
+    private val autoIceFill by BooleanSetting("Auto Ice Fill", false, desc = "Automatically teleports through the path. Start by Instant Transmissioning onto the first ice block of a floor.")
+    private val rotateMode by SelectorSetting("Rotation", 0, listOf("No Rotate", "Rotate"), desc = "No Rotate: spoofs rotation server-side only (view stays put)\nRotate: also rotates the client view")
+        .withDependency { autoIceFill }
 
     private enum class Floor(val y: Int, val xMin: Int, val xMax: Int, val zMin: Int, val zMax: Int, val start: BlockPos, val exit: BlockPos, val color: Color) {
         F1(70, 14, 16, 7, 10, BlockPos(15, 70, 7), BlockPos(15, 70, 10), Color(255, 50, 50)),
@@ -42,12 +48,18 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         fun bit(x: Int, z: Int) = 1L shl ((z - zMin) * width + (x - xMin))
     }
 
+    private const val PITCH_UP = 14f
+    private const val PITCH_DOWN = 48f
+    private const val POSITION_MATCH_EPSILON_SQ = 1e-6
+
     private val DIRS = listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
     private data class Move(val dir: Pair<Int, Int>, val bit: Long, val runLength: Int)
 
     private var path: List<Vec3d>? = null
+    private var lastFiredIndex = -1
+    private var cancelNextMovement = false
 
-    private fun reset() { path = null }
+    private fun reset() { path = null; lastFiredIndex = -1; cancelNextMovement = false }
     private fun colorAt(y: Double): Color = Floor.entries.first { y < it.y + 0.5 }.color
     private fun floorOf(y: Double): Floor? = Floor.entries.firstOrNull { it.y == y.toInt() }
 
@@ -114,42 +126,78 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     fun onPacketReceived(event: PacketReceivedEvent) {
         if (!enabled || !inDungeons || !autoIceFill || !isHoldingAOTV()) return
         val packet = event.packet as? PlayerPositionLookS2CPacket ?: return
-        val p = path ?: return
+        val nodes = path ?: return
         val pos = packet.change().position()
-        val i = p.indexOfFirst { it.squaredDistanceTo(pos) < 1e-6 }
-        if (i !in 0 until p.size - 1) return
-        floorOf(p[i].y)?.let { if (isFloorDone(it)) return }
-        val d = p[i + 1].subtract(p[i])
-        val (yaw, _) = AngleUtils.calcAimAnglesFromDelta(d.x, d.y, d.z)
-        val pitch = if (d.y > 0) 14f else 48f
+        val index = nodes.indexOfFirst { it.squaredDistanceTo(pos) < POSITION_MATCH_EPSILON_SQ }
+        if (index !in 0 until nodes.size - 1 || index == lastFiredIndex) return
+        floorOf(nodes[index].y)?.takeIf(::isFloorDone)?.let { return }
+        if (lastFiredIndex == -1) modMessage("§aStarting Auto Ice Fill")
+        lastFiredIndex = index
+
+        val delta = nodes[index + 1].subtract(nodes[index])
+        val (yaw, _) = AngleUtils.calcAimAnglesFromDelta(delta.x, delta.y, delta.z)
+        val pitch = if (delta.y > 0) PITCH_UP else PITCH_DOWN
+        scheduleStep(yaw, pitch)
+    }
+
+    private fun scheduleStep(yaw: Float, pitch: Float) {
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
-            if (isHoldingAOTV()) PlayerUtils.useItem(yaw, pitch)
+            val player = mc.player ?: return@register
+            if (!isHoldingAOTV()) return@register
+            mc.networkHandler?.sendPacket(PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, player.isOnGround, player.horizontalCollision))
+            PlayerUtils.useItem(yaw, pitch)
+            if (rotateMode == 1) player.applySpoofedRotation(yaw, pitch)
+            cancelNextMovement = true
         }
+    }
+
+    private fun PlayerEntity.applySpoofedRotation(newYaw: Float, newPitch: Float) {
+        yaw = newYaw
+        pitch = newPitch
+        lastYaw = newYaw
+        lastPitch = newPitch
+    }
+
+    @SubscribeEvent
+    fun onPacketSent(event: PacketSentEvent) {
+        if (!cancelNextMovement) return
+        if (event.packet !is PlayerMoveC2SPacket) return
+        cancelNextMovement = false
+        event.cancel()
+    }
+
+    @SubscribeEvent
+    fun onTickPost(event: ClientTickEvent.Post) {
+        cancelNextMovement = false
     }
 
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled || !inDungeons || !solver) return
-        val p = path ?: return
-        val dt = !espLines
-        val done = Floor.entries.associateWith { isFloorDone(it) }
-        for (i in 0 until p.size - 1) {
-            val from = p[i]; val to = p[i + 1]; val color = colorAt(from.y)
-            if (done[floorOf(from.y)] == true) continue
-            if (from.y == to.y) {
-                drawLine3D(event.matrixStack, event.camera, from, to, color, depthTest = dt)
-                continue
-            }
-            val dirX = (to.x - from.x).sign
-            val dirZ = (to.z - from.z).sign
-            val midY = (from.y + to.y) / 2.0
-            val s0 = Vec3d(from.x + dirX * 0.5, from.y, from.z + dirZ * 0.5)
-            val s1 = Vec3d(s0.x, midY, s0.z)
-            val s2 = Vec3d(s0.x + dirX * 0.5, midY, s0.z + dirZ * 0.5)
-            val s3 = Vec3d(s2.x, to.y, s2.z)
-            listOf(from, s0, s1, s2, s3, to).zipWithNext { a, b ->
-                drawLine3D(event.matrixStack, event.camera, a, b, if (b === to) colorAt(to.y) else color, depthTest = dt)
-            }
+        val nodes = path ?: return
+        val done = Floor.entries.associateWith(::isFloorDone)
+        nodes.zipWithNext { from, to ->
+            if (done[floorOf(from.y)] == true) return@zipWithNext
+            renderSegment(event, from, to)
+        }
+    }
+
+    private fun renderSegment(event: NewRender3DEvent, from: Vec3d, to: Vec3d) {
+        val color = colorAt(from.y)
+        if (from.y == to.y) {
+            drawLine3D(event.matrixStack, event.camera, from, to, color, depthTest = true)
+            return
+        }
+        val dirX = (to.x - from.x).sign
+        val dirZ = (to.z - from.z).sign
+        val midY = (from.y + to.y) / 2.0
+        val s0 = Vec3d(from.x + dirX * 0.5, from.y, from.z + dirZ * 0.5)
+        val s1 = Vec3d(s0.x, midY, s0.z)
+        val s2 = Vec3d(s0.x + dirX * 0.5, midY, s0.z + dirZ * 0.5)
+        val s3 = Vec3d(s2.x, to.y, s2.z)
+        val toColor = colorAt(to.y)
+        listOf(from, s0, s1, s2, s3, to).zipWithNext { a, b ->
+            drawLine3D(event.matrixStack, event.camera, a, b, if (b === to) toColor else color, depthTest = true)
         }
     }
 
