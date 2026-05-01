@@ -12,6 +12,9 @@ object ChatUtils {
 
     val kuudraTierRegex = Regex("Kuudra's Hollow \\(T(\\d+)\\)$")
 
+    private val FORMATTING_CODE_PATTERN = Regex("§[0-9a-fk-or]", RegexOption.IGNORE_CASE)
+    val String.noControlCodes: String get() = FORMATTING_CODE_PATTERN.replace(this, "")
+
     // Regex patterns for matching chat messages [all chat, party chat]
     val publicMessageRegex = Regex("""^\[\d+]\s+(\[[^]]+])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")
     val partyMessageRegex = Regex("""^Party > (\[[^]]*])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")

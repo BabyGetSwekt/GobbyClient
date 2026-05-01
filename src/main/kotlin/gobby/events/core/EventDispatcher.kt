@@ -5,15 +5,23 @@ import gobby.events.ChatReceivedEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.RunFinishedEvent
 import gobby.events.ServerTickEvent
+import gobby.events.network.SystemChatReceivedEvent
+import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonListener.endDialogues
 import net.minecraft.network.packet.s2c.common.CommonPingS2CPacket
+import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket
 
 object EventDispatcher {
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
-        if (event.packet is CommonPingS2CPacket) Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent())
+        when (val p = event.packet) {
+            is CommonPingS2CPacket -> Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent())
+            is GameMessageS2CPacket -> {
+                if (Gobbyclient.EVENT_MANAGER.publish(SystemChatReceivedEvent(p.content().string.noControlCodes, p.content(), p.overlay())).isCanceled) event.cancel()
+            }
+        }
     }
 
     @SubscribeEvent

@@ -110,6 +110,7 @@ object ModuleManager {
         LeapOverlay,
         AutoCloseChest,
         AutoGFS,
+        AutoJax,
         LividHelper,
         CancelInteract,
         SecretHitbox,
@@ -142,6 +143,7 @@ object ModuleManager {
         MessageDebugger,
         ParticleDebugger,
         SoundDebugger,
+        SystemChatDebugger,
         RenderHealth,
         ModIdHiderModule,
         Welcome

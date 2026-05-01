@@ -18,7 +18,7 @@ import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
-import gobby.utils.getShotCooldown
+import gobby.utils.getBowShootSpeedMs
 import gobby.utils.hasItemID
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
@@ -191,7 +191,7 @@ object AutoPre4 : Module(
         if (!isAtPlateWithBow()) return resetShooting()
         if (!prefireGate.hasTimePassed(PREFIRE_GATE_MS)) return
         val player = mc.player ?: return
-        bowShootSpeedMs = (player.mainHandStack.getShotCooldown()?.times(1000)?.toLong() ?: 250L).coerceIn(50L, 2000L)
+        bowShootSpeedMs = player.mainHandStack.getBowShootSpeedMs()
         if (!shotClock.hasTimePassed(bowShootSpeedMs)) return
 
         val target = shootCoord() ?: return

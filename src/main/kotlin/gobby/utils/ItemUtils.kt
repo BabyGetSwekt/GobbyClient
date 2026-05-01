@@ -167,6 +167,8 @@ fun ItemStack.getBonusAtkSpd(): Double? = findStatValue("Bonus Attack Speed")
 
 fun ItemStack.getShotCooldown(): Double? = findStatValue("Shot Cooldown")
 
+fun ItemStack.getBowShootSpeedMs(): Long = (this.getShotCooldown()?.times(1000)?.toLong() ?: 250L).coerceIn(50L, 2000L)
+
 fun ItemStack.isEtherwarpable(): Boolean {
     if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return false
     return this.getItemData.getBoolean("ethermerge").orElse(false)
@@ -176,6 +178,8 @@ fun ItemStack.getTunedTransmission(): Int {
     if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return 0
     return this.getItemData.getInt("tuned_transmission").orElse(0)
 }
+
+fun ItemStack.isShortbow(): Boolean = this.name.string.contains("Shortbow") || this.skyblockID == "TERMINATOR"
 
 fun ItemStack.getInstantTransmissionRange(): Int = BASE_TRANSMISSION_RANGE + getTunedTransmission()
 
