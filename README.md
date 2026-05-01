@@ -45,6 +45,7 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Free Cam** - Allows you to move your camera freely. Compatible with brush mode
 - **Mod ID Hider** - Hides the mod ID from certain mods from accessing it. Allows you to add other id's too
 - **Speed HUD** - A visual component showing your current speed
+- **Auto Jax** - Automatically shoots at the redstone lamps at Jax
 
 ### Developer
 GobbyClient also has debug features that developers can use, such as:
