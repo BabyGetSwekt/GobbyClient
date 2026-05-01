@@ -9,9 +9,9 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
+import gobby.utils.PlayerUtils
 import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.Utils.getRandomInt
-import gobby.utils.PlayerUtils
 import gobby.utils.findHotbarSlot
 import gobby.utils.getInstantTransmissionRange
 import gobby.utils.managers.PacketOrderManager
@@ -52,7 +52,14 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     private const val SNEAK_EYE_HEIGHT = 1.54
     private const val EXPLORE_EXIT = 25
     private const val MAP_LOAD_TIME = 10
+    private const val FORWARD_PEARL_DELAY_TICKS = 4
+    private const val PEARL_DOWN_DELAY_TICKS = 4
+    private const val PEARL_LAND_TIMEOUT_TICKS = 10
+    private const val START_COUNTDOWN_IDLE = -67
     private val MAP_CENTER = Vec3d(-104.5, 0.0, -104.5)
+
+    private val onlyOnGround by BooleanSetting("Only on Ground", false, desc = "Only start bloodrushing when you're on the ground")
+    private val autoBlink by BooleanSetting("Auto Blink", true, desc = "Automatically bloodrushes on dungeon load")
 
     private enum class Slab(val offset: Vec3d, val color: Color) {
         FIRST(Vec3d(5.0, 82.0, 2.0), Color(255, 50, 50, 120)),
@@ -68,37 +75,66 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         PEARL_DOWN, AWAIT_PEARL_DOWN_LAND, DONE
     }
 
-    private val onlyOnGround by BooleanSetting("Only on Ground", false, desc = "Only start bloodrushing when you're on the ground")
-    private val autoBlink by BooleanSetting("Auto Blink", true, desc = "Automatically bloodrushes on dungeon load")
     private var state = State.IDLE
-    private var targetX = 0
-    private var targetZ = 0
-    private var targetBottom = 63
-    private var bloodFound = false
     private var startRoom: Room? = null
-    private var serverTick = -1
-    private var tickCount = 0
-    private var startCountdown = -67
     private var lowSlab = false
-    private var forceSneak = false
     private var explored = false
+
+    var forceSneak = false
+        private set
+
     private var pearlDelay = 0
     private var pearlAttempts = 0
     private var pearlLandWait = 0
     private var pearlSwapped = false
     private var forwardPearlDelay = 0
 
-    fun isBlinking(): Boolean = state != State.IDLE && state != State.DONE
-    fun getForceSneak(): Boolean = forceSneak
+    private var targetX = 0
+    private var targetZ = 0
+    private var targetBottom = 63
+    private var bloodFound = false
+
+    private var serverTick = -1
+    private var tickCount = 0
+    private var startCountdown = START_COUNTDOWN_IDLE
+
+    val isBlinking: Boolean get() = state != State.IDLE && state != State.DONE
+
     fun consumeForceSneak() { forceSneak = false }
+
     fun cancelBlink() { resetState(); state = State.DONE; modMessage("§cBlood Blink cancelled") }
+
     fun doBlink() { resetState(); state = State.INIT; KeyBinding.unpressAll() }
+
+    fun retryBlink(): Boolean {
+        if (!inDungeons) { errorMessage("§cMust be in a dungeon"); return false }
+        val current = ScanUtils.currentRoom
+        if (current == null || current.data.type != RoomType.ENTRANCE) {
+            modMessage("§cMust be in the entrance room"); return false
+        }
+        if (!bloodFound) { errorMessage("§cBlood room has not been scanned yet"); return false }
+        val (savedX, savedZ, savedBottom) = Triple(targetX, targetZ, targetBottom)
+        reset()
+        bloodFound = true; targetX = savedX; targetZ = savedZ; targetBottom = savedBottom
+        doBlink(); modMessage("§aRetrying Blood Blink"); return true
+    }
+
+    fun reset() {
+        bloodFound = false; startRoom = null
+        serverTick = -1; tickCount = 0; startCountdown = START_COUNTDOWN_IDLE
+        resetState()
+    }
 
     private fun resetState() {
         state = State.IDLE
         lowSlab = false; forceSneak = false; explored = false
         pearlDelay = 0; pearlAttempts = 0; pearlLandWait = 0
         pearlSwapped = false; forwardPearlDelay = 0
+    }
+
+    private fun finish(msg: String? = null) {
+        msg?.let { modMessage(it) }
+        state = State.DONE
     }
 
     private fun slabWorldPos(): Vec3d? = startRoom?.getRealCoords(Slab.entries[getRandomInt(0, 3)].offset)
@@ -115,7 +151,9 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     }
 
     private fun pearlUpComplete(y: Double): Boolean = y > if (lowSlab) 97.0 else 98.0
-    private fun sendEtherwarps(count: Int, yaw: Float, pitch: Float) = repeat(count) { PlayerUtils.useItem(yaw, pitch) }
+
+    private fun sendEtherwarps(count: Int, yaw: Float, pitch: Float) =
+        repeat(count) { PlayerUtils.useItem(yaw, pitch) }
 
     private fun lookAndEtherwarp(p: PlayerEntity, yaw: Float, pitch: Float, count: Int) {
         mc.networkHandler?.sendPacket(PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, p.isOnGround, p.horizontalCollision))
@@ -126,10 +164,13 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         val world = mc.world ?: return
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
             val p = mc.player ?: return@register
-            if (SwapManager.swapToItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END") < 0) { errorMessage("No AOTV/AOTE found in hotbar"); state = State.DONE; return@register }
+            if (SwapManager.swapToItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END") < 0) {
+                errorMessage("No AOTV/AOTE found in hotbar"); finish(); return@register
+            }
             if (!p.lastPlayerInput.sneak()) return@register
             val slab = slabWorldPos() ?: return@register
-            if (world.getBlockAtPos(BlockPos(MathHelper.floor(slab.x), MathHelper.floor(slab.y), MathHelper.floor(slab.z))) == Blocks.AIR) lowSlab = true
+            val slabBlock = BlockPos(MathHelper.floor(slab.x), MathHelper.floor(slab.y), MathHelper.floor(slab.z))
+            if (world.getBlockAtPos(slabBlock) == Blocks.AIR) lowSlab = true
             val targetY = if (lowSlab) slab.y - 1.0 else slab.y
             val target = Vec3d(MathHelper.floor(slab.x) + 0.5, targetY, MathHelper.floor(slab.z) + 0.5)
             val (yaw, pitch) = AngleUtils.calcAimAnglesBetween(Vec3d(p.x, p.y + SNEAK_EYE_HEIGHT, p.z), target)
@@ -155,9 +196,11 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         if (!enabled || !inDungeons || inBoss) return
         val player = mc.player ?: return
         if (tickCount <= 2) return
-        if (isBlinking() && isDead) { errorMessage("§cBlood Blink stopped. You died lol"); resetState(); state = State.DONE; return }
+        if (isBlinking && isDead) {
+            errorMessage("§cBlood Blink stopped. You died lol"); resetState(); state = State.DONE; return
+        }
         when (state) {
-            State.IDLE -> if (autoBlink && ScanUtils.currentRoom?.data?.type == RoomType.ENTRANCE) { KeyBinding.unpressAll(); state = State.INIT; initSequence(player) }
+            State.IDLE -> tryAutoStart(player)
             State.INIT -> initSequence(player)
             State.PEARL_UP_1 -> pearl(player.yaw, -90f) { state = State.AWAIT_PEARL_UP_1_LAND }
             State.EXPLORE -> exploreForBlood()
@@ -171,8 +214,17 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         }
     }
 
+    private fun tryAutoStart(player: PlayerEntity) {
+        if (!autoBlink || ScanUtils.currentRoom?.data?.type != RoomType.ENTRANCE) return
+        KeyBinding.unpressAll()
+        state = State.INIT
+        initSequence(player)
+    }
+
     private fun initSequence(player: PlayerEntity) {
-        if (!bloodFound && DungeonListener.isBloodOpened) { modMessage("§cCannot blink — dungeon started without blood room"); state = State.DONE; return }
+        if (!bloodFound && DungeonListener.isBloodOpened) {
+            finish("§cCannot blink — dungeon started without blood room"); return
+        }
         forceSneak = true
         if (onlyOnGround && !player.isOnGround) return
         if (startRoom == null) startRoom = ScanUtils.currentRoom
@@ -200,16 +252,16 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         forceSneak = true
         if (onlyOnGround && !player.isOnGround) return
         if (startRoom == null) return
-        if (explored && !bloodFound) { modMessage("§cCould not find blood room"); state = State.DONE; return }
+        if (explored && !bloodFound) { finish("§cCould not find blood room"); return }
         etherwarpToSlab(State.AWAIT_SLAB2_LAND)
     }
 
     private fun bloodRush() {
         SwapManager.swapToItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")
-        val started = DungeonListener.isBloodOpened || (startCountdown != -67 && startCountdown <= 0)
+        val started = DungeonListener.isBloodOpened || (startCountdown != START_COUNTDOWN_IDLE && startCountdown <= 0)
         if (!started) return
         if (serverTick % 40 >= 40 - MAP_LOAD_TIME) return
-        startCountdown = -67
+        startCountdown = START_COUNTDOWN_IDLE
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
             SwapManager.swapToItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")
             val p = mc.player ?: return@register
@@ -228,14 +280,16 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     }
 
     private fun pearlForward(player: PlayerEntity) {
-        if (forwardPearlDelay < 4) { forwardPearlDelay++; return }
+        if (forwardPearlDelay < FORWARD_PEARL_DELAY_TICKS) { forwardPearlDelay++; return }
         modMessage("§e[BB] Pearling forward into blood room")
-        pearl(player.yaw, 0f) { modMessage("§aBlood Blink complete!"); state = State.DONE }
+        pearl(player.yaw, 0f) { finish("§aBlood Blink complete!") }
     }
 
     private fun pearlDown(player: PlayerEntity) {
-        if (pearlDelay < 4) { pearlDelay++; return }
-        if (pearlAttempts >= MAX_PEARL_RETRIES) { modMessage("§c[BB] Pearl failed after $MAX_PEARL_RETRIES attempts"); state = State.DONE; return }
+        if (pearlDelay < PEARL_DOWN_DELAY_TICKS) { pearlDelay++; return }
+        if (pearlAttempts >= MAX_PEARL_RETRIES) {
+            finish("§c[BB] Pearl failed after $MAX_PEARL_RETRIES attempts"); return
+        }
         pearlAttempts++
         modMessage("§e[BB] Pearl attempt #$pearlAttempts")
         pearl(player.yaw, -90f) { pearlLandWait = 0; state = State.AWAIT_PEARL_DOWN_LAND }
@@ -243,15 +297,19 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
 
     private fun awaitPearlDownTimeout() {
         pearlLandWait++
-        if (pearlLandWait > 10) { modMessage("§c[BB] Pearl timeout, retrying..."); pearlDelay = 4; state = State.PEARL_DOWN }
+        if (pearlLandWait > PEARL_LAND_TIMEOUT_TICKS) {
+            modMessage("§c[BB] Pearl timeout, retrying...")
+            pearlDelay = PEARL_DOWN_DELAY_TICKS; state = State.PEARL_DOWN
+        }
     }
 
     @SubscribeEvent
     fun onPacketReceived(event: PacketReceivedEvent) {
-        if (!isBlinking() || inBoss) return
-        val packet = event.packet
-        if (packet is WorldTimeUpdateS2CPacket) serverTick = (packet.time() % 40).toInt()
-        if (packet is PlayerPositionLookS2CPacket) onPositionLook(packet.change().position())
+        if (!isBlinking || inBoss) return
+        when (val packet = event.packet) {
+            is WorldTimeUpdateS2CPacket -> serverTick = (packet.time() % 40).toInt()
+            is PlayerPositionLookS2CPacket -> onPositionLook(packet.change().position())
+        }
     }
 
     private fun onPositionLook(pos: Vec3d) {
@@ -268,19 +326,22 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
 
     private fun onPearlDownLanded(pos: Vec3d) {
         if (MathHelper.abs(targetX - MathHelper.floor(pos.x)) >= 16 || MathHelper.abs(targetZ - MathHelper.floor(pos.z)) >= 16) return
-        if (pos.y >= PEARL_SUCCESS_Y) {
-            modMessage("§e[BB] Landed at Y=${pos.y}, pearling forward")
-            forwardPearlDelay = 0; pearlSwapped = false; state = State.FORWARD_PEARL
-        } else if (pos.y in (targetBottom - 1.0)..PEARL_SUCCESS_Y) {
-            modMessage("§c[BB] Too low (Y=${pos.y}), retrying pearl")
-            pearlDelay = 4; pearlSwapped = false; state = State.PEARL_DOWN
+        when {
+            pos.y >= PEARL_SUCCESS_Y -> {
+                modMessage("§e[BB] Landed at Y=${pos.y}, pearling forward")
+                forwardPearlDelay = 0; pearlSwapped = false; state = State.FORWARD_PEARL
+            }
+            pos.y in (targetBottom - 1.0)..PEARL_SUCCESS_Y -> {
+                modMessage("§c[BB] Too low (Y=${pos.y}), retrying pearl")
+                pearlDelay = PEARL_DOWN_DELAY_TICKS; pearlSwapped = false; state = State.PEARL_DOWN
+            }
         }
     }
 
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
         serverTick++; tickCount++
-        if (startCountdown != -67) startCountdown--
+        if (startCountdown != START_COUNTDOWN_IDLE) startCountdown--
     }
 
     @SubscribeEvent
@@ -293,16 +354,16 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     fun onTickCheckBlood(event: ClientTickEvent.Pre) {
         if (!enabled || bloodFound || !inDungeons || !DungeonMap.hasScanned) return
         val grid = DungeonMap.grid
-        for (row in 0 until MapConstants.GRID_SIZE step 2) for (col in 0 until MapConstants.GRID_SIZE step 2) {
-            val tile = grid[row * MapConstants.GRID_SIZE + col]
-            if (tile is MapTile.Room && tile.data.type == RoomType.BLOOD) {
+        for (row in 0 until MapConstants.GRID_SIZE step 2)
+            for (col in 0 until MapConstants.GRID_SIZE step 2) {
+                val tile = grid[row * MapConstants.GRID_SIZE + col] as? MapTile.Room ?: continue
+                if (tile.data.type != RoomType.BLOOD) continue
                 targetX = MapConstants.START_X + col * MapConstants.HALF_ROOM
                 targetZ = MapConstants.START_Z + row * MapConstants.HALF_ROOM
                 targetBottom = 63; bloodFound = true
                 modMessage("§aBlood room found at $targetX, $targetZ")
                 return
             }
-        }
     }
 
     @SubscribeEvent
@@ -312,27 +373,12 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         if (room.data.type != RoomType.ENTRANCE) return
         for (slab in Slab.entries) {
             val p = room.getRealCoords(slab.offset)
-            val box = Box(p.x.toInt().toDouble(), p.y.toInt().toDouble(), p.z.toInt().toDouble(),
-                p.x.toInt() + 1.0, p.y.toInt() + 1.0, p.z.toInt() + 1.0)
+            val box = Box(
+                p.x.toInt().toDouble(), p.y.toInt().toDouble(), p.z.toInt().toDouble(),
+                p.x.toInt() + 1.0, p.y.toInt() + 1.0, p.z.toInt() + 1.0
+            )
             draw3DBox(event.matrixStack, event.camera, box, slab.color, depthTest = false)
         }
-    }
-
-    fun reset() {
-        bloodFound = false; startRoom = null
-        serverTick = -1; tickCount = 0; startCountdown = -67
-        resetState()
-    }
-
-    fun retryBlink(): Boolean {
-        if (!inDungeons) { errorMessage("§cMust be in a dungeon"); return false }
-        val current = ScanUtils.currentRoom
-        if (current == null || current.data.type != RoomType.ENTRANCE) { modMessage("§cMust be in the entrance room"); return false }
-        if (!bloodFound) { errorMessage("§cBlood room has not been scanned yet"); return false }
-        val savedX = targetX; val savedZ = targetZ; val savedBottom = targetBottom
-        reset()
-        bloodFound = true; targetX = savedX; targetZ = savedZ; targetBottom = savedBottom
-        doBlink(); modMessage("§aRetrying Blood Blink"); return true
     }
 
     @SubscribeEvent
