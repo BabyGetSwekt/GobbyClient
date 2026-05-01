@@ -109,6 +109,7 @@ object ModuleManager {
         AutoLeap,
         LeapOverlay,
         AutoCloseChest,
+        AutoExperiments,
         AutoGFS,
         AutoJax,
         LividHelper,

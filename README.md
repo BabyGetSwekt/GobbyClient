@@ -46,6 +46,7 @@ This mod is currently in development. DM @Goblinbanaan on Discord if you have an
 - **Mod ID Hider** - Hides the mod ID from certain mods from accessing it. Allows you to add other id's too
 - **Speed HUD** - A visual component showing your current speed
 - **Auto Jax** - Automatically shoots at the redstone lamps at Jax
+- **Auto Experiments** - Automatically does experiments
 
 ### Developer
 GobbyClient also has debug features that developers can use, such as:
