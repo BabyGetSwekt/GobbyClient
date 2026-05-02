@@ -36,7 +36,7 @@ object MapRenderer {
     private val COL_DOOR_BLOOD = Color(255, 0, 0)
     private val COL_DOOR_ENTRANCE = Color(20, 133, 0)
 
-    private val CHECKMARK_ID = Identifier.of("gobbyclient", "textures/dungeon/room_cleared")
+    private val CHECKMARK_ID = Identifier.of("gobbyclient", "textures/white_checkmark")
     private var checkmarkRegistered = false
 
     private const val SKIN_TEX_SIZE = 64

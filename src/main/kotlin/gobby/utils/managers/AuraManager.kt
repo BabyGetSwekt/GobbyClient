@@ -8,6 +8,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.block.ShapeContext
 import net.minecraft.entity.Entity
+import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket
 import net.minecraft.util.Hand
@@ -50,6 +51,7 @@ object AuraManager {
         }
 
         mc.networkHandler?.sendPacket(PlayerInteractEntityC2SPacket.interact(entity, sneaking, Hand.MAIN_HAND))
+        mc.networkHandler?.sendPacket(HandSwingC2SPacket(Hand.MAIN_HAND))
     }
 
     private fun sendBlockInteraction(pos: BlockPos, onMissing: (() -> Unit)?) {
@@ -67,6 +69,7 @@ object AuraManager {
             ?: BlockHitResult(center, Direction.UP, pos, false)
 
         mc.networkHandler?.sendPacket(PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hitResult, 0))
+        mc.networkHandler?.sendPacket(HandSwingC2SPacket(Hand.MAIN_HAND))
     }
 
     @SubscribeEvent

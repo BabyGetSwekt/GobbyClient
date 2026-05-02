@@ -122,6 +122,7 @@ object ModuleManager {
         IceFill,
         Blaze,
         CowHatReminder,
+        MaskTimers,
         PadTimers,
         FuckDiorite,
         Relics,

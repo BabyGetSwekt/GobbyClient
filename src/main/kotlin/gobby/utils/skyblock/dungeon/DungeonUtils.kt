@@ -132,6 +132,7 @@ object DungeonUtils {
     }
 
     fun Room.getRelativeCoords(pos: Vec3i) = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)
+    fun Room.getRelativeCoords(pos: Vec3d): Vec3d = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)
     fun Room.getRealCoords(pos: Vec3i) = pos.rotateAroundNorth(rotation).addVec(x = clayPos.x, z = clayPos.z)
     fun Room.getRealCoords(pos: Vec3d): Vec3d = pos.rotateAroundNorth(rotation).addVec(x = clayPos.x.toDouble(), z = clayPos.z.toDouble())
     fun Room.getRelativeCoords(pos: BlockPos) = getRelativeCoords(Vec3i(pos.x, pos.y, pos.z)).toBlockPos()
