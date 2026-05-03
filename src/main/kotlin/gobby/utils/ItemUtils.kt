@@ -187,7 +187,7 @@ val SPIRIT_MASK_IDS = setOf("SPIRIT_MASK", "STARRED_SPIRIT_MASK")
 val BONZO_MASK_IDS = setOf("BONZO_MASK", "STARRED_BONZO_MASK")
 
 fun getHelmetID(): String =
-    mc.player?.inventory?.getStack(39)?.skyblockID ?: ""
+    mc.player?.playerScreenHandler?.slots?.getOrNull(5)?.stack?.skyblockID ?: ""
 
 fun hasHelmetWithID(id: String): Boolean =
     getHelmetID() == id

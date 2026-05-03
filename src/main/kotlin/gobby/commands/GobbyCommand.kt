@@ -261,6 +261,7 @@ object GobbyCommand {
         event.register(saveMapCommand())
         event.register(copyMapCommand())
         event.register(getItemIDCommand())
+        event.register(printSlotCommand())
         event.register(copyStructureCommand())
         event.register(pasteStructureCommand())
         event.register(copyRoomCommand())
@@ -333,6 +334,20 @@ object GobbyCommand {
                     }
                     Command.SINGLE_SUCCESS
                 }
+            )
+    }
+
+    private fun printSlotCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(ClientCommandManager.literal("printSlot")
+                .then(ClientCommandManager.argument("slot", IntegerArgumentType.integer())
+                    .executes { ctx ->
+                        val slot = IntegerArgumentType.getInteger(ctx, "slot")
+                        val id = mc.player?.playerScreenHandler?.slots?.getOrNull(slot)?.stack?.skyblockID ?: "none"
+                        modMessage("§eslot §f$slot §7→ §a${id.ifEmpty { "none" }}")
+                        Command.SINGLE_SUCCESS
+                    }
+                )
             )
     }
 
