@@ -4,7 +4,7 @@ enum class Category(val displayName: String) {
     DUNGEONS("Dungeons"),
     FLOOR7("Floor 7"),
     SKYBLOCK("Skyblock"),
-    GALATEA("Galatea"),
+    MINING("Mining"),
     RENDER("Render"),
     DEVELOPER("Developer")
 }

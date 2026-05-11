@@ -12,7 +12,7 @@ import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
 import gobby.features.floor7.terminals.*
 import gobby.features.force.*
-import gobby.features.galatea.*
+import gobby.features.mining.structurescanner.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
 import gobby.gui.GuiElementManager
@@ -97,6 +97,7 @@ object ModuleManager {
     private fun subscribeModules() = listOf<Module>(
         PartyCommands,
         RenderTurtles,
+        StructureScanner,
         FullBright,
         CoordWaypoints,
         TerminatorAC,

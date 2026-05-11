@@ -23,7 +23,8 @@ object RenderBeacon {
         val pos: BlockPos,
         val color: Color,
         val label: String?,
-        val setTime: Long = System.currentTimeMillis()
+        val setTime: Long = System.currentTimeMillis(),
+        val persistent: Boolean = false
     )
 
     private val beacons = mutableListOf<BeaconData>()
@@ -41,13 +42,26 @@ object RenderBeacon {
         beacons.add(BeaconData(pos, color, displayLabel))
     }
 
+    fun addPersistentBeacon(pos: BlockPos, color: Color, displayLabel: String?) {
+        if (beacons.any { it.persistent && it.pos == pos }) return
+        beacons.add(BeaconData(pos, color, displayLabel, persistent = true))
+    }
+
+    fun removeBeaconAt(pos: BlockPos) {
+        beacons.removeIf { it.pos == pos }
+    }
+
+    fun clearPersistent() {
+        beacons.removeIf { it.persistent }
+    }
+
     @SubscribeEvent
     fun onRender(event: NewRender3DEvent) {
         if (beacons.isEmpty()) return
 
         if (cleanupClock.hasTimePassed(30_000, setTime = true)) {
             val now = System.currentTimeMillis()
-            beacons.removeIf { beacon -> now - beacon.setTime > 30_000 }
+            beacons.removeIf { beacon -> !beacon.persistent && now - beacon.setTime > 30_000 }
         }
 
         for (beacon in beacons) {
@@ -180,7 +194,7 @@ object RenderBeacon {
             beacon.label,
             -textWidth / 2f,
             0f,
-            0xFFFFFF,
+            0xFFFFFFFF.toInt(),
             false,
             matrixStack.peek().positionMatrix,
             immediate,

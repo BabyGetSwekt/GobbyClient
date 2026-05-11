@@ -1,4 +1,4 @@
-package gobby.features.galatea
+package gobby.features.skyblock
 
 import gobby.features.render.EntityHighlighter
 import gobby.gui.click.BooleanSetting
@@ -10,7 +10,7 @@ import net.minecraft.entity.Entity
 import net.minecraft.entity.passive.TurtleEntity
 import java.awt.Color
 
-object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used for shards", Category.GALATEA) {
+object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used for shards", Category.SKYBLOCK) {
 
     val espColor by ColorSetting("ESP Color", Color(208, 88, 2, 72), desc = "Pick a color")
     val espLines by BooleanSetting("ESP Line", true, desc = "Draws a line to the turtle")

@@ -129,7 +129,8 @@ object LocationUtils {
                 .thenBy { it.profile.name.lowercase() }
         )
         for (entry in sortedTabList) {
-            val line = entry.displayName?.string ?: continue
+            val raw = entry.displayName?.string ?: continue
+            val line = Formatting.strip(raw) ?: continue
             if (line.isEmpty()) continue
             if (debug) modMessage("Player in tab: $line")
 

@@ -40,11 +40,6 @@ import java.awt.Color
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/**
- * Contents of this file are inspired on RSA by rdbtCVS, licensed under MIT.
- * But most of the code has been rewritten by me.
- * Original: https://github.com/rdbtCVS/rsa
- */
 object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Category.DUNGEONS) {
 
     private const val PEARL_SUCCESS_Y = 68.0
@@ -97,6 +92,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     private var serverTick = -1
     private var tickCount = 0
     private var startCountdown = START_COUNTDOWN_IDLE
+    private var cancelNextMovement = false
 
     val isBlinking: Boolean get() = state != State.IDLE && state != State.DONE
 
@@ -130,6 +126,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         lowSlab = false; forceSneak = false; explored = false
         pearlDelay = 0; pearlAttempts = 0; pearlLandWait = 0
         pearlSwapped = false; forwardPearlDelay = 0
+        cancelNextMovement = false
     }
 
     private fun finish(msg: String? = null) {
@@ -158,6 +155,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     private fun lookAndEtherwarp(p: PlayerEntity, yaw: Float, pitch: Float, count: Int) {
         mc.networkHandler?.sendPacket(PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, p.isOnGround, p.horizontalCollision))
         sendEtherwarps(count, yaw, pitch)
+        cancelNextMovement = true
     }
 
     private fun etherwarpToSlab(nextState: State) {
@@ -175,6 +173,7 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
             val target = Vec3d(MathHelper.floor(slab.x) + 0.5, targetY, MathHelper.floor(slab.z) + 0.5)
             val (yaw, pitch) = AngleUtils.calcAimAnglesBetween(Vec3d(p.x, p.y + SNEAK_EYE_HEIGHT, p.z), target)
             PlayerUtils.useItem(yaw, pitch)
+            cancelNextMovement = true
             state = nextState
         }
     }
@@ -187,7 +186,10 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
         }
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
             pearlSwapped = false
-            if (PlayerUtils.useItem(yaw, pitch)) onSuccess()
+            if (PlayerUtils.useItem(yaw, pitch)) {
+                cancelNextMovement = true
+                onSuccess()
+            }
         }
     }
 
@@ -336,6 +338,19 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
                 pearlDelay = PEARL_DOWN_DELAY_TICKS; pearlSwapped = false; state = State.PEARL_DOWN
             }
         }
+    }
+
+    @SubscribeEvent
+    fun onPacketSent(event: PacketSentEvent) {
+        if (!cancelNextMovement) return
+        if (event.packet !is PlayerMoveC2SPacket) return
+        cancelNextMovement = false
+        event.cancel()
+    }
+
+    @SubscribeEvent
+    fun onTickPost(event: ClientTickEvent.Post) {
+        cancelNextMovement = false
     }
 
     @SubscribeEvent
