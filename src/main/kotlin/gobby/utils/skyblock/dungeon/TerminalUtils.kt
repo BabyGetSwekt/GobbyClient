@@ -6,12 +6,12 @@ import gobby.events.core.SubscribeEvent
 import gobby.features.floor7.terminals.AutoTerminals
 import gobby.features.floor7.terminals.TerminalClick
 import gobby.utils.timer.Clock
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.item.ItemStack
-import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
-import net.minecraft.screen.slot.SlotActionType
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.core.component.DataComponents
+import net.minecraft.world.item.ItemStack
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.world.inventory.ClickType
 
 object TerminalUtils {
 
@@ -50,12 +50,12 @@ object TerminalUtils {
 
     fun isGuardFailed(): Boolean = !AutoTerminals.enabled || (!DungeonUtils.inP3 && !AutoTerminals.notP3)
 
-    fun onTerminalOpen(screen: GenericContainerScreen) {
+    fun onTerminalOpen(screen: ContainerScreen) {
         clickClock.update()
         isFirstClick = true
         clickedWindow = false
         clickedSlots.clear()
-        currentWindowId = screen.screenHandler.syncId
+        currentWindowId = screen.menu.containerId
         solution.clear()
     }
 
@@ -63,12 +63,12 @@ object TerminalUtils {
     fun onPacketReceived(event: PacketReceivedEvent) {
         if (currentWindowId == -1) return
 
-        if (event.packet is OpenScreenS2CPacket) {
+        if (event.packet is ClientboundOpenScreenPacket) {
             clickedWindow = false
             clickedSlots.clear()
-        } else if (event.packet is ScreenHandlerSlotUpdateS2CPacket && clickedWindow) {
-            val pkt = event.packet as ScreenHandlerSlotUpdateS2CPacket
-            if (pkt.syncId == currentWindowId) {
+        } else if (event.packet is ClientboundContainerSetSlotPacket && clickedWindow) {
+            val pkt = event.packet as ClientboundContainerSetSlotPacket
+            if (pkt.containerId == currentWindowId) {
                 clickedWindow = false
                 clickedSlots.clear()
             }
@@ -80,7 +80,7 @@ object TerminalUtils {
      * Solver provides a fresh solution each tick — we only click
      * the first one that we haven't already clicked this window.
      */
-    fun tryClick(screen: GenericContainerScreen, slot: Int, button: Int = 2): Boolean {
+    fun tryClick(screen: ContainerScreen, slot: Int, button: Int = 2): Boolean {
         if (clickedWindow) {
             // Break threshold: if server never re-opens window
             if (clickClock.hasTimePassed(AutoTerminals.breakThreshold.toLong())) {
@@ -94,26 +94,28 @@ object TerminalUtils {
         val delay = if (isFirstClick) AutoTerminals.firstDelay.toLong() else AutoTerminals.clickDelay.toLong()
         if (!clickClock.hasTimePassed(delay)) return false
 
-        clickSlot(screen.screenHandler.syncId, slot, button)
+        clickSlot(screen.menu.containerId, slot, button)
         if (button == 2) clickedSlots.add(slot)
         clickedWindow = true
         return true
     }
 
     fun clickSlot(syncId: Int, slotId: Int, button: Int = 2) {
-        val action = if (button == 2) SlotActionType.CLONE else SlotActionType.PICKUP
-        mc.interactionManager?.clickSlot(syncId, slotId, button, action, mc.player)
+        val action = if (button == 2) ClickType.CLONE else ClickType.PICKUP
+        val player = mc.player ?: return
+        mc.gameMode?.handleInventoryMouseClick(syncId, slotId, button, action, player)
         clickClock.update()
         isFirstClick = false
     }
 
     fun clickSlotDirect(syncId: Int, slotId: Int) {
-        mc.interactionManager?.clickSlot(syncId, slotId, 2, SlotActionType.CLONE, mc.player)
+        val player = mc.player ?: return
+        mc.gameMode?.handleInventoryMouseClick(syncId, slotId, 2, ClickType.CLONE, player)
     }
 
     fun isItemDone(slot: Int, stack: ItemStack): Boolean =
         slot in clickedSlots || isTerminalItemDone(stack)
 
     fun isTerminalItemDone(stack: ItemStack): Boolean =
-        stack.componentChanges.get(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE)?.isPresent == true
+        stack.componentsPatch.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)?.isPresent == true
 }

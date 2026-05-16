@@ -23,20 +23,20 @@ object ClipCommand {
                         ClientCommandManager.argument("blocks", DoubleArgumentType.doubleArg())
                             .executes { context ->
                                 val player = mc.player ?: return@executes Command.SINGLE_SUCCESS
-                                if (!mc.isInSingleplayer) {
+                                if (!mc.isSingleplayer) {
                                     errorMessage("Clip can only be used in singleplayer.")
                                     return@executes Command.SINGLE_SUCCESS
                                 }
 
                                 val blocks = DoubleArgumentType.getDouble(context, "blocks")
-                                val yaw = Math.toRadians(player.yaw.toDouble())
-                                val pitch = Math.toRadians(player.pitch.toDouble())
+                                val yaw = Math.toRadians(player.yRot.toDouble())
+                                val pitch = Math.toRadians(player.xRot.toDouble())
 
                                 val dx = -sin(yaw) * cos(pitch) * blocks
                                 val dy = -sin(pitch) * blocks
                                 val dz = cos(yaw) * cos(pitch) * blocks
 
-                                player.setPosition(player.x + dx, player.y + dy, player.z + dz)
+                                player.setPos(player.x + dx, player.y + dy, player.z + dz)
                                 modMessage("Clipped $blocks blocks.")
                                 Command.SINGLE_SUCCESS
                             }

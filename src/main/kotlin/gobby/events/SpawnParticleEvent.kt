@@ -1,10 +1,10 @@
 package gobby.events
 
-import net.minecraft.particle.ParticleEffect
-import net.minecraft.util.math.Vec3d
+import net.minecraft.core.particles.ParticleOptions
+import net.minecraft.world.phys.Vec3
 
 class SpawnParticleEvent(
-    val effect: ParticleEffect,
-    val pos: Vec3d,
-    val velocity: Vec3d
+    val effect: ParticleOptions,
+    val pos: Vec3,
+    val velocity: Vec3
 ) : Events.Cancelable<Unit>()

@@ -22,11 +22,11 @@ import gobby.utils.render.RenderUtils.drawStringInWorld
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.timer.Clock
-import net.minecraft.block.Blocks
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 
 object SimonSays : Module(
@@ -39,7 +39,7 @@ object SimonSays : Module(
     private val autoSSDropdown = DropDownSetting("Auto SS", desc = "Automatically solves the Simon Says device").also { settings.add(it) }
     private val autoSSEnabled by BooleanSetting("Enabled", false, desc = "Toggle Auto SS on/off")
         .childOf(autoSSDropdown)
-    private val clickDelay by NumberSetting("Click Delay", 200, 50, 500, 10, desc = "Delay between clicks in ms")
+    private val clickDelay by NumberSetting("MouseButtonInfo Delay", 200, 50, 500, 10, desc = "Delay between clicks in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val rotationDelay by NumberSetting("Rotation Delay", 150, 0, 1000, 50, desc = "Time to ease rotation to buttons in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
@@ -71,7 +71,7 @@ object SimonSays : Module(
     private var rotating = false
     private var startStep = 0
 
-    private fun buttonBox(pos: BlockPos): Box = Box(
+    private fun buttonBox(pos: BlockPos): AABB = AABB(
         pos.x + 0.875, pos.y + 0.375, pos.z + 0.3125,
         pos.x + 1.0, pos.y + 0.625, pos.z + 0.6875
     )
@@ -96,13 +96,13 @@ object SimonSays : Module(
 
     private fun isInRange(): Boolean {
         val player = mc.player ?: return false
-        return player.squaredDistanceTo(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) <= START_RANGE_SQ
+        return player.distanceToSqr(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) <= START_RANGE_SQ
     }
 
     private fun clickBlock(pos: BlockPos, onClicked: (() -> Unit)? = null) {
         if (rotating || RotationUtils.isEasing) return
         rotating = true
-        val buttonFace = Vec3d(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5)
+        val buttonFace = Vec3(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5)
         RotationUtils.easeToVec(buttonFace, rotationDelay.toLong()) {
             PlayerUtils.rightClick()
             clock.update()
@@ -146,7 +146,7 @@ object SimonSays : Module(
             reset()
             start()
         }
-        if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.currentScreen == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")
+        if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.screen == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")
     }
 
     @SubscribeEvent
@@ -158,7 +158,7 @@ object SimonSays : Module(
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (!enabled || !autoSSEnabled || mc.world == null || mc.player == null) return
+        if (!enabled || !autoSSEnabled || mc.level == null || mc.player == null) return
         if (!isInRange()) return
 
         if (startStep > 0) {
@@ -170,8 +170,8 @@ object SimonSays : Module(
         if (rotating || RotationUtils.isEasing) return
 
         val player = mc.player ?: return
-        val hasDevice = mc.world?.entities?.any {
-            it is ArmorStandEntity && it.squaredDistanceTo(player) < DEVICE_RANGE * DEVICE_RANGE && it.name.string.contains("Device")
+        val hasDevice = mc.level?.entitiesForRendering()?.any {
+            it is ArmorStand && it.distanceToSqr(player) < DEVICE_RANGE * DEVICE_RANGE && it.name.string.contains("Device")
         } ?: false
 
         if (!hasDevice) {
@@ -179,7 +179,7 @@ object SimonSays : Module(
             return
         }
 
-        val detect = mc.world?.getBlockState(BlockPos(110, 123, 92))?.block
+        val detect = mc.level?.getBlockState(BlockPos(110, 123, 92))?.block
         if ((detect == Blocks.STONE_BUTTON || autoDoneFirst) && doingSS) {
             if (!autoDoneFirst && autoClicks.size == 3) {
                 autoClicks.removeFirst()
@@ -187,7 +187,7 @@ object SimonSays : Module(
             autoDoneFirst = true
             if (autoProgress < autoClicks.size) {
                 val next = autoClicks[autoProgress]
-                if (mc.world?.getBlockState(next)?.block == Blocks.STONE_BUTTON) {
+                if (mc.level?.getBlockState(next)?.block == Blocks.STONE_BUTTON) {
                     clickBlock(next) { autoProgress++ }
                 }
             }
@@ -226,7 +226,7 @@ object SimonSays : Module(
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled) return
         val player = mc.player ?: return
-        if (player.squaredDistanceTo(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) > 1600) return
+        if (player.distanceToSqr(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) > 1600) return
 
         val matrixStack = event.matrixStack
         val camera = event.camera
@@ -252,7 +252,7 @@ object SimonSays : Module(
             autoClicks.forEachIndexed { index, pos ->
                 drawStringInWorld(
                     (index + 1).toString(),
-                    Vec3d(pos.x + 0.9375, pos.y + 0.5625, pos.z + 0.5),
+                    Vec3(pos.x + 0.9375, pos.y + 0.5625, pos.z + 0.5),
                     matrixStack, camera, scale = 0.02f
                 )
             }

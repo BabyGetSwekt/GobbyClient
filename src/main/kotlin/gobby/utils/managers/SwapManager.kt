@@ -8,7 +8,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.skyblockID
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
 
 enum class SwapResult {
     SUCCESS, ALREADY_HELD, TOO_FAST, NOT_FOUND, FAILED
@@ -48,8 +48,8 @@ object SwapManager {
 
     fun swapToSkyblockID(vararg ids: String): SwapResult {
         val player = mc.player ?: return SwapResult.FAILED
-        if (player.mainHandStack.skyblockID in ids) return SwapResult.ALREADY_HELD
-        val slot = (0..8).firstOrNull { player.inventory.getStack(it).skyblockID in ids }
+        if (player.mainHandItem.skyblockID in ids) return SwapResult.ALREADY_HELD
+        val slot = (0..8).firstOrNull { player.inventory.getItem(it).skyblockID in ids }
             ?: return SwapResult.NOT_FOUND
         return swap(slot)
     }
@@ -73,10 +73,10 @@ object SwapManager {
 
     fun swapToItem(vararg ids: String): Int {
         val player = mc.player ?: return -1
-        if (player.inventory.getStack(getNextUpdateIndex()).skyblockID in ids) return getNextUpdateIndex()
+        if (player.inventory.getItem(getNextUpdateIndex()).skyblockID in ids) return getNextUpdateIndex()
         if (!canSwap()) return -1
         for (i in 0..8) {
-            if (player.inventory.getStack(i).skyblockID in ids) {
+            if (player.inventory.getItem(i).skyblockID in ids) {
                 if (!swapSlot(i)) return -1
                 return i
             }
@@ -96,8 +96,8 @@ object SwapManager {
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
-        if (event.packet !is UpdateSelectedSlotC2SPacket) return
-        val slot = event.packet.selectedSlot
+        if (event.packet !is ServerboundSetCarriedItemPacket) return
+        val slot = event.packet.slot
 
         if (!swappedThisTick && slot != lastSentServerSlot) {
             swappedThisTick = true

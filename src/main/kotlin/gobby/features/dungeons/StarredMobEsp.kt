@@ -7,7 +7,7 @@ import gobby.gui.click.ColorSetting
 import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
-import net.minecraft.entity.Entity
+import net.minecraft.world.entity.Entity
 import java.awt.Color
 
 object StarredMobEsp : EntityHighlighter("Starred Mob ESP", "Highlights starred mobs in dungeons", Category.DUNGEONS) {

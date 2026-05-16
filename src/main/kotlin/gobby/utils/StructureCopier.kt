@@ -12,13 +12,13 @@ import gobby.utils.copy.ArmorStandCodec
 import gobby.utils.copy.BlockPaster
 import gobby.utils.copy.BlockStateCodec
 import gobby.utils.copy.RegionBlockCopier
-import net.minecraft.block.BlockState
-import net.minecraft.entity.EntityType
-import net.minecraft.entity.SpawnReason
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.nbt.NbtList
-import net.minecraft.nbt.StringNbtReader
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntitySpawnReason
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.nbt.ListTag
+import net.minecraft.nbt.TagParser
+import net.minecraft.core.BlockPos
 import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.math.max
@@ -106,7 +106,7 @@ object StructureCopier : RegionBlockCopier() {
     }
 
     override fun scanExtras(cx: Int, cz: Int) {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val p1 = pos1 ?: return
         val p2 = pos2 ?: return
         val minX = min(p1.x, p2.x).toDouble(); val maxX = (max(p1.x, p2.x) + 1).toDouble()
@@ -115,8 +115,8 @@ object StructureCopier : RegionBlockCopier() {
         val chunkMinX = (cx shl 4).toDouble(); val chunkMaxX = chunkMinX + 16.0
         val chunkMinZ = (cz shl 4).toDouble(); val chunkMaxZ = chunkMinZ + 16.0
 
-        for (entity in world.entities) {
-            if (entity !is ArmorStandEntity) continue
+        for (entity in world.entitiesForRendering()) {
+            if (entity !is ArmorStand) continue
             val ex = entity.x; val ey = entity.y; val ez = entity.z
             if (ex !in chunkMinX..chunkMaxX || ez !in chunkMinZ..chunkMaxZ) continue
             if (ex !in minX..maxX || ey !in minY..maxY || ez !in minZ..maxZ) continue
@@ -165,7 +165,7 @@ object StructureCopier : RegionBlockCopier() {
         val data: StructureData = gson.fromJson(latest.readText(), object : TypeToken<StructureData>() {}.type)
         val allPositions = BlockPaster.decodeAndSort(data.blocks)
 
-        val server = mc.server
+        val server = mc.singleplayerServer
         if (server != null) pasteIntegrated(server, data, allPositions, latest.name)
         else pasteRemote(data, allPositions, latest.name)
     }
@@ -184,9 +184,9 @@ object StructureCopier : RegionBlockCopier() {
             BlockPaster.applyBlockEntities(server, serverWorld, data.blockEntities, LOGGER)
             data.armorStands?.forEach { stand ->
                 try {
-                    val nbt = StringNbtReader.readCompound(stand.nbt)
-                    val entity = EntityType.loadEntityWithPassengers(nbt, serverWorld, SpawnReason.LOAD) { it }
-                    if (entity is ArmorStandEntity) serverWorld.spawnEntity(entity)
+                    val nbt = TagParser.parseCompoundFully(stand.nbt)
+                    val entity = EntityType.loadEntityRecursive(nbt, serverWorld, EntitySpawnReason.LOAD) { it }
+                    if (entity is ArmorStand) serverWorld.addFreshEntity(entity)
                 } catch (_: Exception) {}
             }
             BlockPaster.reloadClientChunks()
@@ -204,8 +204,8 @@ object StructureCopier : RegionBlockCopier() {
         for ((pos, state) in allPositions) commandQueue.add("setblock ${pos.x} ${pos.y} ${pos.z} ${BlockStateCodec.encode(state)} replace")
         data.armorStands?.forEach { stand ->
             try {
-                val nbt = StringNbtReader.readCompound(stand.nbt)
-                val pos = nbt.get("Pos") as? NbtList ?: return@forEach
+                val nbt = TagParser.parseCompoundFully(stand.nbt)
+                val pos = nbt.get("Pos") as? ListTag ?: return@forEach
                 val x = pos.getDouble(0).orElse(0.0)
                 val y = pos.getDouble(1).orElse(0.0)
                 val z = pos.getDouble(2).orElse(0.0)
@@ -221,10 +221,10 @@ object StructureCopier : RegionBlockCopier() {
     @SubscribeEvent
     fun onTickRemotePaste(event: ClientTickEvent.Post) {
         if (!remotePasteActive) return
-        val handler = mc.networkHandler ?: return
+        val handler = mc.connection ?: return
         var sent = 0
         while (sent < COMMANDS_PER_TICK && commandQueue.isNotEmpty()) {
-            handler.sendChatCommand(commandQueue.removeFirst())
+            handler.sendCommand(commandQueue.removeFirst())
             sent++
         }
         if (commandQueue.isEmpty()) {

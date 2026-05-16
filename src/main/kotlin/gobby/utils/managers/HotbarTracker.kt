@@ -17,7 +17,7 @@ object HotbarTracker {
     fun onTick(event: ClientTickEvent.Post) {
         val player = mc.player ?: return
         for (i in 0..8) {
-            val stack = player.inventory.getStack(i)
+            val stack = player.inventory.getItem(i)
             val id = stack.skyblockID
             val count = if (stack.isEmpty) 0 else stack.count
             if (id != cachedIds[i] || count != cachedCounts[i]) {

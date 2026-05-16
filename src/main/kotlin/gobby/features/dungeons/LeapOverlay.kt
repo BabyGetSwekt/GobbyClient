@@ -11,14 +11,14 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
-import net.minecraft.item.ItemStack
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.world.item.ItemStack
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
-import net.minecraft.screen.slot.SlotActionType
-import net.minecraft.screen.sync.ItemStackHash
-import net.minecraft.util.Formatting
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.network.HashedStack
+import net.minecraft.ChatFormatting
 import java.awt.Color
 
 object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS, defaultEnabled = true) {
@@ -85,7 +85,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
     fun isOverlayActive(): Boolean {
         if (!enabled || !inDungeons) return false
-        val screen = mc.currentScreen as? GenericContainerScreen ?: return false
+        val screen = mc.screen as? ContainerScreen ?: return false
         return screen.title.string.contains("Spirit Leap")
     }
 
@@ -96,24 +96,24 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             return
         }
 
-        val screen = mc.currentScreen as? GenericContainerScreen
+        val screen = mc.screen as? ContainerScreen
         if (screen == null || !screen.title.string.contains("Spirit Leap")) {
             if (isActive) deactivate()
             return
         }
 
-        cachedSyncId = screen.screenHandler.syncId
+        cachedSyncId = screen.menu.containerId
         buttons = buildButtonsFromSlots(screen).sortedBy { CLASS_SORT_ORDER[it.teammate.dungeonClass] ?: 5 }
         isActive = buttons.isNotEmpty()
     }
 
-    private fun buildButtonsFromSlots(screen: GenericContainerScreen): List<LeapButton> {
+    private fun buildButtonsFromSlots(screen: ContainerScreen): List<LeapButton> {
         val result = mutableListOf<LeapButton>()
         for (slotIndex in 10..18) {
-            val slot = screen.screenHandler.slots.getOrNull(slotIndex) ?: continue
-            val stack = slot.stack ?: continue
+            val slot = screen.menu.slots.getOrNull(slotIndex) ?: continue
+            val stack = slot.item ?: continue
             if (stack.isEmpty) continue
-            val itemName = Formatting.strip(stack.name.string)?.trim() ?: continue
+            val itemName = ChatFormatting.stripFormatting(stack.hoverName.string)?.trim() ?: continue
             if (itemName.isBlank()) continue
 
             val teammate = DungeonListener.teammates[itemName]
@@ -134,12 +134,12 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
     @SubscribeEvent
     fun onScreenRender(event: ScreenRenderEvent) {
         if (!isActive) return
-        val screen = event.screen as? GenericContainerScreen ?: return
+        val screen = event.screen as? ContainerScreen ?: return
         if (!screen.title.string.contains("Spirit Leap")) return
 
         val context = event.drawContext
-        val screenWidth = mc.window.scaledWidth
-        val screenHeight = mc.window.scaledHeight
+        val screenWidth = mc.window.guiScaledWidth
+        val screenHeight = mc.window.guiScaledHeight
 
         val uiScale = scale / 100f
         val centerX = screenWidth / 2f
@@ -149,16 +149,16 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
         drawDarkOverlay(context, screenWidth, screenHeight)
 
-        context.matrices.pushMatrix()
+        context.pose().pushMatrix()
         applyScaleAroundCenter(context, centerX, centerY, uiScale)
         drawGrid(context, screenWidth, screenHeight, scaledMouseX, scaledMouseY)
-        context.matrices.popMatrix()
+        context.pose().popMatrix()
     }
 
     fun handleClick(mouseX: Double, mouseY: Double): Boolean {
         if (!isActive) return false
-        val screenWidth = mc.window.scaledWidth
-        val screenHeight = mc.window.scaledHeight
+        val screenWidth = mc.window.guiScaledWidth
+        val screenHeight = mc.window.guiScaledHeight
         val uiScale = scale / 100f
         val centerX = screenWidth / 2f
         val centerY = screenHeight / 2f
@@ -168,17 +168,17 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         return true
     }
 
-    private fun drawDarkOverlay(context: DrawContext, width: Int, height: Int) {
+    private fun drawDarkOverlay(context: GuiGraphics, width: Int, height: Int) {
         context.fill(0, 0, width, height, Color(0, 0, 0, 160).rgb)
     }
 
-    private fun applyScaleAroundCenter(context: DrawContext, centerX: Float, centerY: Float, scale: Float) {
-        context.matrices.translate(centerX, centerY)
-        context.matrices.scale(scale, scale)
-        context.matrices.translate(-centerX, -centerY)
+    private fun applyScaleAroundCenter(context: GuiGraphics, centerX: Float, centerY: Float, scale: Float) {
+        context.pose().translate(centerX, centerY)
+        context.pose().scale(scale, scale)
+        context.pose().translate(-centerX, -centerY)
     }
 
-    private fun drawGrid(context: DrawContext, screenWidth: Int, screenHeight: Int, mouseX: Int, mouseY: Int) {
+    private fun drawGrid(context: GuiGraphics, screenWidth: Int, screenHeight: Int, mouseX: Int, mouseY: Int) {
         val rows = (buttons.size + COLS - 1) / COLS
         val gridWidth = COLS * CARD_WIDTH + (COLS - 1) * GRID_GAP
         val gridHeight = rows * CARD_HEIGHT + (rows - 1) * GRID_GAP
@@ -205,7 +205,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         }
     }
 
-    private fun drawCard(context: DrawContext, button: LeapButton, x: Int, y: Int, hovered: Boolean) {
+    private fun drawCard(context: GuiGraphics, button: LeapButton, x: Int, y: Int, hovered: Boolean) {
         val dungeonClass = button.teammate.dungeonClass
         val bgColor = if (hovered) CLASS_HOVER_COLORS[dungeonClass]!! else CLASS_BG_COLORS[dungeonClass]!!
         val accentColor = CLASS_COLORS[dungeonClass]!!
@@ -223,17 +223,17 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         drawScaledHead(context, button.headStack, x + 8, y + (CARD_HEIGHT - HEAD_RENDER_SIZE) / 2)
 
         val textX = x + 46
-        context.drawText(mc.textRenderer, button.teammate.name, textX, y + 14, accentColor.rgb, true)
+        context.drawString(mc.font, button.teammate.name, textX, y + 14, accentColor.rgb, true)
         val classText = "${dungeonClass.name} ${button.teammate.classLevel}"
-        context.drawText(mc.textRenderer, classText, textX, y + 28, Color(150, 150, 160).rgb, true)
+        context.drawString(mc.font, classText, textX, y + 28, Color(150, 150, 160).rgb, true)
     }
 
-    private fun drawScaledHead(context: DrawContext, stack: ItemStack, x: Int, y: Int) {
-        context.matrices.pushMatrix()
-        context.matrices.translate(x.toFloat(), y.toFloat())
-        context.matrices.scale(HEAD_SCALE, HEAD_SCALE)
-        context.drawItem(stack, 0, 0)
-        context.matrices.popMatrix()
+    private fun drawScaledHead(context: GuiGraphics, stack: ItemStack, x: Int, y: Int) {
+        context.pose().pushMatrix()
+        context.pose().translate(x.toFloat(), y.toFloat())
+        context.pose().scale(HEAD_SCALE, HEAD_SCALE)
+        context.renderItem(stack, 0, 0)
+        context.pose().popMatrix()
     }
 
     private fun clickButton(mouseX: Int, mouseY: Int) {
@@ -241,44 +241,44 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             it.width > 0 && it.height > 0 &&
                 mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        val screen = mc.currentScreen as? GenericContainerScreen ?: return
-        val handler = screen.screenHandler
+        val screen = mc.screen as? ContainerScreen ?: return
+        val handler = screen.menu
         val player = mc.player ?: return
-        val connection = mc.networkHandler ?: return
+        val connection = mc.connection ?: return
 
         val targetName = button.targetName
         var slotId = -1
         for (slot in handler.slots) {
-            val stack = slot.stack ?: continue
+            val stack = slot.item ?: continue
             if (stack.isEmpty) continue
-            val itemName = Formatting.strip(stack.name.string)?.trim() ?: continue
+            val itemName = ChatFormatting.stripFormatting(stack.hoverName.string)?.trim() ?: continue
             if (itemName.equals(targetName, ignoreCase = true)) {
-                slotId = slot.id
+                slotId = slot.index
                 break
             }
         }
         if (slotId < 0) return
 
         val slots = handler.slots
-        val before = slots.map { it.stack.copy() }
-        handler.onSlotClick(slotId, 0, SlotActionType.CLONE, player)
+        val before = slots.map { it.item.copy() }
+        handler.clicked(slotId, 0, ClickType.CLONE, player)
 
-        val changed = Int2ObjectOpenHashMap<ItemStackHash>()
+        val changed = Int2ObjectOpenHashMap<HashedStack>()
         for (i in before.indices) {
-            if (!ItemStack.areEqual(before[i], slots[i].stack)) {
-                changed.put(i, ItemStackHash.fromItemStack(slots[i].stack, connection.componentHasher))
+            if (!ItemStack.matches(before[i], slots[i].item)) {
+                changed.put(i, HashedStack.create(slots[i].item, connection.decoratedHashOpsGenenerator()))
             }
         }
 
-        connection.sendPacket(
-            ClickSlotC2SPacket(
-                handler.syncId,
-                handler.revision,
+        connection.send(
+            ServerboundContainerClickPacket(
+                handler.containerId,
+                handler.stateId,
                 slotId.toShort(),
                 0.toByte(),
-                SlotActionType.CLONE,
+                ClickType.CLONE,
                 changed,
-                ItemStackHash.fromItemStack(handler.cursorStack, connection.componentHasher)
+                HashedStack.create(handler.carried, connection.decoratedHashOpsGenenerator())
             )
         )
     }

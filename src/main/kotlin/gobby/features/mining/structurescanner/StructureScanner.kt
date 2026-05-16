@@ -12,10 +12,10 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils
 import gobby.utils.render.RenderBeacon
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import net.minecraft.block.Block
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.chunk.ChunkSection
-import net.minecraft.world.chunk.WorldChunk
+import net.minecraft.world.level.block.Block
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.chunk.LevelChunkSection
+import net.minecraft.world.level.chunk.LevelChunk
 
 object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for known mining structures and beacons them", Category.MINING) {
 
@@ -51,7 +51,7 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
             return
         }
         if (initialScanDone) return
-        if (mc.world == null || mc.player == null) return
+        if (mc.level == null || mc.player == null) return
         if (LocationUtils.location == "Unknown") return
         initialScanDone = true
         rescanLoaded()
@@ -66,15 +66,15 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
     }
 
     private fun rescanLoaded() {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val player = mc.player ?: return
-        val viewDistance = mc.options.viewDistance.value
-        val pcx = player.blockPos.x shr 4
-        val pcz = player.blockPos.z shr 4
+        val viewDistance = mc.options.renderDistance().get()
+        val pcx = player.blockPosition().x shr 4
+        val pcz = player.blockPosition().z shr 4
         var scanned = 0
         for (cx in (pcx - viewDistance)..(pcx + viewDistance)) {
             for (cz in (pcz - viewDistance)..(pcz + viewDistance)) {
-                val chunk = world.chunkManager.getWorldChunk(cx, cz) ?: continue
+                val chunk = world.chunkSource.getChunk(cx, cz, false) ?: continue
                 if (!scannedChunks.add(chunkKey(cx, cz))) continue
                 scanChunk(chunk)
                 scanned++
@@ -83,7 +83,7 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         if (debug) modMessage("§e[SS] §finitial scan: §a$scanned§f chunks, location=§a'${LocationUtils.location}'§f, found=§a${foundByStructure.values.sumOf { it.size }}")
     }
 
-    private fun scanChunk(chunk: WorldChunk) {
+    private fun scanChunk(chunk: LevelChunk) {
         val candidates = candidatesForCurrentIsland()
         if (candidates.isEmpty()) {
             if (debug) modMessage("§e[SS] §7no candidates for location '${LocationUtils.location}'")
@@ -92,14 +92,13 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         val firstBlocks = candidates.mapNotNull { it.column.firstOrNull()?.block }.toHashSet()
         if (firstBlocks.isEmpty()) return
 
-        val sections = chunk.sectionArray
-        val baseX = chunk.pos.startX
-        val baseZ = chunk.pos.startZ
+        val sections = chunk.sections
+        val baseX = chunk.pos.minBlockX
+        val baseZ = chunk.pos.minBlockZ
 
         for (i in sections.indices) {
-            val section = sections[i] ?: continue
-            if (section.isEmpty) continue
-            val sectionMinY = chunk.bottomY + (i * 16)
+            val section = sections[i]
+            val sectionMinY = chunk.minY + (i * 16)
             val sectionMaxY = sectionMinY + 15
 
             if (!sectionOverlapsAnyRange(sectionMinY, sectionMaxY, candidates)) continue
@@ -118,15 +117,11 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
     private fun sectionOverlapsAnyRange(minY: Int, maxY: Int, structures: List<Structure>): Boolean =
         structures.any { it.yRange.first <= maxY && it.yRange.last >= minY }
 
-    private fun sectionContainsAnyOf(section: ChunkSection, blocks: Set<Block>): Boolean {
-        var found = false
-        section.blockStateContainer.count { state, _ ->
-            if (!found && state.block in blocks) found = true
-        }
-        return found
+    private fun sectionContainsAnyOf(section: LevelChunkSection, blocks: Set<Block>): Boolean {
+        return section.maybeHas { it.block in blocks }
     }
 
-    private fun scanSection(chunk: WorldChunk, section: ChunkSection, sectionMinY: Int, baseX: Int, baseZ: Int, structures: List<Structure>) {
+    private fun scanSection(chunk: LevelChunk, section: LevelChunkSection, sectionMinY: Int, baseX: Int, baseZ: Int, structures: List<Structure>) {
         for (lx in 0..15) {
             val worldX = baseX + lx
             for (ly in 0..15) {
@@ -147,10 +142,10 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         }
     }
 
-    private fun matchesColumn(chunk: WorldChunk, structure: Structure, x: Int, y: Int, z: Int): Boolean {
-        val world = mc.world ?: return false
+    private fun matchesColumn(chunk: LevelChunk, structure: Structure, x: Int, y: Int, z: Int): Boolean {
+        val world = mc.level ?: return false
         if (!matchesEntry(structure.column[0], chunk.getBlockState(BlockPos(x, y, z)))) return false
-        val cursor = BlockPos.Mutable()
+        val cursor = BlockPos.MutableBlockPos()
         for (i in 1 until structure.height) {
             cursor.set(x, y + i, z)
             if (!matchesEntry(structure.column[i], world.getBlockState(cursor))) return false
@@ -158,7 +153,7 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         return true
     }
 
-    private fun matchesEntry(entry: ColumnEntry<*>, state: net.minecraft.block.BlockState): Boolean {
+    private fun matchesEntry(entry: ColumnEntry<*>, state: net.minecraft.world.level.block.state.BlockState): Boolean {
         @Suppress("UNCHECKED_CAST")
         return (entry as ColumnEntry<Comparable<Comparable<*>>>).matches(state)
     }
@@ -169,7 +164,7 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         if (structure.dedupRadius <= 0) return false
         val waypoint = waypointFor(structure, x, y, z)
         val rSq = structure.dedupRadius.toLong() * structure.dedupRadius.toLong()
-        return existing.any { it.getSquaredDistance(waypoint) <= rSq }
+        return existing.any { it.distSqr(waypoint) <= rSq }
     }
 
     private fun waypointFor(structure: Structure, x: Int, y: Int, z: Int): BlockPos = BlockPos(

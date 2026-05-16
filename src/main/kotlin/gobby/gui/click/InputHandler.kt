@@ -369,7 +369,7 @@ object InputHandler {
                 gui.searchListening = false
                 return true
             }
-            gui.close()
+            gui.onClose()
             return true
         }
         if (gui.searchListening && key == GLFW.GLFW_KEY_BACKSPACE) {
@@ -436,7 +436,7 @@ object InputHandler {
     }
 
     private fun isCtrlHeld(): Boolean {
-        val handle = mc.window.handle
+        val handle = mc.window.handle()
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
                GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
     }

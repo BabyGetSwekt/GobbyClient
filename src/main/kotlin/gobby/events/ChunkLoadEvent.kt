@@ -1,9 +1,9 @@
 package gobby.events
 
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.world.chunk.WorldChunk
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.level.chunk.LevelChunk
 
 class ChunkLoadEvent(
-    val world: ClientWorld,
-    val chunk: WorldChunk
+    val world: ClientLevel,
+    val chunk: LevelChunk
 ) : Events()

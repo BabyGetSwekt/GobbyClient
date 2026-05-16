@@ -13,9 +13,9 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.isDead
 import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.managers.AuraManager
 import gobby.utils.timer.Clock
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 
 object P3Levers : Triggerbot(
     "Levers", "Auto right-clicks Floor 7 levers",
@@ -58,11 +58,11 @@ object P3Levers : Triggerbot(
     override fun getClickDelay(): Long = 50L
 
     override fun shouldActivate(): Boolean =
-        enabled && inDungeons && dungeonFloor == 7 && inBoss && !isDead && mc.currentScreen == null &&
+        enabled && inDungeons && dungeonFloor == 7 && inBoss && !isDead && mc.screen == null &&
             (lightsDevice || p3Levers)
 
     override fun isValidBlock(pos: BlockPos): Boolean {
-        val world = mc.world ?: return false
+        val world = mc.level ?: return false
         if (world.getBlockAtPos(pos) != Blocks.LEVER) return false
         val type = leverPositions[pos] ?: return false
         return when (type) {
@@ -81,8 +81,8 @@ object P3Levers : Triggerbot(
         if (auraCooldowns.isNotEmpty()) auraCooldowns.entries.removeIf { it.value.hasTimePassed(AURA_COOLDOWN) }
 
         val player = mc.player ?: return
-        val world = mc.world ?: return
-        val eyePos = player.eyePos
+        val world = mc.level ?: return
+        val eyePos = player.eyePosition
 
         for ((pos, type) in leverPositions) {
             val typeEnabled = when (type) {
@@ -92,8 +92,8 @@ object P3Levers : Triggerbot(
             if (!typeEnabled) continue
             if (pos in auraCooldowns) continue
 
-            val center = Vec3d.ofCenter(pos)
-            if (eyePos.squaredDistanceTo(center) > AURA_RANGE_SQ) continue
+            val center = Vec3.atCenterOf(pos)
+            if (eyePos.distanceToSqr(center) > AURA_RANGE_SQ) continue
             if (world.getBlockAtPos(pos) != Blocks.LEVER) continue
 
             AuraManager.auraBlock(pos)

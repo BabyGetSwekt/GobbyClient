@@ -6,14 +6,14 @@ import gobby.gui.click.ClickGUITheme.HH
 import gobby.gui.click.ClickGUITheme.MH
 import gobby.gui.click.ClickGUITheme.PW
 import gobby.gui.click.ClickGUITheme.SH
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.input.CharInput
-import net.minecraft.client.input.KeyInput
-import net.minecraft.text.Text
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.network.chat.Component
 
-class ClickGUI : Screen(Text.literal("GobbyClient")) {
+class ClickGUI : Screen(Component.literal("GobbyClient")) {
 
     companion object {
         val panelPositions = mutableMapOf<Category, Pair<Float, Float>>()
@@ -55,7 +55,7 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
     internal var tooltipY = 0
     internal var searchSelectAll = false
 
-    override fun shouldPause() = false
+    override fun isPauseScreen() = false
 
     override fun init() {
         super.init()
@@ -72,17 +72,17 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
         }
     }
 
-    override fun close() {
+    override fun onClose() {
         for (panel in panels) {
             panelPositions[panel.category] = Pair(panel.x, panel.y)
         }
         ConfigManager.save()
-        super.close()
+        super.onClose()
     }
 
     // ===== Rendering =====
 
-    override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         super.render(context, mouseX, mouseY, delta)
 
         for (panel in panels) PanelRenderer.drawPanel(context, this, panel, mouseX, mouseY)
@@ -114,7 +114,7 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
 
     // ===== Input handling — delegates to InputHandler =====
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         val mx = click.x().toInt()
         val my = click.y().toInt()
         val button = click.button()
@@ -122,14 +122,12 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
         return super.mouseClicked(click, doubled)
     }
 
-    override fun mouseDragged(click: Click, offsetX: Double, offsetY: Double): Boolean {
-        val currentX = click.x() + offsetX
-        val currentY = click.y() + offsetY
-        if (InputHandler.handleMouseDrag(this, currentX, currentY)) return true
+    override fun mouseDragged(click: MouseButtonEvent, offsetX: Double, offsetY: Double): Boolean {
+        if (InputHandler.handleMouseDrag(this, click.x(), click.y())) return true
         return super.mouseDragged(click, offsetX, offsetY)
     }
 
-    override fun mouseReleased(click: Click): Boolean {
+    override fun mouseReleased(click: MouseButtonEvent): Boolean {
         InputHandler.handleMouseRelease(this)
         return super.mouseReleased(click)
     }
@@ -139,12 +137,12 @@ class ClickGUI : Screen(Text.literal("GobbyClient")) {
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
-    override fun keyPressed(input: KeyInput): Boolean {
+    override fun keyPressed(input: KeyEvent): Boolean {
         if (InputHandler.handleKeyPress(this, input.key())) return true
         return super.keyPressed(input)
     }
 
-    override fun charTyped(input: CharInput): Boolean {
+    override fun charTyped(input: CharacterEvent): Boolean {
         if (InputHandler.handleCharTyped(this, input.codepoint().toChar())) return true
         return super.charTyped(input)
     }

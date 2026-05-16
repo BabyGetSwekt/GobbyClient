@@ -1,52 +1,51 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.mixin.accessor.KeyBindingAccessor
-import gobby.mixin.accessor.MinecraftClientAccessor
+import gobby.mixin.accessor.KeyMappingAccessor
+import gobby.mixin.accessor.MinecraftAccessor
 import gobby.mixinterface.IInteractionManagerAccessor
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posY
 import gobby.utils.Utils.posZ
 import gobby.utils.skyblock.dungeon.DungeonUtils
-import net.minecraft.client.option.KeyBinding
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
-import net.minecraft.util.Hand
-import net.minecraft.util.math.Vec3d
+import net.minecraft.client.KeyMapping
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.phys.Vec3
 
 
 object PlayerUtils {
 
-    fun getEyePosition(): Vec3d? {
+    fun getEyePosition(): Vec3? {
         val player = mc.player ?: return null
-        return Vec3d(player.x, player.eyeY, player.z)
+        return Vec3(player.x, player.eyeY, player.z)
     }
 
     fun leftClick() {
-        val attackCooldown: Int = (mc as MinecraftClientAccessor).getAttackCooldown()
-        if (attackCooldown == 10000) {
-            (mc as MinecraftClientAccessor).setAttackCooldown(0)
-        }
-        mc.options.attackKey.isPressed = true
-        (mc as MinecraftClientAccessor).leftClick()
-        mc.options.attackKey.isPressed = false
+        val accessor = mc as MinecraftAccessor
+        if (accessor.attackCooldown == 10000) accessor.setAttackCooldown(0)
+        val key = (mc.options.keyAttack as KeyMappingAccessor).boundKey
+        KeyMapping.set(key, true)
+        KeyMapping.click(key)
+        KeyMapping.set(key, false)
     }
 
     fun rightClick() {
-        val key = (mc.options.useKey as KeyBindingAccessor).boundKey
-        KeyBinding.setKeyPressed(key, true)
-        KeyBinding.onKeyPressed(key)
-        KeyBinding.setKeyPressed(key, false)
+        val key = (mc.options.keyUse as KeyMappingAccessor).boundKey
+        KeyMapping.set(key, true)
+        KeyMapping.click(key)
+        KeyMapping.set(key, false)
     }
 
     fun useItem(yaw: Float, pitch: Float): Boolean {
         val player = mc.player ?: return false
-        val world = mc.world ?: return false
-        val manager = mc.interactionManager ?: return false
-        if (player.isSpectator || DungeonUtils.isDead || player.isDead) return false
+        val world = mc.level ?: return false
+        val manager = mc.gameMode ?: return false
+        if (player.isSpectator || DungeonUtils.isDead || player.isRemoved()) return false
         val accessor = manager as IInteractionManagerAccessor
         accessor.`gobbyclient$syncSelectedSlot`()
         accessor.`gobbyclient$sendSequencedPacket`(world) { sequence ->
-            PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, yaw, pitch)
+            ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch)
         }
         return true
     }

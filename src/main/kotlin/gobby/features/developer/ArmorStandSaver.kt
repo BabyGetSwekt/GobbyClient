@@ -10,8 +10,8 @@ import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.util.ErrorReporter
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.util.ProblemReporter
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -31,19 +31,19 @@ object ArmorStandSaver : Module(
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
         if (saveKey == 0 || event.key != saveKey) return
         saveNearbyArmorStands()
     }
 
     private fun saveNearbyArmorStands() {
         val player = mc.player ?: run { errorMessage("No player"); return }
-        val world = mc.world ?: run { errorMessage("No world"); return }
-        val origin = player.blockPos
+        val world = mc.level ?: run { errorMessage("No world"); return }
+        val origin = player.blockPosition()
 
-        val stands = world.entities
-            .filterIsInstance<ArmorStandEntity>()
-            .filter { it.squaredDistanceTo(player) <= radius.toDouble() * radius.toDouble() }
+        val stands = world.entitiesForRendering()
+            .filterIsInstance<ArmorStand>()
+            .filter { it.distanceToSqr(player) <= radius.toDouble() * radius.toDouble() }
 
         if (stands.isEmpty()) {
             errorMessage("No ArmorStands found within $radius blocks")
@@ -61,15 +61,12 @@ object ArmorStandSaver : Module(
         modMessage("§aSaved §f${encoded.size}§a armor stands to §e${file.name}§a (radius $radius)")
     }
 
-    private fun encodeArmorStand(stand: ArmorStandEntity): String? {
-        val world = mc.world ?: return null
+    private fun encodeArmorStand(stand: ArmorStand): String? {
+        val world = mc.level ?: return null
         return try {
-            val writeView = net.minecraft.storage.NbtWriteView.create(
-                ErrorReporter.Logging(stand.errorReporterContext, logger),
-                world.registryManager
-            )
-            stand.saveSelfData(writeView)
-            val nbt = writeView.nbt
+            val writeView = net.minecraft.world.level.storage.TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess())
+            stand.saveWithoutId(writeView)
+            val nbt = writeView.buildResult()
             nbt.putString("id", "minecraft:armor_stand")
             nbt.toString()
         } catch (e: Exception) {

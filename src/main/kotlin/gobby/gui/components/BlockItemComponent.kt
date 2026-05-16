@@ -2,7 +2,7 @@ package gobby.gui.components
 
 import gg.essential.elementa.components.UIBlock
 import gg.essential.elementa.dsl.*
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import java.awt.Color
 
 class BlockItemComponent(

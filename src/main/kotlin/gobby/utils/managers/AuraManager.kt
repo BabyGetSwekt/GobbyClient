@@ -6,16 +6,16 @@ import gobby.events.PacketSentEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.block.ShapeContext
-import net.minecraft.entity.Entity
-import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket
-import net.minecraft.util.Hand
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.phys.shapes.CollisionContext
+import net.minecraft.world.entity.Entity
+import net.minecraft.network.protocol.game.ServerboundSwingPacket
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket
+import net.minecraft.network.protocol.game.ServerboundInteractPacket
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
 import java.util.ArrayDeque
 
 enum class InteractType { INTERACT, INTERACT_AT }
@@ -39,37 +39,37 @@ object AuraManager {
 
     private fun sendEntityInteraction(entity: Entity, type: InteractType) {
         val player = mc.player ?: return
-        val sneaking = player.isSneaking
+        val sneaking = player.isShiftKeyDown
 
         if (type == InteractType.INTERACT_AT) {
-            val entityPos = Vec3d(entity.x, entity.y, entity.z)
-            val expanded = entity.boundingBox.expand(entity.targetingMargin.toDouble())
-            val target = entityPos.add(0.0, entity.height.toDouble() / 2.0, 0.0)
-            val hitVec = expanded.raycast(player.eyePos, target).orElse(null)?.subtract(entityPos) ?: return
+            val entityPos = Vec3(entity.x, entity.y, entity.z)
+            val expanded = entity.boundingBox.inflate(0.1)
+            val target = entityPos.add(0.0, entity.bbHeight.toDouble() / 2.0, 0.0)
+            val hitVec = expanded.clip(player.eyePosition, target).orElse(null)?.subtract(entityPos) ?: return
 
-            mc.networkHandler?.sendPacket(PlayerInteractEntityC2SPacket.interactAt(entity, sneaking, Hand.MAIN_HAND, hitVec))
+            mc.connection?.send(ServerboundInteractPacket.createInteractionPacket(entity, sneaking, InteractionHand.MAIN_HAND, hitVec))
         }
 
-        mc.networkHandler?.sendPacket(PlayerInteractEntityC2SPacket.interact(entity, sneaking, Hand.MAIN_HAND))
-        mc.networkHandler?.sendPacket(HandSwingC2SPacket(Hand.MAIN_HAND))
+        mc.connection?.send(ServerboundInteractPacket.createInteractionPacket(entity, sneaking, InteractionHand.MAIN_HAND))
+        mc.connection?.send(ServerboundSwingPacket(InteractionHand.MAIN_HAND))
     }
 
     private fun sendBlockInteraction(pos: BlockPos, onMissing: (() -> Unit)?) {
         val player = mc.player ?: return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
 
-        val shape = world.getBlockState(pos).getOutlineShape(world, pos, ShapeContext.of(player))
+        val shape = world.getBlockState(pos).getShape(world, pos, CollisionContext.of(player))
         if (shape.isEmpty) {
             onMissing?.invoke()
             return
         }
 
-        val center = shape.boundingBox.center.add(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
-        val hitResult = shape.raycast(player.eyePos, center, pos)
+        val center = shape.bounds().center.add(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        val hitResult = shape.clip(player.eyePosition, center, pos)
             ?: BlockHitResult(center, Direction.UP, pos, false)
 
-        mc.networkHandler?.sendPacket(PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hitResult, 0))
-        mc.networkHandler?.sendPacket(HandSwingC2SPacket(Hand.MAIN_HAND))
+        mc.connection?.send(ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, hitResult, 0))
+        mc.connection?.send(ServerboundSwingPacket(InteractionHand.MAIN_HAND))
     }
 
     @SubscribeEvent
@@ -83,7 +83,7 @@ object AuraManager {
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
         when (event.packet) {
-            is PlayerInteractEntityC2SPacket, is PlayerInteractBlockC2SPacket -> ready = false
+            is ServerboundInteractPacket, is ServerboundUseItemOnPacket -> ready = false
         }
     }
 

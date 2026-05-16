@@ -5,7 +5,7 @@ import gobby.pathfinder.movement.InputManager.MoveAction
 import gobby.pathfinder.movement.MovementSimulator
 import gobby.pathfinder.world.BlockCache.StandSurface
 import gobby.pathfinder.world.BlockCache
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 import java.util.PriorityQueue
 import kotlin.math.abs
 import kotlin.math.hypot

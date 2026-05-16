@@ -11,8 +11,8 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getPhase
 import gobby.utils.timer.Clock
-import net.minecraft.entity.decoration.ItemFrameEntity
-import net.minecraft.util.hit.EntityHitResult
+import net.minecraft.world.entity.decoration.ItemFrame
+import net.minecraft.world.phys.EntityHitResult
 import kotlin.math.floor
 
 object AlignHelper : Module(
@@ -31,7 +31,7 @@ object AlignHelper : Module(
     fun onRightClick(event: RightClickEvent) {
         if (!enabled || !legitMode) return
         if (!inDungeons || !inBoss || dungeonFloor != 7 || getPhase() != 3) return
-        if (mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.level == null) return
 
         val frame = getTargetedFrame() ?: return
         val index = getFrameIndex(frame) ?: return
@@ -39,7 +39,7 @@ object AlignHelper : Module(
         val solution = AutoAlign.currentSolution ?: return
 
         if (!AutoAlign.remainingClicks.containsKey(index)) {
-            if (sneakOverrides && mc.player!!.isSneaking) return
+            if (sneakOverrides && mc.player!!.isShiftKeyDown) return
             event.cancel()
             return
         }
@@ -47,12 +47,12 @@ object AlignHelper : Module(
         registerClick(index, frameData, solution[index] ?: return)
     }
 
-    private fun getTargetedFrame(): ItemFrameEntity? {
-        val hitResult = mc.crosshairTarget as? EntityHitResult ?: return null
-        return hitResult.entity as? ItemFrameEntity
+    private fun getTargetedFrame(): ItemFrame? {
+        val hitResult = mc.hitResult as? EntityHitResult ?: return null
+        return hitResult.entity as? ItemFrame
     }
 
-    private fun getFrameIndex(frame: ItemFrameEntity): Int? {
+    private fun getFrameIndex(frame: ItemFrame): Int? {
         val corner = AutoAlign.deviceCornerPos
         val x = floor(frame.x).toInt()
         if (x != corner.x) return null

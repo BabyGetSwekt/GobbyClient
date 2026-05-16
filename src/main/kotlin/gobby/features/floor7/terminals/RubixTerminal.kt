@@ -1,8 +1,8 @@
 package gobby.features.floor7.terminals
 
 import gobby.utils.skyblock.dungeon.TerminalUtils
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
-import net.minecraft.item.Items
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.world.item.Items
 
 object RubixTerminal : TerminalSolver() {
 
@@ -28,9 +28,9 @@ object RubixTerminal : TerminalSolver() {
         return minOf(forward, colorCount - forward)
     }
 
-    fun getFullSolution(screen: GenericContainerScreen): IntArray? {
+    fun getFullSolution(screen: ContainerScreen): IntArray? {
         val colorIndices = IntArray(9) { i ->
-            val live = COLOR_ORDER.indexOf(screen.screenHandler.slots[TerminalUtils.RUBIX_SLOTS[i]].stack.item)
+            val live = COLOR_ORDER.indexOf(screen.menu.slots[TerminalUtils.RUBIX_SLOTS[i]].item.item)
             if (live != -1) {
                 lastColorIndices[i] = live
                 live
@@ -54,7 +54,7 @@ object RubixTerminal : TerminalSolver() {
         }
     }
 
-    override fun solve(screen: GenericContainerScreen): TerminalClick? {
+    override fun solve(screen: ContainerScreen): TerminalClick? {
         val solution = getFullSolution(screen) ?: return null
         val i = solution.indexOfFirst { it != 0 }
         if (i == -1) return null

@@ -19,7 +19,7 @@ object Welcome : Module("Welcome", category = Category.SKYBLOCK, hidden = true) 
 
     @SubscribeEvent
     fun onServerJoin(event: ClientConnectedToServerEvent) {
-        if (mc.player == null || mc.world == null || welcomed || scheduled) return
+        if (mc.player == null || mc.level == null || welcomed || scheduled) return
         scheduled = true
         Executor.execute(80) {
             if (!onHypixel) return@execute

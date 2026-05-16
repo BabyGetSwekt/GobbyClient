@@ -9,29 +9,29 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.PacketUtils.getSequence
 import gobby.utils.Utils.equalsOneOf
 import gobby.utils.hasItemID
-import net.minecraft.block.Blocks
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
-import net.minecraft.util.Hand
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.HitResult
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.HitResult
 
 object CancelInteract : Module("Cancel Interact", "Cancels block interaction so you can throw pearls freely", Category.SKYBLOCK) {
 
     @SubscribeEvent
     fun onRightClick(event: RightClickEvent) {
-        if (mc.world == null || mc.player == null || !enabled) return
-        val hitResult = mc.crosshairTarget
+        if (mc.level == null || mc.player == null || !enabled) return
+        val hitResult = mc.hitResult
         if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) return
         val player = mc.player ?: return
-        val yaw = player.yaw
-        val pitch = player.pitch
+        val yaw = player.yRot
+        val pitch = player.xRot
 
         val pos = hitResult.blockPos ?: return
-        val block = mc.world?.getBlockState(pos)?.block ?: return
-        if (!player.mainHandStack.hasItemID("minecraft:ender_pearl")) return
+        val block = mc.level?.getBlockState(pos)?.block ?: return
+        if (!player.mainHandItem.hasItemID("minecraft:ender_pearl")) return
         if (block.equalsOneOf(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.LEVER, Blocks.OAK_BUTTON, Blocks.STONE_BUTTON)) return
-        val sendInteract = PlayerInteractItemC2SPacket(Hand.MAIN_HAND, getSequence(), yaw, pitch)
-        mc.networkHandler?.sendPacket(sendInteract)
+        val sendInteract = ServerboundUseItemPacket(InteractionHand.MAIN_HAND, getSequence(), yaw, pitch)
+        mc.connection?.send(sendInteract)
 
     }
 

@@ -3,13 +3,13 @@ package gobby.gui.hud
 import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.ConfigManager
 import gobby.gui.click.Module
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.text.Text
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
 import java.awt.Color
 
-class HudEditor(private val filterModule: Module? = null) : Screen(Text.literal("HUD Editor")) {
+class HudEditor(private val filterModule: Module? = null) : Screen(Component.literal("HUD Editor")) {
 
     private var dragging: HudSetting? = null
     private var dragOffX = 0f
@@ -23,7 +23,7 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Text.literal(
         }
     }
 
-    override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         super.render(context, mouseX, mouseY, delta)
 
         for (hud in visibleHuds()) {
@@ -40,11 +40,11 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Text.literal(
             context.fill(x - 1, y, x, y + h, borderColor)
             context.fill(x + w, y, x + w + 1, y + h, borderColor)
 
-            context.drawText(mc.textRenderer, hud.name, x, y - 10, Color(200, 200, 210).rgb, true)
+            context.drawString(mc.font, hud.name, x, y - 10, Color(200, 200, 210).rgb, true)
         }
     }
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         val mx = click.x()
         val my = click.y()
 
@@ -65,14 +65,14 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Text.literal(
         return super.mouseClicked(click, doubled)
     }
 
-    override fun mouseDragged(click: Click, offsetX: Double, offsetY: Double): Boolean {
+    override fun mouseDragged(click: MouseButtonEvent, offsetX: Double, offsetY: Double): Boolean {
         val hud = dragging ?: return super.mouseDragged(click, offsetX, offsetY)
         hud.hudX = (click.x() + offsetX - dragOffX).toFloat()
         hud.hudY = (click.y() + offsetY - dragOffY).toFloat()
         return true
     }
 
-    override fun mouseReleased(click: Click): Boolean {
+    override fun mouseReleased(click: MouseButtonEvent): Boolean {
         if (dragging != null) {
             dragging = null
             ConfigManager.save()
@@ -97,10 +97,10 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Text.literal(
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
-    override fun close() {
+    override fun onClose() {
         ConfigManager.save()
-        super.close()
+        super.onClose()
     }
 
-    override fun shouldPause(): Boolean = false
+    override fun isPauseScreen(): Boolean = false
 }

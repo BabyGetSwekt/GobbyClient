@@ -9,21 +9,21 @@ import gobby.gui.click.ClickGUITheme.cTextBright
 import gobby.gui.click.ClickGUITheme.cTextDark
 import gobby.gui.click.ClickGUITheme.cTooltipBg
 import gobby.gui.click.ClickGUITheme.tr
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphics
 
 object SearchBarRenderer {
 
     const val SEARCH_W = 200
     const val SEARCH_H = 18
 
-    fun drawSearchBar(ctx: DrawContext, gui: ClickGUI, mx: Int, my: Int) {
+    fun drawSearchBar(ctx: GuiGraphics, gui: ClickGUI, mx: Int, my: Int) {
         val sx = (gui.width - SEARCH_W) / 2
         val sy = gui.height - 24
 
         ClickGUITheme.fill(ctx, sx, sy, SEARCH_W, SEARCH_H, cSearchBg)
         ClickGUITheme.drawBorder(ctx, sx, sy, SEARCH_W, SEARCH_H, if (gui.searchListening) cAccent else cBorder)
 
-        val textY = sy + (SEARCH_H - tr.fontHeight) / 2
+        val textY = sy + (SEARCH_H - tr.lineHeight) / 2
         var textX = sx + 6
 
         if (gui.searchListening) {
@@ -50,12 +50,12 @@ object SearchBarRenderer {
 
     private const val TOOLTIP_MAX_W = 150
 
-    fun drawTooltip(ctx: DrawContext, gui: ClickGUI, text: String) {
+    fun drawTooltip(ctx: GuiGraphics, gui: ClickGUI, text: String) {
         val wrapped = wrapText(text, TOOLTIP_MAX_W)
         val maxW = wrapped.maxOf { ClickGUITheme.textWSmall(it) }
         val padH = 5
         val padW = 8
-        val lineH = (tr.fontHeight * ClickGUITheme.SETTING_SCALE).toInt() + 2
+        val lineH = (tr.lineHeight * ClickGUITheme.SETTING_SCALE).toInt() + 2
         val totalH = wrapped.size * lineH + padH * 2
         val totalW = maxW + padW * 2 + 3
 

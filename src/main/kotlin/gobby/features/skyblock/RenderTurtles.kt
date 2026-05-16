@@ -6,8 +6,11 @@ import gobby.gui.click.Category
 import gobby.gui.click.ColorSetting
 import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
-import net.minecraft.entity.Entity
-import net.minecraft.entity.passive.TurtleEntity
+import net.minecraft.world.entity.Entity
+//? if <=1.21.10
+import net.minecraft.world.entity.animal.Turtle
+//? if >=1.21.11
+/*import net.minecraft.world.entity.animal.turtle.Turtle*/
 import java.awt.Color
 
 object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used for shards", Category.SKYBLOCK) {
@@ -17,7 +20,7 @@ object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used 
     val espLineColor by ColorSetting("Line Color", Color(208, 88, 2, 100), desc = "Pick a color of the line")
     val espLineMode by SelectorSetting("Line Mode", 1, listOf("Feet", "Crosshair"), desc = "At which part you want the lines to be rendered")
 
-    override fun shouldHighlight(entity: Entity): Boolean = entity is TurtleEntity
+    override fun shouldHighlight(entity: Entity): Boolean = entity is Turtle
 
     override fun usesMobCaching(): Boolean = true
     override fun getColor(): Color = espColor

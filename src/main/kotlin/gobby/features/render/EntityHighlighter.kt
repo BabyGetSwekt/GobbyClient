@@ -10,13 +10,13 @@ import gobby.gui.click.Module
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.render.Interpolate
 import gobby.utils.render.Render3D.drawEntityModel
-import net.minecraft.client.render.Camera
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.entity.Entity
-import net.minecraft.entity.boss.WitherEntity
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.client.Camera
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.boss.wither.WitherBoss
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.player.Player
 import java.awt.Color
 
 abstract class EntityHighlighter(
@@ -31,12 +31,12 @@ abstract class EntityHighlighter(
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
         val player = mc.player ?: return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         if (!enabled) return
 
         val matrixStack = event.matrixStack
         val camera = event.camera
-        val delta = event.renderTickCounter.getTickProgress(false)
+        val delta = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
 
         onRenderTick(event, matrixStack, camera, delta, player, world)
     }
@@ -44,9 +44,9 @@ abstract class EntityHighlighter(
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (!usesMobCaching() || !enabled) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
 
-        for (entity in world.entities) {
+        for (entity in world.entitiesForRendering()) {
             if (!shouldHighlight(entity)) continue
             val mob = getCorrespondingMob(entity) ?: continue
             cachedMobs.add(mob)
@@ -62,11 +62,11 @@ abstract class EntityHighlighter(
 
     protected open fun onRenderTick(
         event: NewRender3DEvent,
-        matrixStack: MatrixStack,
+        matrixStack: PoseStack,
         camera: Camera,
         delta: Float,
         player: Entity,
-        world: ClientWorld
+        world: ClientLevel
     ) {
         if (usesMobCaching()) {
             for (entity in cachedMobs) {
@@ -74,7 +74,7 @@ abstract class EntityHighlighter(
                 renderEntity(event, matrixStack, camera, delta, entity, player)
             }
         } else {
-            for (entity in world.entities) {
+            for (entity in world.entitiesForRendering()) {
                 if (!shouldHighlight(entity)) continue
                 val resolved = resolveEntity(entity) ?: continue
                 renderEntity(event, matrixStack, camera, delta, resolved, player)
@@ -84,7 +84,7 @@ abstract class EntityHighlighter(
 
     protected open fun renderEntity(
         event: NewRender3DEvent,
-        matrixStack: MatrixStack,
+        matrixStack: PoseStack,
         camera: Camera,
         delta: Float,
         entity: Entity,
@@ -106,14 +106,14 @@ abstract class EntityHighlighter(
     protected open fun resolveEntity(entity: Entity): Entity? = entity
 
     protected fun getCorrespondingMob(entity: Entity): Entity? {
-        val world = entity.entityWorld
-        val box = entity.boundingBox.offset(0.0, -1.0, 0.0)
-        val nearby = world.getOtherEntities(entity, box) { it !is ArmorStandEntity }
+        val world = entity.level()
+        val box = entity.boundingBox.move(0.0, -1.0, 0.0)
+        val nearby = world.getEntities(entity, box).filter { it !is ArmorStand }
 
         return nearby.find { candidate ->
             when (candidate) {
-                is PlayerEntity -> !candidate.isInvisible && candidate.uuid.version() == 2 && candidate != mc.player
-                is WitherEntity -> false
+                is Player -> !candidate.isInvisible && candidate.uuid.version() == 2 && candidate != mc.player
+                is WitherBoss -> false
                 else -> true
             }
         }

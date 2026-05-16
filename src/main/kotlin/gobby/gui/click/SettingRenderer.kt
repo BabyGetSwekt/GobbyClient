@@ -34,12 +34,12 @@ import gobby.gui.click.ClickGUITheme.cTextGray
 import gobby.gui.click.ClickGUITheme.cToggleOff
 import gobby.gui.click.ClickGUITheme.cToggleOn
 import gobby.gui.click.ClickGUITheme.tr
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphics
 import java.awt.Color
 
 object SettingRenderer {
 
-    fun drawSettingRow(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    fun drawSettingRow(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         if (setting !is ColorSetting && setting !is DropDownSetting) {
             ClickGUITheme.fill(ctx, px, y, PW, SH, cSettingBg)
         }
@@ -64,8 +64,8 @@ object SettingRenderer {
         }
     }
 
-    private fun drawKeybindSetting(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, s: KeybindSetting) {
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+    private fun drawKeybindSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: KeybindSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val isListening = gui.listeningKeybind == s
@@ -88,8 +88,8 @@ object SettingRenderer {
         }
     }
 
-    private fun drawBoolSetting(ctx: DrawContext, px: Int, y: Int, s: BooleanSetting) {
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+    private fun drawBoolSetting(ctx: GuiGraphics, px: Int, y: Int, s: BooleanSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val tx = px + PW - TOGGLE_W - PAD
@@ -101,8 +101,8 @@ object SettingRenderer {
         ClickGUITheme.fill(ctx, knobX, knobY, KNOB_W, KNOB_H, cKnob)
     }
 
-    private fun drawNumberSetting(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, s: NumberSetting) {
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+    private fun drawNumberSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: NumberSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         val textY = y + (SH - SLIDER_H - 2 - fh) / 2
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, textY, s.name, cTextGray)
 
@@ -126,8 +126,8 @@ object SettingRenderer {
         ClickGUITheme.fill(ctx, slX, slY, fillW, SLIDER_H, cSliderFill)
     }
 
-    private fun drawSelectorSetting(ctx: DrawContext, px: Int, y: Int, s: SelectorSetting) {
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+    private fun drawSelectorSetting(ctx: GuiGraphics, px: Int, y: Int, s: SelectorSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val opt = s.options.getOrElse(s.value) { "?" }
@@ -136,9 +136,9 @@ object SettingRenderer {
         ClickGUITheme.drawTextSmall(ctx, px + PW - PAD - optW, y + (SH - fh) / 2, display, cAccent)
     }
 
-    private fun drawColorSetting(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, s: ColorSetting) {
+    private fun drawColorSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: ColorSetting) {
         ClickGUITheme.fill(ctx, px, y, PW, SH, cSettingBg)
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val swatchSize = 10
@@ -229,9 +229,9 @@ object SettingRenderer {
         }
     }
 
-    private fun drawDropDownSetting(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, s: DropDownSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawDropDownSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: DropDownSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         ClickGUITheme.fill(ctx, px, y, PW, SH, cSettingBg)
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val arrowX = px + PW - PAD - 5
@@ -256,10 +256,10 @@ object SettingRenderer {
         }
     }
 
-    private fun drawActionSetting(ctx: DrawContext, px: Int, y: Int, s: ActionSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawActionSetting(ctx: GuiGraphics, px: Int, y: Int, s: ActionSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         val hovered = mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + SH + y).coerceAtMost(clipBot)
         val nameW = ClickGUITheme.textWSmall(s.name)
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         val textX = px + (PW - nameW) / 2
         val textY = y + (SH - fh) / 2
 
@@ -270,8 +270,8 @@ object SettingRenderer {
         }
     }
 
-    private fun drawHudButton(ctx: DrawContext, px: Int, y: Int, s: HudButton, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
-        val fh = (tr.fontHeight * SETTING_SCALE).toInt()
+    private fun drawHudButton(ctx: GuiGraphics, px: Int, y: Int, s: HudButton, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         ClickGUITheme.drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
         val hovered = mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + SH).coerceAtMost(clipBot)

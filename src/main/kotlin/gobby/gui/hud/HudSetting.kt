@@ -4,8 +4,8 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.ClickGUITheme
 import gobby.gui.click.HudButton
 import gobby.gui.click.Module
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.text.Text
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.network.chat.Component
 import java.awt.Color
 import kotlin.reflect.KProperty
 
@@ -23,14 +23,14 @@ class HudSetting(
 
     private var lastWidth = 0
     private var lastHeight = 0
-    var drawContext: DrawContext? = null
+    var drawContext: GuiGraphics? = null
         private set
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): HudSetting {
         module = thisRef
         HudManager.register(this)
         thisRef.settings.add(HudButton(name, desc) {
-            mc.send { mc.setScreen(HudEditor(thisRef)) }
+            mc.execute { mc.setScreen(HudEditor(thisRef)) }
         })
         return this
     }
@@ -45,7 +45,7 @@ class HudSetting(
         lastHeight = maxOf(lastHeight, height)
     }
 
-    fun renderHud(ctx: DrawContext, example: Boolean) {
+    fun renderHud(ctx: GuiGraphics, example: Boolean) {
         val mod = module ?: return
         if (!example && (!mod.enabled || !visible())) return
 
@@ -53,36 +53,36 @@ class HudSetting(
         lastWidth = 0
         lastHeight = 0
 
-        ctx.matrices.pushMatrix()
-        ctx.matrices.translate(hudX, hudY)
-        ctx.matrices.scale(hudScale, hudScale)
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(hudX, hudY)
+        ctx.pose().scale(hudScale, hudScale)
         render(example)
-        ctx.matrices.popMatrix()
+        ctx.pose().popMatrix()
 
         drawContext = null
     }
 
     fun styledFont(text: String, color: Color = Color.WHITE) {
         val ctx = drawContext ?: return
-        val tr = mc.textRenderer
+        val tr = mc.font
         val styled = styledColored(text, color)
-        val width = tr.getWidth(styled)
-        ctx.drawText(tr, styled, 0, lastHeight, -1, true)
+        val width = tr.width(styled)
+        ctx.drawString(tr, styled, 0, lastHeight, -1, true)
         lastWidth = maxOf(lastWidth, width)
-        lastHeight += tr.fontHeight
+        lastHeight += tr.lineHeight
     }
 
-    fun styledText(text: Text) {
+    fun styledText(text: Component) {
         val ctx = drawContext ?: return
-        val tr = mc.textRenderer
-        val width = tr.getWidth(text)
-        ctx.drawText(tr, text, 0, lastHeight, -1, true)
+        val tr = mc.font
+        val width = tr.width(text)
+        ctx.drawString(tr, text, 0, lastHeight, -1, true)
         lastWidth = maxOf(lastWidth, width)
-        lastHeight += tr.fontHeight
+        lastHeight += tr.lineHeight
     }
 
-    private fun styledColored(s: String, color: Color): Text {
+    private fun styledColored(s: String, color: Color): Component {
         val argb = (0xFF shl 24) or (color.red shl 16) or (color.green shl 8) or color.blue
-        return Text.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
+        return Component.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
     }
 }

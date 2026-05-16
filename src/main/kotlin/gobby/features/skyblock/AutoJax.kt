@@ -18,9 +18,9 @@ import gobby.utils.getBowShootSpeedMs
 import gobby.utils.isShortbow
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.timer.Clock
-import net.minecraft.block.Blocks
-import net.minecraft.state.property.Properties
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.core.BlockPos
 import kotlin.math.abs
 
 object AutoJax : Module("Auto Jax", "Automatically shoots at the redstone lamps at Jax. Hold a shortbow for it to work", Category.SKYBLOCK) {
@@ -56,10 +56,10 @@ object AutoJax : Module("Auto Jax", "Automatically shoots at the redstone lamps 
             && abs(posZ - START_Z) <= START_TOLERANCE
 
     private val holdingShortbow: Boolean
-        get() = mc.player?.mainHandStack?.takeUnless { it.isEmpty }?.isShortbow() == true
+        get() = mc.player?.mainHandItem?.takeUnless { it.isEmpty }?.isShortbow() == true
 
-    private fun isLanternUnshot(pos: BlockPos): Boolean = mc.world?.getBlockState(pos)?.let {
-        it.block == Blocks.REDSTONE_LAMP && !it.get(Properties.LIT)
+    private fun isLanternUnshot(pos: BlockPos): Boolean = mc.level?.getBlockState(pos)?.let {
+        it.block == Blocks.REDSTONE_LAMP && !it.getValue(BlockStateProperties.LIT)
     } == true
 
     private fun pickNextTarget(): BlockPos? = LANTERNS.indices
@@ -122,12 +122,12 @@ object AutoJax : Module("Auto Jax", "Automatically shoots at the redstone lamps 
     fun onTick(event: ClientTickEvent.Pre) {
         if (!enabled || !active) return
         val player = mc.player ?: return
-        mc.world ?: return
+        mc.level ?: return
         if (!atStart) return
         if (!holdingShortbow) { warnNoBow(); return }
         bowWarned = false
 
-        val cooldown = player.mainHandStack.getBowShootSpeedMs()
+        val cooldown = player.mainHandItem.getBowShootSpeedMs()
 
         if (awaitingShot && shotClock.hasTimePassed(cooldown)) { fireAndAdvance(); return }
         if (rotating || awaitingShot || RotationUtils.isEasing) return

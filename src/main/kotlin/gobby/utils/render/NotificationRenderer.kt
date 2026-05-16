@@ -5,7 +5,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.events.render.Render2DEvent
 import gobby.gui.click.ClickGUITheme
 import gobby.utils.timer.Clock
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphics
 import java.awt.Color
 
 object NotificationRenderer {
@@ -40,8 +40,8 @@ object NotificationRenderer {
         if (notifications.isEmpty()) return
 
         val ctx = event.matrices
-        val screenWidth = mc.window.scaledWidth
-        val screenHeight = mc.window.scaledHeight
+        val screenWidth = mc.window.guiScaledWidth
+        val screenHeight = mc.window.guiScaledHeight
 
         for ((index, notif) in notifications.withIndex()) {
             val elapsed = notif.clock.getTime()
@@ -57,8 +57,8 @@ object NotificationRenderer {
         }
     }
 
-    private fun drawNotification(ctx: DrawContext, notif: Notification, x: Int, y: Int, elapsed: Long, alpha: Float) {
-        val tr = mc.textRenderer
+    private fun drawNotification(ctx: GuiGraphics, notif: Notification, x: Int, y: Int, elapsed: Long, alpha: Float) {
+        val tr = mc.font
         val alphaInt = (alpha * 255).toInt().coerceIn(0, 255)
 
         ctx.fill(x, y, x + WIDTH, y + HEIGHT, Color(20, 20, 25, (alpha * 180).toInt().coerceIn(0, 255)).rgb)
@@ -69,16 +69,16 @@ object NotificationRenderer {
 
         val nameText = ClickGUITheme.styledText(notif.name)
         val stateText = ClickGUITheme.styledText(if (notif.enabled) "ON" else "OFF")
-        val nameWidth = tr.getWidth(nameText)
-        val stateWidth = tr.getWidth(stateText)
+        val nameWidth = tr.width(nameText)
+        val stateWidth = tr.width(stateText)
         val scale = if (nameWidth + 4 + stateWidth > WIDTH - 8) (WIDTH - 8f) / (nameWidth + 4 + stateWidth) else 1f
-        val textY = y + BAR_HEIGHT + (HEIGHT - BAR_HEIGHT - (tr.fontHeight * scale).toInt()) / 2
+        val textY = y + BAR_HEIGHT + (HEIGHT - BAR_HEIGHT - (tr.lineHeight * scale).toInt()) / 2
 
-        ctx.matrices.pushMatrix()
-        ctx.matrices.translate(x + 4f, textY.toFloat())
-        ctx.matrices.scale(scale, scale)
-        ctx.drawText(tr, nameText, 0, 0, Color(220, 220, 225, alphaInt).rgb, false)
-        ctx.drawText(tr, stateText, nameWidth + 4, 0, barColor.rgb, false)
-        ctx.matrices.popMatrix()
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(x + 4f, textY.toFloat())
+        ctx.pose().scale(scale, scale)
+        ctx.drawString(tr, nameText, 0, 0, Color(220, 220, 225, alphaInt).rgb, false)
+        ctx.drawString(tr, stateText, nameWidth + 4, 0, barColor.rgb, false)
+        ctx.pose().popMatrix()
     }
 }

@@ -2,15 +2,15 @@ package gobby.events.render
 
 
 import gobby.events.Events
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.Frustum;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.DeltaTracker;
+import com.mojang.blaze3d.vertex.PoseStack;
 
 
 class NewRender3DEvent(
-    val matrixStack: MatrixStack,
+    val matrixStack: PoseStack,
     val frustum: Frustum,
-    val renderTickCounter: RenderTickCounter,
+    val renderTickCounter: DeltaTracker,
     val camera: Camera,
 ) : Events()

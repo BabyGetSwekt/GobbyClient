@@ -2,10 +2,10 @@ package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils.isDeveloper
-import net.minecraft.text.MutableText
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
-import net.minecraft.util.math.MathHelper.hsvToRgb
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.network.chat.Component
+import net.minecraft.ChatFormatting
+import net.minecraft.util.Mth.hsvToRgb
 import java.awt.Color
 
 object ChatUtils {
@@ -26,22 +26,22 @@ object ChatUtils {
 
     private const val PREFIX = "§b[§3Gobby Client§b] §8»§r"
     private const val DEV_PREFIX = "§2[§aGobby Client§2] §8»§r"
-    private val AQUA_PREFIX: MutableText
-        get() = Text.empty()
-            .append(Text.literal("[").formatted(Formatting.GRAY))
-            .append(Text.literal("G").withColor(0x00FFAA))
-            .append(Text.literal("o").withColor(0x00DDDD))
-            .append(Text.literal("b").withColor(0x00BBBB))
-            .append(Text.literal("b").withColor(0x009999))
-            .append(Text.literal("y").withColor(0x007777))
-            .append(Text.literal(" Client").formatted(Formatting.AQUA))
-            .append(Text.literal("] ").formatted(Formatting.GRAY))
-            .append(Text.literal("» ").formatted(Formatting.DARK_GRAY))
+    private val AQUA_PREFIX: MutableComponent
+        get() = Component.empty()
+            .append(Component.literal("[").withStyle(ChatFormatting.GRAY))
+            .append(Component.literal("G").withColor(0x00FFAA))
+            .append(Component.literal("o").withColor(0x00DDDD))
+            .append(Component.literal("b").withColor(0x00BBBB))
+            .append(Component.literal("b").withColor(0x009999))
+            .append(Component.literal("y").withColor(0x007777))
+            .append(Component.literal(" Client").withStyle(ChatFormatting.AQUA))
+            .append(Component.literal("] ").withStyle(ChatFormatting.GRAY))
+            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
 
-    private val RAINBOW_PREFIX_COLOR: MutableText
+    private val RAINBOW_PREFIX_COLOR: MutableComponent
         get() {
-            val prefix = Text.empty()
-                .append(Text.literal("[").formatted(Formatting.GRAY))
+            val prefix = Component.empty()
+                .append(Component.literal("[").withStyle(ChatFormatting.GRAY))
 
             val text = "Gobby Client"
             val length = text.length
@@ -49,63 +49,63 @@ object ChatUtils {
             text.forEachIndexed { index, char ->
                 val hue = index.toFloat() / length
                 val rgb = hsvToRgb(hue, 1f, 1f)
-                prefix.append(Text.literal(char.toString()).withColor(rgb))
+                prefix.append(Component.literal(char.toString()).withColor(rgb))
             }
 
-            prefix.append(Text.literal("] ").formatted(Formatting.GRAY))
-            prefix.append(Text.literal("» ").formatted(Formatting.DARK_GRAY))
+            prefix.append(Component.literal("] ").withStyle(ChatFormatting.GRAY))
+            prefix.append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
 
             return prefix
         }
 
     @JvmStatic
     fun modMessage(message: Any, showPrefix: Boolean = true) {
-        if (mc.player == null || mc.world == null || message == "") return
+        if (mc.player == null || mc.level == null || message == "") return
         val msg = if (showPrefix) "$PREFIX $message" else message.toString()
-        mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
+        mc.execute { mc.gui?.chat?.addMessage(Component.literal(msg)) }
     }
 
-    fun modMessage(text: Text, showPrefix: Boolean = true) {
-        if (mc.player == null || mc.world == null) return
-        val msg = if (showPrefix) Text.literal("$PREFIX ").append(text) else text
-        mc.execute { mc.inGameHud?.chatHud?.addMessage(msg) }
+    fun modMessage(text: Component, showPrefix: Boolean = true) {
+        if (mc.player == null || mc.level == null) return
+        val msg = if (showPrefix) Component.literal("$PREFIX ").append(text) else text
+        mc.execute { mc.gui?.chat?.addMessage(msg) }
     }
 
     fun devMessage(message: Any, showPrefix: Boolean = true) {
-        if (mc.player == null || mc.world == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled || !gobby.features.developer.DevMode.enableDevMessages) return
+        if (mc.player == null || mc.level == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled || !gobby.features.developer.DevMode.enableDevMessages) return
         val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()
-        mc.execute { mc.inGameHud?.chatHud?.addMessage(Text.literal(msg)) }
+        mc.execute { mc.gui?.chat?.addMessage(Component.literal(msg)) }
     }
 
     fun coloredModMessage(message: String, showPrefix: Boolean = true) {
-        if (mc.player == null || mc.world == null || message == "") return
-        val text: MutableText = if (showPrefix) RAINBOW_PREFIX_COLOR.copy().append(Text.literal(message)) else Text.literal(message)
-        mc.inGameHud?.chatHud?.addMessage(text)
+        if (mc.player == null || mc.level == null || message == "") return
+        val text: MutableComponent = if (showPrefix) RAINBOW_PREFIX_COLOR.copy().append(Component.literal(message)) else Component.literal(message)
+        mc.gui?.chat?.addMessage(text)
     }
 
     fun errorMessage(message: Any) {
-        if (mc.player == null || mc.world == null || message == "") return
-        val text = Text.empty()
-            .append(Text.literal("[").formatted(Formatting.DARK_RED))
-            .append(Text.literal("Gobby Client").formatted(Formatting.RED))
-            .append(Text.literal("] ").formatted(Formatting.DARK_RED))
-            .append(Text.literal("» ").formatted(Formatting.DARK_GRAY))
-            .append(Text.literal(message.toString()).formatted(Formatting.RED))
-        mc.execute { mc.inGameHud?.chatHud?.addMessage(text) }
+        if (mc.player == null || mc.level == null || message == "") return
+        val text = Component.empty()
+            .append(Component.literal("[").withStyle(ChatFormatting.DARK_RED))
+            .append(Component.literal("Gobby Client").withStyle(ChatFormatting.RED))
+            .append(Component.literal("] ").withStyle(ChatFormatting.DARK_RED))
+            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(Component.literal(message.toString()).withStyle(ChatFormatting.RED))
+        mc.execute { mc.gui?.chat?.addMessage(text) }
     }
 
     fun sendMessage(message: Any) {
-        if (mc.player == null || mc.world == null || message == "") return
-        mc.player?.networkHandler?.sendChatMessage(message.toString())
+        if (mc.player == null || mc.level == null || message == "") return
+        mc.player?.connection?.sendChat(message.toString())
     }
 
     fun sendCommand(message: Any) {
-        if (mc.player == null || mc.world == null || message == "") return
-        mc.player?.networkHandler?.sendChatMessage("/${message.toString()}")
+        if (mc.player == null || mc.level == null || message == "") return
+        mc.player?.connection?.sendChat("/${message.toString()}")
     }
 
     fun partyMessage(message: String) {
-        if (mc.player == null || mc.world == null || message == "") return
+        if (mc.player == null || mc.level == null || message == "") return
         sendCommand("pc $message")
     }
 

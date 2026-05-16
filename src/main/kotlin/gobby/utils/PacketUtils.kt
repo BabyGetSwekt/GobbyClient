@@ -7,7 +7,7 @@ import gobby.utils.ChatUtils.modMessage
 object PacketUtils {
 
     fun getSequence(): Int {
-        val connection = mc.networkHandler?.connection
+        val connection = mc.connection?.connection
         val interactSequence = if (connection is IClientConnectionAccessor) {
             connection.getInteractSequence()
         } else {

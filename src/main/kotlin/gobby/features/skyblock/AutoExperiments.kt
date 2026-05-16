@@ -12,17 +12,17 @@ import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.LocationUtils
 import gobby.utils.managers.PacketOrderManager
 import gobby.utils.timer.Clock
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
-import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
-import net.minecraft.screen.GenericContainerScreenHandler
-import net.minecraft.screen.slot.SlotActionType
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.world.inventory.ChestMenu
+import net.minecraft.world.inventory.ClickType
 
 object AutoExperiments : Module("Auto Experiments", "Automatically does experiments", Category.SKYBLOCK) {
 
-    private val delayMs by NumberSetting("Click Delay", 200, 0, 1000, 10, desc = "ms between clicks")
+    private val delayMs by NumberSetting("MouseButtonInfo Delay", 200, 0, 1000, 10, desc = "ms between clicks")
     private val serumCount by NumberSetting("Serum Count", 0, 0, 3, 1, desc = "Consumed Metaphysical Serum count")
     private val maxXp by BooleanSetting("Get Max XP", false, desc = "Solve to 15 (Chrono) / 20 (Ultra) for max XP")
 
@@ -48,8 +48,8 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (!enabled || !onPrivateIsland) return
-        val packet = event.packet as? OpenScreenS2CPacket ?: return
-        val title = packet.name.string
+        val packet = event.packet as? ClientboundOpenScreenPacket ?: return
+        val title = packet.title.string
         val detected = when {
             title.startsWith("Chronomatron (") -> Mode.CHRONO
             title.startsWith("Ultrasequencer (") -> Mode.ULTRA
@@ -65,25 +65,25 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
     fun onTick(event: ClientTickEvent.Pre) {
         val current = mode ?: return
         if (!enabled) return reset()
-        val screen = mc.currentScreen as? GenericContainerScreen ?: return reset()
+        val screen = mc.screen as? ContainerScreen ?: return reset()
         when (current) {
-            Mode.CHRONO -> stepChronomatron(screen.screenHandler)
-            Mode.ULTRA -> stepUltrasequencer(screen.screenHandler)
+            Mode.CHRONO -> stepChronomatron(screen.menu)
+            Mode.ULTRA -> stepUltrasequencer(screen.menu)
         }
     }
 
-    private fun stepChronomatron(h: GenericContainerScreenHandler) {
+    private fun stepChronomatron(h: ChestMenu) {
         val pivot = slotAt(h, PIVOT_SLOT).item
-        if (pivot == Items.GLOWSTONE && lastCapturedSlot >= 0 && !slotAt(h, lastCapturedSlot).hasGlint()) {
+        if (pivot == Items.GLOWSTONE && lastCapturedSlot >= 0 && !slotAt(h, lastCapturedSlot).hasFoil()) {
             if (sequence.size > chronoCap) {
-                mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(h.syncId))
+                mc.connection?.send(ServerboundContainerClosePacket(h.containerId))
             }
             sequenceCaptured = false
             return
         }
         if (pivot != Items.CLOCK) return
         if (!sequenceCaptured) {
-            val freshSlot = CHRONO_SLOTS.firstOrNull { slotAt(h, it).hasGlint() } ?: return
+            val freshSlot = CHRONO_SLOTS.firstOrNull { slotAt(h, it).hasFoil() } ?: return
             sequence = sequence + freshSlot
             lastCapturedSlot = freshSlot
             sentCount = 0
@@ -92,7 +92,7 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
         sendNextClick(h)
     }
 
-    private fun stepUltrasequencer(h: GenericContainerScreenHandler) {
+    private fun stepUltrasequencer(h: ChestMenu) {
         val pivot = slotAt(h, PIVOT_SLOT).item
         if (pivot == Items.CLOCK) {
             if (sequenceCaptured) {
@@ -107,29 +107,30 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
         sequence = ULTRA_SLOTS.mapNotNull { idx ->
             val stack = slotAt(h, idx)
             if (stack.isEmpty) return@mapNotNull null
-            if (!stack.name.string.noControlCodes.matches(NUMERIC_NAME)) return@mapNotNull null
+            if (!stack.hoverName.string.noControlCodes.matches(NUMERIC_NAME)) return@mapNotNull null
             stack.count - 1 to idx
         }.sortedBy { it.first }.map { it.second }
         if (sequence.size > ultraCap) {
-            mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(h.syncId))
+            mc.connection?.send(ServerboundContainerClosePacket(h.containerId))
         }
         sequenceCaptured = true
         sentCount = 0
     }
 
-    private fun sendNextClick(h: GenericContainerScreenHandler) {
+    private fun sendNextClick(h: ChestMenu) {
         if (sentCount >= sequence.size) return
         if (!packetClock.hasTimePassed(delayMs.toLong())) return
         val slotIdx = sequence[sentCount]
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
-            mc.interactionManager?.clickSlot(h.syncId, slotIdx, 2, SlotActionType.CLONE, mc.player)
+            val player = mc.player ?: return@register
+            mc.gameMode?.handleInventoryMouseClick(h.containerId, slotIdx, 2, ClickType.CLONE, player)
         }
         packetClock.update()
         sentCount++
     }
 
-    private fun slotAt(h: GenericContainerScreenHandler, idx: Int): ItemStack {
-        return h.slots.getOrNull(idx)?.stack ?: ItemStack.EMPTY
+    private fun slotAt(h: ChestMenu, idx: Int): ItemStack {
+        return h.slots.getOrNull(idx)?.item ?: ItemStack.EMPTY
     }
 
     private fun reset() {

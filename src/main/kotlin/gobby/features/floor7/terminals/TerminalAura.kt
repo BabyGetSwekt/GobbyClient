@@ -6,7 +6,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.managers.AuraManager
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import gobby.utils.timer.Clock
-import net.minecraft.entity.decoration.ArmorStandEntity
+import net.minecraft.world.entity.decoration.ArmorStand
 
 object TerminalAura {
 
@@ -16,19 +16,19 @@ object TerminalAura {
     fun onTick(event: ClientTickEvent.Post) {
         if (TerminalUtils.isGuardFailed()) return
         if (!AutoTerminals.auraEnabled) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
         if (!clock.hasTimePassed(AutoTerminals.auraDelay.toLong())) return
 
         val player = mc.player ?: return
-        if (AutoTerminals.auraOnlyGround && !player.isOnGround) return
-        val world = mc.world ?: return
+        if (AutoTerminals.auraOnlyGround && !player.onGround()) return
+        val world = mc.level ?: return
         val distSq = (AutoTerminals.auraDistance * AutoTerminals.auraDistance).toDouble()
 
-        val target = world.entities
-            .filterIsInstance<ArmorStandEntity>()
+        val target = world.entitiesForRendering()
+            .filterIsInstance<ArmorStand>()
             .firstOrNull {
                 it.customName?.string == "Inactive Terminal" &&
-                    player.squaredDistanceTo(it) <= distSq
+                    player.distanceToSqr(it) <= distSq
             } ?: return
 
         AuraManager.auraEntity(target)

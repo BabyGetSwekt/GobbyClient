@@ -20,13 +20,13 @@ import gobby.utils.isHoldingSkyblockItem
 import gobby.utils.skyblockID
 import gobby.utils.swapToSkyblockItem
 import gobby.utils.skyblock.dungeon.tiles.Room
-import net.minecraft.item.ItemStack
-import net.minecraft.block.AbstractSkullBlock
-import net.minecraft.block.Blocks
-import net.minecraft.block.entity.SkullBlockEntity
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
-import net.minecraft.util.math.Vec3i
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.block.AbstractSkullBlock
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.entity.SkullBlockEntity
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.Vec3i
 
 object DungeonUtils {
 
@@ -51,15 +51,15 @@ object DungeonUtils {
 
     enum class Relic(
         val skyblockID: String,
-        val spawnPos: Vec3d,
+        val spawnPos: Vec3,
         val cauldronPos: BlockPos
     ) {
-        Red("RED_KING_RELIC", Vec3d(22.5, 6.5, 59.5), BlockPos(51, 7, 42)),
-        Green("GREEN_KING_RELIC", Vec3d(20.5, 6.5, 94.5), BlockPos(49, 7, 44)),
-        Blue("BLUE_KING_RELIC", Vec3d(91.5, 6.5, 94.5), BlockPos(59, 7, 44)),
-        Orange("ORANGE_KING_RELIC", Vec3d(90.5, 6.5, 56.5), BlockPos(57, 7, 42)),
-        Purple("PURPLE_KING_RELIC", Vec3d(56.5, 8.5, 132.5), BlockPos(54, 7, 41)),
-        None("", Vec3d(0.0, 0.0, 0.0), BlockPos(0, 0, 0));
+        Red("RED_KING_RELIC", Vec3(22.5, 6.5, 59.5), BlockPos(51, 7, 42)),
+        Green("GREEN_KING_RELIC", Vec3(20.5, 6.5, 94.5), BlockPos(49, 7, 44)),
+        Blue("BLUE_KING_RELIC", Vec3(91.5, 6.5, 94.5), BlockPos(59, 7, 44)),
+        Orange("ORANGE_KING_RELIC", Vec3(90.5, 6.5, 56.5), BlockPos(57, 7, 42)),
+        Purple("PURPLE_KING_RELIC", Vec3(56.5, 8.5, 132.5), BlockPos(54, 7, 41)),
+        None("", Vec3(0.0, 0.0, 0.0), BlockPos(0, 0, 0));
 
         companion object {
             fun fromItemID(id: String?): Relic =
@@ -71,7 +71,7 @@ object DungeonUtils {
     inline val doorOpener get() = DungeonListener.doorOpener
     inline val inP3 get() = DungeonListener.inP3
     inline val isDead: Boolean
-        get() = mc.player?.inventory?.getStack(0)?.skyblockID == "HAUNT_ABILITY"
+        get() = mc.player?.inventory?.getItem(0)?.skyblockID == "HAUNT_ABILITY"
 
     private val secretDrops = listOf("DUNGEON_DECOY", "TRAINING_WEIGHTS", "SPIRIT_LEAP",
         "DEFUSE_KIT", "CANDYCOMB", "ARCHITECT_FIRST_DRAFT", "INFLATABLE_JERRY", "DUNGEON_TRAP",
@@ -83,14 +83,14 @@ object DungeonUtils {
         skyblockID in secretDrops
 
     fun isSecret(pos: BlockPos): Boolean {
-        val world = mc.world ?: return false
+        val world = mc.level ?: return false
         val block = world.getBlockAtPos(pos)
         if (block.equalsOneOf(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.LEVER)) return true
 
         if (block is AbstractSkullBlock) {
             val blockEntity = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
-            val owner = blockEntity.owner ?: return false
-            return owner.gameProfile.id?.toString()?.equalsOneOf(WITHER_ESSENCE_ID, REDSTONE_KEY) == true
+            val owner = blockEntity.ownerProfile ?: return false
+            return owner.partialProfile().id?.toString()?.equalsOneOf(WITHER_ESSENCE_ID, REDSTONE_KEY) == true
         }
         return false
     }
@@ -132,9 +132,9 @@ object DungeonUtils {
     }
 
     fun Room.getRelativeCoords(pos: Vec3i) = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)
-    fun Room.getRelativeCoords(pos: Vec3d): Vec3d = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)
+    fun Room.getRelativeCoords(pos: Vec3): Vec3 = pos.subtractVec(x = clayPos.x, z = clayPos.z).rotateToNorth(rotation)
     fun Room.getRealCoords(pos: Vec3i) = pos.rotateAroundNorth(rotation).addVec(x = clayPos.x, z = clayPos.z)
-    fun Room.getRealCoords(pos: Vec3d): Vec3d = pos.rotateAroundNorth(rotation).addVec(x = clayPos.x.toDouble(), z = clayPos.z.toDouble())
+    fun Room.getRealCoords(pos: Vec3): Vec3 = pos.rotateAroundNorth(rotation).addVec(x = clayPos.x.toDouble(), z = clayPos.z.toDouble())
     fun Room.getRelativeCoords(pos: BlockPos) = getRelativeCoords(Vec3i(pos.x, pos.y, pos.z)).toBlockPos()
     fun Room.getRealCoords(pos: BlockPos) = getRealCoords(Vec3i(pos.x, pos.y, pos.z)).toBlockPos()
     fun Room.getRelativeCoords(x: Int, y: Int, z: Int) = getRelativeCoords(Vec3i(x, y, z)).toBlockPos()

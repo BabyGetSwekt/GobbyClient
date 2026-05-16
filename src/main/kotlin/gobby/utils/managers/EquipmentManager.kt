@@ -10,12 +10,12 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.LocationUtils
 import gobby.utils.skyblockID
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
-import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
-import net.minecraft.screen.slot.SlotActionType
-import net.minecraft.screen.sync.ItemStackHash
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.network.HashedStack
 
 object EquipmentManager {
 
@@ -76,7 +76,7 @@ object EquipmentManager {
         val player = mc.player ?: return -1
         val inv = player.inventory
         for (i in 0..35) {
-            val stack = inv.getStack(i)
+            val stack = inv.getItem(i)
             if (stack.skyblockID in skyblockIds) return i
         }
         return -1
@@ -86,24 +86,24 @@ object EquipmentManager {
     fun onPacket(event: PacketReceivedEvent) {
         if (state == State.IDLE) return
         when (val packet = event.packet) {
-            is OpenScreenS2CPacket -> {
+            is ClientboundOpenScreenPacket -> {
                 if (state != State.WAITING_SCREEN) return
-                if (!packet.name.string.contains(SCREEN_TITLE)) { reset(); return }
-                syncId = packet.syncId
+                if (!packet.title.string.contains(SCREEN_TITLE)) { reset(); return }
+                syncId = packet.containerId
                 state = State.WAITING_SLOT
                 event.cancel()
             }
 
-            is ScreenHandlerSlotUpdateS2CPacket -> {
+            is ClientboundContainerSetSlotPacket -> {
                 if (state != State.WAITING_SLOT) return
-                if (packet.syncId != syncId) return
+                if (packet.containerId != syncId) return
                 val slot = packet.slot
                 if (slot == targetSlot) {
                     val containerSlot = invToContainerSlot(itemSlot)
-                    mc.networkHandler?.sendPacket(
-                        ClickSlotC2SPacket(syncId, 0, containerSlot.toShort(), 0.toByte(), SlotActionType.PICKUP, Int2ObjectOpenHashMap<ItemStackHash>(), ItemStackHash.EMPTY)
+                    mc.connection?.send(
+                        ServerboundContainerClickPacket(syncId, 0, containerSlot.toShort(), 0.toByte(), ClickType.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
                     )
-                    mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(syncId))
+                    mc.connection?.send(ServerboundContainerClosePacket(syncId))
                     reset()
                 }
             }

@@ -25,13 +25,13 @@ import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.rotation.AngleUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import gobby.utils.skyblock.dungeon.tiles.Room
-import net.minecraft.block.Blocks
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.entity.player.Player
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import kotlin.concurrent.thread
 import kotlin.math.sign
@@ -58,7 +58,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     private val DIRS = listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
     private data class Move(val dir: Pair<Int, Int>, val bit: Long, val runLength: Int)
 
-    private var path: List<Vec3d>? = null
+    private var path: List<Vec3>? = null
     private var lastFiredIndex = -1
     private var cancelNextMovement = false
     @Volatile private var solving = false
@@ -74,7 +74,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     private fun floorOf(y: Double): Floor? = Floor.entries.firstOrNull { it.y == y.toInt() }
 
     private fun isFloorDone(floor: Floor): Boolean {
-        val world = mc.world ?: return false
+        val world = mc.level ?: return false
         val cells = path?.filter { it.y.toInt() == floor.y }.orEmpty()
         return cells.isNotEmpty() && cells.all {
             world.getBlockAtPos(BlockPos(it.x.toInt(), it.y.toInt() - 1, it.z.toInt())) == Blocks.PACKED_ICE
@@ -87,7 +87,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         if (room.data.name != "Ice Fill") { reset(); return }
         if (solving) return
 
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val masks = Floor.entries.map { it to buildIceMask(it, room, world) }
         solving = true
         val timer = Clock()
@@ -99,7 +99,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
                         mc.execute { errorMessage("Ice Fill: no solution at Y=${floor.y}"); path = null }
                         return@thread
                     }
-                }.map { room.getRealCoords(it).let { r -> Vec3d(r.x + 0.5, r.y.toDouble(), r.z + 0.5) } }
+                }.map { room.getRealCoords(it).let { r -> Vec3(r.x + 0.5, r.y.toDouble(), r.z + 0.5) } }
                 mc.execute {
                     path = combined
                     modMessage("§aIce Fill: dynamically solved in ${timer.getTime()}ms, ${combined.size} nodes")
@@ -110,7 +110,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         }
     }
 
-    private fun buildIceMask(floor: Floor, room: Room, world: ClientWorld): Long {
+    private fun buildIceMask(floor: Floor, room: Room, world: ClientLevel): Long {
         var mask = floor.bit(floor.start.x, floor.start.z) or floor.bit(floor.exit.x, floor.exit.z)
         for (x in floor.xMin..floor.xMax) for (z in floor.zMin..floor.zMax) {
             if (world.getBlockAtPos(room.getRealCoords(BlockPos(x, floor.y, z))) == Blocks.AIR) mask = mask or floor.bit(x, z)
@@ -196,10 +196,10 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
     @SubscribeEvent
     fun onPacketReceived(event: PacketReceivedEvent) {
         if (!enabled || !inDungeons || !autoIceFill || !isHoldingAOTV()) return
-        val packet = event.packet as? PlayerPositionLookS2CPacket ?: return
+        val packet = event.packet as? ClientboundPlayerPositionPacket ?: return
         val nodes = path ?: return
         val pos = packet.change().position()
-        val index = nodes.indexOfFirst { it.squaredDistanceTo(pos) < POSITION_MATCH_EPSILON_SQ }
+        val index = nodes.indexOfFirst { it.distanceToSqr(pos) < POSITION_MATCH_EPSILON_SQ }
         if (index !in 0 until nodes.size - 1 || index == lastFiredIndex) return
         floorOf(nodes[index].y)?.takeIf(::isFloorDone)?.let { return }
         if (lastFiredIndex == -1) modMessage("§aStarting Auto Ice Fill")
@@ -215,24 +215,24 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
             val player = mc.player ?: return@register
             if (!isHoldingAOTV()) return@register
-            mc.networkHandler?.sendPacket(PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, player.isOnGround, player.horizontalCollision))
+            mc.connection?.send(ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision))
             PlayerUtils.useItem(yaw, pitch)
             if (rotateMode == 1) player.applySpoofedRotation(yaw, pitch)
             cancelNextMovement = true
         }
     }
 
-    private fun PlayerEntity.applySpoofedRotation(newYaw: Float, newPitch: Float) {
-        yaw = newYaw
-        pitch = newPitch
-        lastYaw = newYaw
-        lastPitch = newPitch
+    private fun Player.applySpoofedRotation(newYaw: Float, newPitch: Float) {
+        yRot = newYaw
+        xRot = newPitch
+        yRotO = newYaw
+        xRotO = newPitch
     }
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
         if (!cancelNextMovement) return
-        if (event.packet !is PlayerMoveC2SPacket) return
+        if (event.packet !is ServerboundMovePlayerPacket) return
         cancelNextMovement = false
         event.cancel()
     }
@@ -253,7 +253,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         }
     }
 
-    private fun renderSegment(event: NewRender3DEvent, from: Vec3d, to: Vec3d) {
+    private fun renderSegment(event: NewRender3DEvent, from: Vec3, to: Vec3) {
         val color = colorAt(from.y)
         if (from.y == to.y) {
             drawLine3D(event.matrixStack, event.camera, from, to, color, depthTest = true)
@@ -262,10 +262,10 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         val dirX = (to.x - from.x).sign
         val dirZ = (to.z - from.z).sign
         val midY = (from.y + to.y) / 2.0
-        val s0 = Vec3d(from.x + dirX * 0.5, from.y, from.z + dirZ * 0.5)
-        val s1 = Vec3d(s0.x, midY, s0.z)
-        val s2 = Vec3d(s0.x + dirX * 0.5, midY, s0.z + dirZ * 0.5)
-        val s3 = Vec3d(s2.x, to.y, s2.z)
+        val s0 = Vec3(from.x + dirX * 0.5, from.y, from.z + dirZ * 0.5)
+        val s1 = Vec3(s0.x, midY, s0.z)
+        val s2 = Vec3(s0.x + dirX * 0.5, midY, s0.z + dirZ * 0.5)
+        val s3 = Vec3(s2.x, to.y, s2.z)
         val toColor = colorAt(to.y)
         listOf(from, s0, s1, s2, s3, to).zipWithNext { a, b ->
             drawLine3D(event.matrixStack, event.camera, a, b, if (b === to) toColor else color, depthTest = true)

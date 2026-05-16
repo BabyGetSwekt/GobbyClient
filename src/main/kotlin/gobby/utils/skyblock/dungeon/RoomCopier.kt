@@ -11,8 +11,8 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.copy.BlockStateCodec
 import gobby.utils.copy.EntityCodec
 import gobby.utils.skyblock.dungeon.map.MapTile
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.entity.player.Player
+import net.minecraft.core.BlockPos
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -27,10 +27,10 @@ object RoomCopier {
 
     fun copyCurrentRoom() {
         val player = mc.player ?: return errorMessage("No player")
-        val world = mc.world ?: return errorMessage("No world")
+        val world = mc.level ?: return errorMessage("No world")
 
-        val rawCol = (player.blockPos.x - START_X) / HALF_ROOM
-        val rawRow = (player.blockPos.z - START_Z) / HALF_ROOM
+        val rawCol = (player.blockPosition().x - START_X) / HALF_ROOM
+        val rawRow = (player.blockPosition().z - START_Z) / HALF_ROOM
         if (rawCol !in 0 until GRID_SIZE || rawRow !in 0 until GRID_SIZE) return errorMessage("Not on dungeon grid")
 
         val col = (rawCol / 2) * 2
@@ -61,7 +61,7 @@ object RoomCopier {
         val missingChunks = mutableListOf<String>()
         for (cx in (originX shr 4)..((originX + width) shr 4))
             for (cz in (originZ shr 4)..((originZ + length) shr 4))
-                if (!world.chunkManager.isChunkLoaded(cx, cz)) missingChunks.add("$cx,$cz")
+                if (world.chunkSource.getChunk(cx, cz, false) == null) missingChunks.add("$cx,$cz")
         if (missingChunks.isNotEmpty()) return errorMessage("Chunks not loaded (walk closer): ${missingChunks.joinToString(" ")}")
 
         val (bottom, height) = findYBounds(originX, originZ, width, length)
@@ -88,8 +88,8 @@ object RoomCopier {
         val entities = mutableListOf<String>()
         val maxX = (originX + width).toDouble(); val maxZ = (originZ + length).toDouble()
         val maxY = (bottom + height).toDouble()
-        for (entity in world.entities) {
-            if (entity is PlayerEntity) continue
+        for (entity in world.entitiesForRendering()) {
+            if (entity is Player) continue
             if (entity.x < originX || entity.x > maxX || entity.z < originZ || entity.z > maxZ) continue
             if (entity.y < bottom || entity.y > maxY) continue
             EntityCodec.encode(entity, originX, bottom, originZ, LOGGER)?.let { entities.add(it) }
@@ -104,7 +104,7 @@ object RoomCopier {
     }
 
     private fun findYBounds(originX: Int, originZ: Int, width: Int, length: Int): Pair<Int, Int> {
-        val world = mc.world ?: return 0 to 0
+        val world = mc.level ?: return 0 to 0
         var minY = Int.MAX_VALUE
         var maxY = Int.MIN_VALUE
         for (x in 0 until width step 2) for (z in 0 until length step 2) {

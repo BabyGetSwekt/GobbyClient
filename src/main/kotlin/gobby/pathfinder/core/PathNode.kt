@@ -1,7 +1,7 @@
 package gobby.pathfinder.core
 
 import gobby.pathfinder.movement.InputManager.MoveAction
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 
 class PathNode(
     val pos: BlockPos,

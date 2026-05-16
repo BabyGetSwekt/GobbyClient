@@ -1,84 +1,51 @@
 package gobby.utils.skyblock
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.block.*
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
+import net.minecraft.core.Direction
+import net.minecraft.core.SectionPos
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.block.*
+import net.minecraft.world.level.block.piston.PistonHeadBlock
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.sign
-import kotlin.reflect.KClass
 
-/**
- * This code was inspired by Bloom's Etherwarp code, unlicensed
- * Source: Bloomcore, utils/Utils.js
- * @author UnclaimedBloom6
- */
 object EtherwarpUtils {
 
-    data class EtherPos(val succeeded: Boolean, val pos: BlockPos?) {
+    data class EtherPos(val succeeded: Boolean, val pos: BlockPos?, val state: BlockState? = null) {
+        val vec3: Vec3 by lazy { Vec3(pos ?: BlockPos.ZERO) }
+
         companion object {
             val NONE = EtherPos(false, null)
         }
     }
 
-    private val PASSABLE_TYPES: Set<KClass<*>> = setOf(
-        AirBlock::class,
-        FluidBlock::class,
-        BubbleColumnBlock::class,
-        NetherPortalBlock::class,
-        FireBlock::class,
-        PlantBlock::class,
-        TallPlantBlock::class,
-        ShortPlantBlock::class,
-        TallFlowerBlock::class,
-        StemBlock::class,
-        CropBlock::class,
-        SugarCaneBlock::class,
-        SeagrassBlock::class,
-        TallSeagrassBlock::class,
-        VineBlock::class,
-        AbstractPlantPartBlock::class,
-        NetherWartBlock::class,
-        SmallDripleafBlock::class,
-        CarpetBlock::class,
-        SnowBlock::class,
-        RailBlock::class,
-        ButtonBlock::class,
-        LeverBlock::class,
-        TorchBlock::class,
-        LadderBlock::class,
-        FlowerPotBlock::class,
-        SkullBlock::class,
-        WallSkullBlock::class,
-        RedstoneWireBlock::class,
-        ComparatorBlock::class,
-        RepeaterBlock::class,
-        RedstoneTorchBlock::class,
-        TripwireBlock::class,
-        TripwireHookBlock::class,
-        CobwebBlock::class,
-        PistonHeadBlock::class
-    )
+    fun getEtherPos(distance: Double = 57.0): EtherPos =
+        getEtherPos(mc.player?.position(), distance, etherWarp = true)
 
-    fun getEtherPos(distance: Double = 57.0): EtherPos {
+    fun getEtherPos(
+        position: Vec3?,
+        distance: Double,
+        returnEnd: Boolean = false,
+        etherWarp: Boolean = false
+    ): EtherPos {
         val player = mc.player ?: return EtherPos.NONE
-        val world = mc.world ?: return EtherPos.NONE
+        if (position == null) return EtherPos.NONE
 
-        val eyeHeight = if (player.isSneaking) 1.54 else 1.62
-        val eyePos = Vec3d(player.x, player.y + eyeHeight, player.z)
-        val endPos = eyePos.add(player.rotationVector.multiply(distance))
+        val eyeHeight = if (player.isCrouching) 1.54 else 1.62
+        val startPos = position.add(0.0, eyeHeight, 0.0)
+        val endPos = player.lookAngle.multiply(distance, distance, distance).add(startPos)
 
-        return traverseVoxels(world, eyePos, endPos)
+        return traverseVoxels(startPos, endPos, etherWarp)
+            .takeUnless { it == EtherPos.NONE && returnEnd }
+            ?: EtherPos(true, BlockPos.containing(endPos), null)
     }
 
-    /**
-     * DDA voxel traversal from start to end. Finds the first solid block
-     * and checks that the 2 blocks above it are passable (valid landing spot).
-     */
-    private fun traverseVoxels(world: World, start: Vec3d, end: Vec3d): EtherPos {
+    private fun traverseVoxels(start: Vec3, end: Vec3, etherWarp: Boolean): EtherPos {
         var x = floor(start.x).toInt()
         var y = floor(start.y).toInt()
         var z = floor(start.z).toInt()
@@ -108,10 +75,25 @@ object EtherwarpUtils {
 
         repeat(1000) {
             val pos = BlockPos(x, y, z)
+            val world = mc.level ?: return EtherPos.NONE
+            val chunk = world.getChunk(SectionPos.blockToSectionCoord(pos.x), SectionPos.blockToSectionCoord(pos.z))
+            val state = chunk.getBlockState(pos)
+            val id = Block.getId(state)
+            val flags = blockFlags[id]
+            val isPassable = (flags and PASSABLE) != 0
+            val isSolid = !isPassable
 
-            if (!isPassable(world, pos)) {
-                val canStand = isPassable(world, pos.up()) && isPassable(world, pos.up(2))
-                return EtherPos(canStand, pos)
+            if ((etherWarp && isSolid) || (!etherWarp && id != 0)) {
+                if (!etherWarp && isPassable) return EtherPos(false, pos, state)
+                val collisionTop = state.getCollisionShape(world, pos).max(Direction.Axis.Y)
+                val clearanceBaseY = pos.y + max(1, ceil(collisionTop).toInt())
+                val feetState = chunk.getBlockState(BlockPos(pos.x, clearanceBaseY, pos.z))
+                val feetFlags = blockFlags[Block.getId(feetState)]
+                if ((feetFlags and PASSABLE) == 0 || (feetFlags and BLOCKS_FEET) != 0) return EtherPos(false, pos, state)
+                val headState = chunk.getBlockState(BlockPos(pos.x, clearanceBaseY + 1, pos.z))
+                val headFlags = blockFlags[Block.getId(headState)]
+                if ((headFlags and PASSABLE) == 0 || (headFlags and BLOCKS_FEET) != 0) return EtherPos(false, pos, state)
+                return EtherPos(true, pos, state)
             }
 
             if (x == endX && y == endY && z == endZ) return EtherPos.NONE
@@ -126,11 +108,60 @@ object EtherwarpUtils {
         return EtherPos.NONE
     }
 
-    private fun isPassable(world: World, pos: BlockPos): Boolean {
-        val block = world.getBlockState(pos).block
-        return PASSABLE_TYPES.any { it.isInstance(block) }
-    }
-
     private fun safeInverse(value: Double): Double =
         if (value != 0.0) 1.0 / value else Double.MAX_VALUE
+
+    private const val PASSABLE = 1
+    private const val BLOCKS_FEET = 2
+
+    private val blockFlags: IntArray = IntArray(Block.BLOCK_STATE_REGISTRY.size()).apply {
+        Block.BLOCK_STATE_REGISTRY.forEach { state ->
+            val block = state.block
+            val id = Block.getId(state)
+            val passable = when (block) {
+                is AirBlock -> true
+                is FlowerBlock, is TallGrassBlock, is BushBlock, is TallFlowerBlock, is ShortDryGrassBlock -> true
+                is TorchBlock, is RedstoneTorchBlock -> true
+                is TripWireBlock, is TripWireHookBlock -> true
+                is RailBlock -> true
+                is FireBlock -> true
+                is VineBlock -> true
+                is LiquidBlock -> true
+                is SaplingBlock -> true
+                is CropBlock, is StemBlock -> true
+                is SeagrassBlock, is TallSeagrassBlock -> true
+                is SugarCaneBlock -> true
+                is MushroomBlock -> true
+                is NetherWartBlock -> true
+                is RedStoneWireBlock, is ComparatorBlock, is RepeaterBlock -> true
+                is SmallDripleafBlock, is BigDripleafStemBlock -> true
+                is DoublePlantBlock -> true
+                is LeverBlock -> true
+                is SnowLayerBlock -> true
+                is BubbleColumnBlock -> true
+                is GrowingPlantBlock -> true
+                is PistonHeadBlock -> true
+                is DryVegetationBlock -> true
+                is ButtonBlock -> true
+                is LanternBlock -> true
+                is SkullBlock, is WallSkullBlock -> true
+                is LadderBlock -> true
+                is FlowerPotBlock -> true
+                is WebBlock -> true
+                is NetherPortalBlock -> true
+                else -> false
+            }
+            val blocksFeet = when (block) {
+                is SkullBlock, is WallSkullBlock -> true
+                is FlowerPotBlock -> true
+                is LadderBlock -> true
+                is VineBlock -> true
+                else -> false
+            }
+            var flags = 0
+            if (passable) flags = flags or PASSABLE
+            if (blocksFeet) flags = flags or BLOCKS_FEET
+            this[id] = flags
+        }
+    }
 }

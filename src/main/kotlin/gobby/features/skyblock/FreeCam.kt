@@ -15,7 +15,7 @@ import gobby.utils.Utils.pitch
 import gobby.utils.Utils.toRadians
 import gobby.utils.Utils.yaw
 import gobby.utils.timer.Clock
-import net.minecraft.util.math.MathHelper
+import net.minecraft.util.Mth
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.pow
@@ -70,19 +70,19 @@ object FreeCam : Module(
 
     fun updateAngles(deltaX: Float, deltaY: Float) {
         camYaw += deltaX * 0.15f
-        camPitch = MathHelper.clamp(camPitch + deltaY * 0.15f, -90f, 90f)
+        camPitch = Mth.clamp(camPitch + deltaY * 0.15f, -90f, 90f)
     }
 
     fun updateMovement() {
         val dt = clock.getTime() / 1000.0
         clock.update()
 
-        val forwardInput = (if (mc.options.forwardKey.isPressed) 1.0 else 0.0) -
-                (if (mc.options.backKey.isPressed) 1.0 else 0.0)
-        val leftInput = (if (mc.options.leftKey.isPressed) 1.0 else 0.0) -
-                (if (mc.options.rightKey.isPressed) 1.0 else 0.0)
-        val upInput = (if (mc.options.jumpKey.isPressed) 1.0 else 0.0) -
-                (if (mc.options.sneakKey.isPressed) 1.0 else 0.0)
+        val forwardInput = (if (mc.options.keyUp.isDown) 1.0 else 0.0) -
+                (if (mc.options.keyDown.isDown) 1.0 else 0.0)
+        val leftInput = (if (mc.options.keyLeft.isDown) 1.0 else 0.0) -
+                (if (mc.options.keyRight.isDown) 1.0 else 0.0)
+        val upInput = (if (mc.options.keyJump.isDown) 1.0 else 0.0) -
+                (if (mc.options.keyShift.isDown) 1.0 else 0.0)
 
         forwardVelocity = calculateVelocity(forwardVelocity, forwardInput, dt)
         leftVelocity = calculateVelocity(leftVelocity, leftInput, dt)

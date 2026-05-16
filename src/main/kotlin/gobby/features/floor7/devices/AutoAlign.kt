@@ -11,12 +11,12 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getPhase
-import net.minecraft.entity.decoration.ItemFrameEntity
-import net.minecraft.item.Items
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket
-import net.minecraft.util.Hand
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.entity.decoration.ItemFrame
+import net.minecraft.world.item.Items
+import net.minecraft.network.protocol.game.ServerboundInteractPacket
+import net.minecraft.world.InteractionHand
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 import kotlin.math.floor
 
 object AutoAlign : Module(
@@ -52,7 +52,7 @@ object AutoAlign : Module(
         private set
     val inP3 get() = DungeonUtils.inP3
 
-    data class FrameData(val entity: ItemFrameEntity, var rotation: Int)
+    data class FrameData(val entity: ItemFrame, var rotation: Int)
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
@@ -60,7 +60,7 @@ object AutoAlign : Module(
         if (!AlignHelper.enabled) return
 
         val player = mc.player ?: return
-        if (player.squaredDistanceTo(deviceStandPos.x.toDouble(), deviceStandPos.y.toDouble(), deviceStandPos.z.toDouble()) > DEVICE_RANGE_SQ) {
+        if (player.distanceToSqr(deviceStandPos.x.toDouble(), deviceStandPos.y.toDouble(), deviceStandPos.z.toDouble()) > DEVICE_RANGE_SQ) {
             reset()
             return
         }
@@ -105,19 +105,19 @@ object AutoAlign : Module(
         }
     }
 
-    private fun solveClosestFrame(player: net.minecraft.client.network.ClientPlayerEntity) {
+    private fun solveClosestFrame(player: net.minecraft.client.player.LocalPlayer) {
         val solution = currentSolution!!
         val frames = currentFrames!!
 
         val sortedFrames = frames.mapIndexed { i, f -> i to f }
             .filter { it.second != null }
-            .sortedBy { (_, f) -> player.squaredDistanceTo(f!!.entity.x, f.entity.y, f.entity.z) }
+            .sortedBy { (_, f) -> player.distanceToSqr(f!!.entity.x, f.entity.y, f.entity.z) }
 
         for ((index, frameData) in sortedFrames) {
             if (frameData == null) continue
             val entity = frameData.entity
 
-            if (player.squaredDistanceTo(entity.x, entity.y, entity.z) > MAX_INTERACT_RANGE_SQ) continue
+            if (player.distanceToSqr(entity.x, entity.y, entity.z) > MAX_INTERACT_RANGE_SQ) continue
 
             var clicks = clicksNeeded(frameData.rotation, solution[index]!!)
 
@@ -134,19 +134,19 @@ object AutoAlign : Module(
     }
 
     private fun sendClicks(
-        entity: ItemFrameEntity,
+        entity: ItemFrame,
         frameData: FrameData,
         clicks: Int,
-        player: net.minecraft.client.network.ClientPlayerEntity
+        player: net.minecraft.client.player.LocalPlayer
     ) {
-        val networkHandler = player.networkHandler
+        val networkHandler = player.connection
         repeat(clicks) {
             frameData.rotation = (frameData.rotation + 1) % 8
-            networkHandler.sendPacket(
-                PlayerInteractEntityC2SPacket.interactAt(entity, false, Hand.MAIN_HAND, Vec3d(0.03125, 0.0, 0.0))
+            networkHandler.send(
+                ServerboundInteractPacket.createInteractionPacket(entity, false, InteractionHand.MAIN_HAND, Vec3(0.03125, 0.0, 0.0))
             )
-            networkHandler.sendPacket(
-                PlayerInteractEntityC2SPacket.interact(entity, false, Hand.MAIN_HAND)
+            networkHandler.send(
+                ServerboundInteractPacket.createInteractionPacket(entity, false, InteractionHand.MAIN_HAND)
             )
         }
     }
@@ -160,11 +160,11 @@ object AutoAlign : Module(
     }
 
     private fun scanFrames(): MutableList<FrameData?> {
-        val world = mc.world ?: return mutableListOf()
+        val world = mc.level ?: return mutableListOf()
         val frameMap = mutableMapOf<String, FrameData>()
 
-        for (entity in world.entities.filterIsInstance<ItemFrameEntity>()) {
-            val stack = entity.heldItemStack ?: continue
+        for (entity in world.entitiesForRendering().filterIsInstance<ItemFrame>()) {
+            val stack = entity.item
             if (stack.item != Items.ARROW) continue
             val key = "${floor(entity.x).toInt()},${floor(entity.y).toInt()},${floor(entity.z).toInt()}"
             frameMap[key] = FrameData(entity, entity.rotation)

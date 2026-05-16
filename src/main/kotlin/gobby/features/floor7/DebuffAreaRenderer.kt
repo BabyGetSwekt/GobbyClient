@@ -6,9 +6,9 @@ import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.render.BlockHighlighter
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.block.BlockState
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
 import java.awt.Color
 
 object DebuffAreaRenderer : BlockHighlighter() {
@@ -60,9 +60,9 @@ object DebuffAreaRenderer : BlockHighlighter() {
     override fun depthTest(): Boolean = true
 
     override fun isValidPosition(pos: BlockPos): Boolean {
-        val world = mc.world ?: return false
-        val above = world.getBlockState(pos.up())
-        if (!above.isAir && !above.isOf(Blocks.LIGHT_GRAY_CARPET)) return false
+        val world = mc.level ?: return false
+        val above = world.getBlockState(pos.above())
+        if (!above.isAir && !above.`is`(Blocks.LIGHT_GRAY_CARPET)) return false
         return renderAreas.any { area ->
             pos.y == area.y &&
             pos.x in area.x1..area.x2 &&

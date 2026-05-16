@@ -8,9 +8,9 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket
-import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket
+import net.minecraft.network.protocol.game.ClientboundSoundPacket
 import kotlin.math.sqrt
 
 object SoundDebugger : Module("Sound Debugger", "Prints every sound played within range", Category.DEVELOPER) {
@@ -23,30 +23,30 @@ object SoundDebugger : Module("Sound Debugger", "Prints every sound played withi
         if (!enabled) return
         val player = mc.player ?: return
         when (val packet = event.packet) {
-            is PlaySoundS2CPacket -> {
+            is ClientboundSoundPacket -> {
                 val dx = packet.x - player.x; val dy = packet.y - player.y; val dz = packet.z - player.z
                 if (sqrt(dx * dx + dy * dy + dz * dz) > range) return
-                val id = packet.sound.idAsString
+                val id = packet.sound.value().location().toString()
                 val pitch = "%.2f".format(packet.pitch)
                 val x = "%.2f".format(packet.x); val y = "%.2f".format(packet.y); val z = "%.2f".format(packet.z)
                 modMessage("§7[Sound] §f$id §8| §bpos §f($x, $y, $z) §8| §dpitch §f$pitch")
             }
-            is PlaySoundFromEntityS2CPacket -> {
-                val entity = mc.world?.getEntityById(packet.entityId)
+            is ClientboundSoundEntityPacket -> {
+                val entity = mc.level?.getEntity(packet.id)
                 val ex = entity?.x ?: return
                 val ey = entity.y; val ez = entity.z
                 val dx = ex - player.x; val dy = ey - player.y; val dz = ez - player.z
                 if (sqrt(dx * dx + dy * dy + dz * dz) > range) return
-                val id = packet.sound.idAsString
+                val id = packet.sound.value().location().toString()
                 val pitch = "%.2f".format(packet.pitch)
-                modMessage("§7[Sound] §f$id §8| §bpos §f(${"%.2f".format(ex)}, ${"%.2f".format(ey)}, ${"%.2f".format(ez)}) §8| §dpitch §f$pitch §8| §7entity#${packet.entityId}")
+                modMessage("§7[Sound] §f$id §8| §bpos §f(${"%.2f".format(ex)}, ${"%.2f".format(ey)}, ${"%.2f".format(ez)}) §8| §dpitch §f$pitch §8| §7entity#${packet.id}")
             }
-            is EntityStatusS2CPacket -> {
+            is ClientboundEntityEventPacket -> {
                 if (!detectFireworks) return
-                if (packet.status.toInt() != 17) return
-                val world = mc.world ?: return
+                if (packet.eventId.toInt() != 17) return
+                val world = mc.level ?: return
                 val live = packet.getEntity(world)
-                val pos = if (live != null) net.minecraft.util.math.Vec3d(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
+                val pos = if (live != null) net.minecraft.world.phys.Vec3(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
                 val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
                 val dist = sqrt(dx * dx + dy * dy + dz * dz)
                 if (dist > range) return

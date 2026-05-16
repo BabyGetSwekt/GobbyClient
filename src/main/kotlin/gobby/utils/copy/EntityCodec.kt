@@ -1,32 +1,32 @@
 package gobby.utils.copy
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.entity.Entity
-import net.minecraft.nbt.NbtDouble
-import net.minecraft.nbt.NbtList
-import net.minecraft.registry.Registries
-import net.minecraft.storage.NbtWriteView
-import net.minecraft.util.ErrorReporter
+import net.minecraft.world.entity.Entity
+import net.minecraft.nbt.DoubleTag
+import net.minecraft.nbt.ListTag
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.level.storage.TagValueOutput
+import net.minecraft.util.ProblemReporter
 import org.slf4j.Logger
 
 object EntityCodec {
 
     fun encode(entity: Entity, originX: Int, originY: Int, originZ: Int, logger: Logger): String? {
-        val world = mc.world ?: return null
+        val world = mc.level ?: return null
         return try {
-            val writeView = NbtWriteView.create(
-                ErrorReporter.Logging(entity.errorReporterContext, logger),
-                world.registryManager
+            val writeView = TagValueOutput.createWithContext(
+                ProblemReporter.DISCARDING,
+                world.registryAccess()
             )
-            entity.saveSelfData(writeView)
-            val nbt = writeView.nbt
-            val id = Registries.ENTITY_TYPE.getId(entity.type).toString()
+            entity.saveWithoutId(writeView)
+            val nbt = writeView.buildResult()
+            val id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.type).toString()
             nbt.putString("id", id)
 
-            val rel = NbtList()
-            rel.add(NbtDouble.of(entity.x - originX))
-            rel.add(NbtDouble.of(entity.y - originY))
-            rel.add(NbtDouble.of(entity.z - originZ))
+            val rel = ListTag()
+            rel.add(DoubleTag.valueOf(entity.x - originX))
+            rel.add(DoubleTag.valueOf(entity.y - originY))
+            rel.add(DoubleTag.valueOf(entity.z - originZ))
             nbt.put("Pos", rel)
 
             nbt.toString()

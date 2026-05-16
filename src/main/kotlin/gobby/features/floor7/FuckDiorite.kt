@@ -10,10 +10,10 @@ import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.Utils.setBlockAtPos
-import net.minecraft.block.Block
-import net.minecraft.block.Blocks
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.core.BlockPos
 
 object FuckDiorite : Module(
     "Fuck Diorite",
@@ -22,15 +22,15 @@ object FuckDiorite : Module(
 ) {
 
     private data class Pillar(val pos: BlockPos, val glass: Block) {
-        val area: Iterable<BlockPos> = BlockPos.iterate(
-            pos.add(-RADIUS, 0, -RADIUS),
-            pos.add(RADIUS, HEIGHT, RADIUS)
+        val area: Iterable<BlockPos> = BlockPos.betweenClosed(
+            pos.offset(-RADIUS, 0, -RADIUS),
+            pos.offset(RADIUS, HEIGHT, RADIUS)
         )
 
-        fun replaceDiorite(world: ClientWorld) {
+        fun replaceDiorite(world: ClientLevel) {
             for (pos in area) {
                 if (world.getBlockAtPos(pos) in DIORITE_BLOCKS) {
-                    world.setBlockAtPos(pos.toImmutable(), glass)
+                    world.setBlockAtPos(pos.immutable(), glass)
                 }
             }
         }
@@ -56,7 +56,7 @@ object FuckDiorite : Module(
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (!enabled || !isActive) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         pillars.forEach { it.replaceDiorite(world) }
     }
 }

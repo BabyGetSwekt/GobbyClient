@@ -7,14 +7,17 @@ import gobby.gui.GuiElementManager
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.managers.SoundManager
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.util.Identifier
+import net.minecraft.client.gui.GuiGraphics
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 
 object YouAreAKingGG : GuiElement() {
 
     private val mod = Module("You Are A King GG", "Fortnite.", Category.DUNGEONS)
 
-    private val TEXTURE = Identifier.of("gobbyclient", "textures/gui/victory_royale.png")
+    private val TEXTURE = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/victory_royale.png")
     private const val ASPECT_RATIO = 995f / 246f
 
     init {
@@ -28,7 +31,7 @@ object YouAreAKingGG : GuiElement() {
         SoundManager.play("assets/gobbyclient/sounds/victory_royale_sound.ogg")
     }
 
-    override fun render(drawContext: DrawContext, screenWidth: Int, screenHeight: Int, alpha: Float) {
+    override fun render(drawContext: GuiGraphics, screenWidth: Int, screenHeight: Int, alpha: Float) {
         val width = (screenWidth * 0.6f).toInt()
         val height = (width / ASPECT_RATIO).toInt()
         val x = (screenWidth - width) / 2

@@ -13,12 +13,12 @@ import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.render.TitleUtils
 import gobby.utils.rotation.RotationUtils
-import net.minecraft.block.Block
-import net.minecraft.block.Blocks
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 
 object LividHelper : EntityHighlighter(
@@ -27,7 +27,7 @@ object LividHelper : EntityHighlighter(
 ) {
 
     private val drawTitle by BooleanSetting("Draw Title", true, desc = "Draws the correct livid name on screen")
-    private val drawBox by BooleanSetting("Draw Box", true, desc = "Draws an ESP box on the correct livid")
+    private val drawBox by BooleanSetting("Draw AABB", true, desc = "Draws an ESP box on the correct livid")
     private val drawLine by BooleanSetting("Draw Line", false, desc = "Draws a line to the correct livid")
     private val espLineMode by SelectorSetting("Line Mode", 1, listOf("Feet", "Crosshair"), desc = "Line render origin")
         .withDependency { drawLine }
@@ -37,7 +37,7 @@ object LividHelper : EntityHighlighter(
     private const val DETECT_TICK = 335
 
     private var currentLivid: Livid = Livid.HOCKEY
-    private var lividEntity: PlayerEntity? = null
+    private var lividEntity: Player? = null
     private var aimLocking = false
     private var serverTickCounter = -1
     private var detected = false
@@ -83,7 +83,7 @@ object LividHelper : EntityHighlighter(
     }
 
     private fun detectFromBlock() {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val block = world.getBlockState(GLASS_POS).block
         setLivid(Livid.fromGlass(block) ?: return)
     }
@@ -105,7 +105,7 @@ object LividHelper : EntityHighlighter(
 
             if (aimLock && found != null && !aimLocking) {
                 aimLocking = true
-                val target = Vec3d(found.x, found.y + found.height * 0.5, found.z)
+                val target = Vec3(found.x, found.y + found.bbHeight * 0.5, found.z)
                 RotationUtils.easeToVec(target, 1000L) {
                     lividEntity?.let { RotationUtils.startAimLock(it) }
                 }
@@ -113,11 +113,11 @@ object LividHelper : EntityHighlighter(
         }
 
         if (aimLocking) {
-            val alive = lividEntity?.let { it.isAlive && !it.isRemoved && it.health > 1f } == true
+            val alive = lividEntity?.let { it.isAlive && !it.isRemoved() && it.health > 1f } == true
             if (!alive) {
                 RotationUtils.stopAimLock()
                 aimLocking = false
-            } else if (mc.currentScreen != null) {
+            } else if (mc.screen != null) {
                 RotationUtils.stopAimLock()
             } else if (!RotationUtils.isAimLocked && !RotationUtils.isEasing) {
                 lividEntity?.let { RotationUtils.startAimLock(it) }
@@ -125,10 +125,10 @@ object LividHelper : EntityHighlighter(
         }
     }
 
-    private fun findLividEntity(): PlayerEntity? {
-        val world = mc.world ?: return null
+    private fun findLividEntity(): Player? {
+        val world = mc.level ?: return null
         val expectedName = "${currentLivid.entityName} Livid"
-        return world.players.firstOrNull {
+        return world.players().firstOrNull {
             it != mc.player && it.name.string == expectedName && it.isAlive && it.health > 1f
         }
     }

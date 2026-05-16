@@ -5,7 +5,7 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.reflect.TypeToken
 import gobby.utils.VecUtils
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 import java.lang.reflect.Type
 
 /**

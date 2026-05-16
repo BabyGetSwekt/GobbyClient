@@ -1,21 +1,24 @@
 package gobby.utils.copy
 
-import net.minecraft.block.BlockState
-import net.minecraft.registry.Registries
-import net.minecraft.state.property.Property
-import net.minecraft.util.Identifier
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.level.block.state.properties.Property
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 
 object BlockStateCodec {
 
     fun encode(state: BlockState): String {
-        val blockId = Registries.BLOCK.getId(state.block).toString()
-        val props = state.entries.entries
+        val blockId = BuiltInRegistries.BLOCK.getKey(state.block).toString()
+        val props = state.values.entries
         if (props.isEmpty()) return blockId
         val propStr = props.joinToString(",") { (k, v) ->
             @Suppress("UNCHECKED_CAST")
             val prop = k as Property<Comparable<Any>>
             @Suppress("UNCHECKED_CAST")
-            "${prop.name}=${prop.name(v as Comparable<Any>)}"
+            "${prop.name}=${prop.getName(v as Comparable<Any>)}"
         }
         return "$blockId[$propStr]"
     }
@@ -23,8 +26,8 @@ object BlockStateCodec {
     fun decode(stateStr: String): BlockState? {
         val bracketIdx = stateStr.indexOf('[')
         val blockId = if (bracketIdx == -1) stateStr else stateStr.substring(0, bracketIdx)
-        val block = Registries.BLOCK.get(Identifier.of(blockId))
-        var state = block.defaultState
+        val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
+        var state = block.defaultBlockState()
         if (bracketIdx == -1) return state
         val propsStr = stateStr.substring(bracketIdx + 1, stateStr.length - 1)
         for (prop in propsStr.split(",")) {
@@ -36,9 +39,9 @@ object BlockStateCodec {
     }
 
     private fun applyProperty(state: BlockState, key: String, value: String): BlockState? {
-        val property = state.block.stateManager.getProperty(key) ?: return null
+        val property = state.block.stateDefinition.getProperty(key) ?: return null
         @Suppress("UNCHECKED_CAST")
-        val parsed = (property as Property<Comparable<Any>>).parse(value)
-        return if (parsed.isPresent) state.with(property, parsed.get()) else null
+        val parsed = (property as Property<Comparable<Any>>).getValue(value)
+        return if (parsed.isPresent) state.setValue(property, parsed.get()) else null
     }
 }

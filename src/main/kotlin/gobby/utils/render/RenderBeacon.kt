@@ -6,12 +6,12 @@ import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
 import gobby.utils.render.BlockRenderUtils.buildLine3D
 import gobby.utils.timer.Clock
-import net.minecraft.client.font.TextRenderer
-import net.minecraft.client.render.Camera
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.RotationAxis
-import net.minecraft.util.math.Vec3d
+import net.minecraft.client.gui.Font
+import net.minecraft.client.Camera
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.core.BlockPos
+import com.mojang.math.Axis
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import kotlin.math.cos
 import kotlin.math.sin
@@ -72,13 +72,13 @@ object RenderBeacon {
         }
     }
 
-    private fun renderBeaconBeam(matrixStack: MatrixStack, camera: Camera, beacon: BeaconData) {
-        val vertexConsumerProvider = mc.bufferBuilders.entityVertexConsumers
-        val layer = RenderLayers.ESP_QUADS
+    private fun renderBeaconBeam(matrixStack: PoseStack, camera: Camera, beacon: BeaconData) {
+        val vertexConsumerProvider = mc.renderBuffers().bufferSource()
+        val layer = ItemBlockRenderTypes.ESP_QUADS
         val buffer = vertexConsumerProvider.getBuffer(layer)
 
-        val entry = matrixStack.peek()
-        val matrix4f = entry.positionMatrix
+        val entry = matrixStack.last()
+        val matrix4f = entry.pose()
         val cameraPos = camera.cameraPos
 
 
@@ -102,10 +102,10 @@ object RenderBeacon {
             val z2 = beaconZ + sin(angle2) * BEAM_RADIUS
 
             // Bottom quad (beacon level)
-            buffer.vertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).color(r, g, b, a)
-            buffer.vertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).color(r, g, b, a)
-            buffer.vertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).color(r, g, b, a * 0.3f)
-            buffer.vertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).color(r, g, b, a * 0.3f)
+            buffer.addVertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a)
+            buffer.addVertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a)
+            buffer.addVertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.3f)
+            buffer.addVertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.3f)
         }
 
         val innerRadius = BEAM_RADIUS * 0.6f
@@ -119,15 +119,15 @@ object RenderBeacon {
             val z2 = beaconZ + sin(angle2) * innerRadius
 
             // Inner beam quad
-            buffer.vertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).color(r, g, b, a * 0.8f)
-            buffer.vertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).color(r, g, b, a * 0.8f)
-            buffer.vertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).color(r, g, b, a * 0.1f)
-            buffer.vertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).color(r, g, b, a * 0.1f)
+            buffer.addVertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.8f)
+            buffer.addVertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.8f)
+            buffer.addVertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.1f)
+            buffer.addVertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.1f)
         }
 
-        vertexConsumerProvider.draw(layer)
+        vertexConsumerProvider.endBatch(layer)
 
-        val lineLayer = RenderLayers.ESP_LINES
+        val lineLayer = ItemBlockRenderTypes.ESP_LINES
         val lineBuffer = vertexConsumerProvider.getBuffer(lineLayer)
 
         val baseSize = 0.6f
@@ -146,10 +146,10 @@ object RenderBeacon {
             beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
             beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
 
-        vertexConsumerProvider.draw(lineLayer)
+        vertexConsumerProvider.endBatch(lineLayer)
     }
 
-    private fun calculateDistance(cameraPos: Vec3d, beaconPos: BlockPos): Double {
+    private fun calculateDistance(cameraPos: Vec3, beaconPos: BlockPos): Double {
         val dx = beaconPos.x + 0.5 - cameraPos.x
         val dy = beaconPos.y + 1.0 - cameraPos.y
         val dz = beaconPos.z + 0.5 - cameraPos.z
@@ -168,14 +168,14 @@ object RenderBeacon {
         }
     }
 
-    private fun renderBeaconText(matrixStack: MatrixStack, camera: Camera, beacon: BeaconData) {
-        val textRenderer = mc.textRenderer
+    private fun renderBeaconText(matrixStack: PoseStack, camera: Camera, beacon: BeaconData) {
+        val textRenderer = mc.font
         val cameraPos = camera.cameraPos
 
         val distance = calculateDistance(cameraPos, beacon.pos)
         val scale = calculateTextScale(distance)
 
-        matrixStack.push()
+        matrixStack.pushPose()
 
         val textX = beacon.pos.x + 0.5 - cameraPos.x
         val textY = beacon.pos.y + 2.5 - cameraPos.y
@@ -183,27 +183,37 @@ object RenderBeacon {
 
         matrixStack.translate(textX, textY, textZ)
 
-        matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.yaw))
-        matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.pitch))
+        //? if <=1.21.10 {
+        val yaw = camera.yRot
+        val pitch = camera.xRot
+        //?}
+        //? if >=1.21.11 {
+        /*val yaw = camera.yRot()
+        val pitch = camera.xRot()*/
+        //?}
+        matrixStack.mulPose(Axis.YP.rotationDegrees(-yaw))
+        matrixStack.mulPose(Axis.XP.rotationDegrees(pitch))
 
         matrixStack.scale(-scale, -scale, scale)
-        val textWidth = textRenderer.getWidth(beacon.label)
+        val label = beacon.label ?: return
+        val textWidth = textRenderer.width(label)
 
-        val immediate = mc.bufferBuilders.entityVertexConsumers
-        textRenderer.draw(
-            beacon.label,
+        val immediate = mc.renderBuffers().bufferSource()
+        textRenderer.drawInBatch(
+            label,
             -textWidth / 2f,
             0f,
             0xFFFFFFFF.toInt(),
             false,
-            matrixStack.peek().positionMatrix,
+            matrixStack.last().pose(),
             immediate,
-            TextRenderer.TextLayerType.SEE_THROUGH,
+            Font.DisplayMode.SEE_THROUGH,
             0x40000000,
             15728880
         )
 
-        immediate.drawCurrentLayer()
-        matrixStack.pop()
+        immediate.endBatch()
+        matrixStack.popPose()
     }
 }
+

@@ -8,11 +8,11 @@ import gobby.utils.BowSimulator
 import gobby.utils.PlayerUtils.getEyePosition
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.timer.Clock
-import net.minecraft.entity.Entity
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.entity.Entity
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sqrt
@@ -45,26 +45,26 @@ object RotationUtils {
         onComplete = null
         val player = mc.player ?: return
         if (serverSide) {
-            mc.networkHandler?.sendPacket(PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, player.isOnGround, player.horizontalCollision))
+            mc.connection?.send(ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision))
         } else {
-            player.yaw = yaw
-            player.pitch = pitch
+            player.yRot = yaw
+            player.xRot = pitch
         }
     }
 
     fun easeToBlock(pos: BlockPos, timeMs: Long, onComplete: (() -> Unit)? = null) {
-        easeToVec(Vec3d(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, onComplete)
+        easeToVec(Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, onComplete)
     }
 
-    fun easeToVec(target: Vec3d, timeMs: Long, onComplete: (() -> Unit)? = null) {
+    fun easeToVec(target: Vec3, timeMs: Long, onComplete: (() -> Unit)? = null) {
         val (yaw, pitch) = calcAimAngles(target) ?: return
         easeTo(yaw, pitch, timeMs, onComplete)
     }
 
     fun easeTo(yaw: Float, pitch: Float, timeMs: Long, onComplete: (() -> Unit)? = null) {
         val player = mc.player ?: return
-        startYaw = player.yaw
-        startPitch = player.pitch
+        startYaw = player.yRot
+        startPitch = player.xRot
         targetYaw = startYaw + wrapDelta(yaw - startYaw)
         targetPitch = pitch.coerceIn(-90f, 90f)
         easeClock.update()
@@ -90,16 +90,16 @@ object RotationUtils {
 
         val lockTarget = aimLockTarget
         if (lockTarget != null) {
-            if (!lockTarget.isAlive || lockTarget.isRemoved) {
+            if (!lockTarget.isAlive || lockTarget.isRemoved()) {
                 aimLockTarget = null
             } else {
-                val delta = event.renderTickCounter.getTickProgress(false)
-                val tx = lockTarget.lastRenderX + (lockTarget.x - lockTarget.lastRenderX) * delta
-                val ty = lockTarget.lastRenderY + (lockTarget.y - lockTarget.lastRenderY) * delta + lockTarget.height * 0.5
-                val tz = lockTarget.lastRenderZ + (lockTarget.z - lockTarget.lastRenderZ) * delta
-                val (yaw, pitch) = calcAimAngles(Vec3d(tx, ty, tz)) ?: return
-                player.yaw += wrapDelta(yaw - player.yaw) * 0.15f
-                player.pitch += (pitch - player.pitch).coerceIn(-90f, 90f) * 0.15f
+                val delta = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
+                val tx = lockTarget.xOld + (lockTarget.x - lockTarget.xOld) * delta
+                val ty = lockTarget.yOld + (lockTarget.y - lockTarget.yOld) * delta + lockTarget.bbHeight * 0.5
+                val tz = lockTarget.zOld + (lockTarget.z - lockTarget.zOld) * delta
+                val (yaw, pitch) = calcAimAngles(Vec3(tx, ty, tz)) ?: return
+                player.yRot += wrapDelta(yaw - player.yRot) * 0.15f
+                player.xRot += (pitch - player.xRot).coerceIn(-90f, 90f) * 0.15f
             }
             return
         }
@@ -108,8 +108,8 @@ object RotationUtils {
 
         val elapsed = easeClock.getTime()
         if (elapsed >= duration) {
-            player.yaw = targetYaw
-            player.pitch = targetPitch
+            player.yRot = targetYaw
+            player.xRot = targetPitch
             easing = false
             onComplete?.invoke()
             onComplete = null
@@ -117,8 +117,8 @@ object RotationUtils {
         }
 
         val progress = easeInOutCubic((elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f))
-        player.yaw = startYaw + (targetYaw - startYaw) * progress
-        player.pitch = startPitch + (targetPitch - startPitch) * progress
+        player.yRot = startYaw + (targetYaw - startYaw) * progress
+        player.xRot = startPitch + (targetPitch - startPitch) * progress
     }
 
     @SubscribeEvent
@@ -138,13 +138,13 @@ object RotationUtils {
         else { snapTo(yaw, pitch); onComplete?.invoke() }
     }
 
-    private data class AimCandidate(val point: Vec3d, val angles: Pair<Float, Float>?, val valid: Boolean)
+    private data class AimCandidate(val point: Vec3, val angles: Pair<Float, Float>?, val valid: Boolean)
 
     private fun findClearShortbowAim(target: BlockPos): Pair<Float, Float>? {
         val eye = getEyePosition() ?: return null
         val grid = buildVisibleAimGrid(target, eye, AIM_GRID_RES)
         val cands = grid.map { (ox, oy, oz) ->
-            val point = Vec3d(target.x + ox, target.y + oy, target.z + oz)
+            val point = Vec3(target.x + ox, target.y + oy, target.z + oz)
             val angles = computeShortbowAim(point)
             val valid = angles != null && shortbowFirstHit(eye, angles.first, angles.second) == target
             AimCandidate(point, angles, valid)
@@ -154,11 +154,11 @@ object RotationUtils {
         val cx = valid.sumOf { it.point.x } / valid.size
         val cy = valid.sumOf { it.point.y } / valid.size
         val cz = valid.sumOf { it.point.z } / valid.size
-        val centroid = Vec3d(cx, cy, cz)
-        return valid.minByOrNull { it.point.squaredDistanceTo(centroid) }?.angles
+        val centroid = Vec3(cx, cy, cz)
+        return valid.minByOrNull { it.point.distanceToSqr(centroid) }?.angles
     }
 
-    private fun buildVisibleAimGrid(target: BlockPos, eye: Vec3d, n: Int): List<Triple<Double, Double, Double>> {
+    private fun buildVisibleAimGrid(target: BlockPos, eye: Vec3, n: Int): List<Triple<Double, Double, Double>> {
         val lo = AIM_FACE_MARGIN
         val hi = 1.0 - AIM_FACE_MARGIN
         val out = ArrayList<Triple<Double, Double, Double>>(n * n * n)
@@ -179,12 +179,12 @@ object RotationUtils {
     private fun sampleCoord(lo: Double, hi: Double, n: Int, i: Int): Double =
         if (n == 1) (lo + hi) * 0.5 else lo + (hi - lo) * (i / (n - 1.0))
 
-    private fun shortbowFirstHit(eye: Vec3d, yaw: Float, pitch: Float): BlockPos? {
+    private fun shortbowFirstHit(eye: Vec3, yaw: Float, pitch: Float): BlockPos? {
         val dir = AngleUtils.directionFromAngles(yaw, pitch)
-        return BowSimulator.simulate(eye, dir.multiply(BowSimulator.SHORTBOW_VELOCITY), BowSimulator.ARROW_GRAVITY, SIM_TICKS).hitBlock
+        return BowSimulator.simulate(eye, dir.scale(BowSimulator.SHORTBOW_VELOCITY), BowSimulator.ARROW_GRAVITY, SIM_TICKS).hitBlock
     }
 
-    private fun computeShortbowAim(target: Vec3d): Pair<Float, Float>? {
+    private fun computeShortbowAim(target: Vec3): Pair<Float, Float>? {
         val eye = getEyePosition() ?: return null
         val dx = target.x - eye.x
         val dz = target.z - eye.z
@@ -202,7 +202,7 @@ object RotationUtils {
         return yaw to pitch
     }
 
-    private fun simulateArrowYAtRange(eye: Vec3d, yaw: Float, pitch: Float, targetHorizDist: Double): Double? {
+    private fun simulateArrowYAtRange(eye: Vec3, yaw: Float, pitch: Float, targetHorizDist: Double): Double? {
         val dir = AngleUtils.directionFromAngles(yaw, pitch)
         var vx = dir.x * BowSimulator.SHORTBOW_VELOCITY
         var vy = dir.y * BowSimulator.SHORTBOW_VELOCITY
@@ -224,11 +224,11 @@ object RotationUtils {
         return null
     }
 
-    fun rotateByDirection(dir: Direction, x: Double, y: Double, z: Double): Vec3d = when (dir) {
-        Direction.NORTH -> Vec3d(x, y, z)
-        Direction.EAST -> Vec3d(-z, y, x)
-        Direction.SOUTH -> Vec3d(-x, y, -z)
-        Direction.WEST -> Vec3d(z, y, -x)
-        else -> Vec3d.ZERO
+    fun rotateByDirection(dir: Direction, x: Double, y: Double, z: Double): Vec3 = when (dir) {
+        Direction.NORTH -> Vec3(x, y, z)
+        Direction.EAST -> Vec3(-z, y, x)
+        Direction.SOUTH -> Vec3(-x, y, -z)
+        Direction.WEST -> Vec3(z, y, -x)
+        else -> Vec3.ZERO
     }
 }

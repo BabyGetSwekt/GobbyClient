@@ -17,9 +17,12 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.MinecraftClient
-import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.util.Identifier
+import net.minecraft.client.Minecraft
+import net.minecraft.commands.CommandBuildContext
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -30,7 +33,7 @@ class Gobbyclient : ClientModInitializer {
 
 		FabricLoader.getInstance().getModContainer(MOD_ID).ifPresent { container ->
 			ResourceManagerHelper.registerBuiltinResourcePack(
-				Identifier.of(MOD_ID, "fonts"),
+				ResourceLocation.fromNamespaceAndPath(MOD_ID, "fonts"),
 				container,
 				ResourcePackActivationType.ALWAYS_ENABLED
 			)
@@ -49,14 +52,14 @@ class Gobbyclient : ClientModInitializer {
 
 	private fun initEvents() {
 		//? if <=1.21.10 {
-		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource?>?, _: CommandRegistryAccess? ->
+		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource?>?, _: CommandBuildContext? ->
 			dispatcher?.let {
 				EVENT_MANAGER.publish(CommandRegisterEvent(it))
 			}
 		})
 		//?}
 		//? if >=1.21.11 {
-		/*ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandRegistryAccess ->
+		/*ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandBuildContext ->
 			@Suppress("UNCHECKED_CAST")
 			EVENT_MANAGER.publish(CommandRegisterEvent(dispatcher as CommandDispatcher<FabricClientCommandSource?>))
 		})*/
@@ -68,7 +71,7 @@ class Gobbyclient : ClientModInitializer {
 		const val MOD_ID = "gobbyclient"
 		const val MOD_VERSION = BuildConfig.MOD_VERSION
 
-		val mc =  MinecraftClient.getInstance()
+		val mc =  Minecraft.getInstance()
 		val scope = CoroutineScope(SupervisorJob() + EmptyCoroutineContext)
 
 		@JvmStatic

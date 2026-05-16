@@ -10,8 +10,8 @@ import gobby.pathfinder.movement.InputManager
 import gobby.pathfinder.movement.InputManager.MoveAction
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.render.BlockRenderUtils.draw3DBox
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
 import java.awt.Color
 import kotlin.math.PI
 import kotlin.math.abs
@@ -123,11 +123,11 @@ object PathExecutor {
         return index > 0 && path[index - 1].feetY - path[index].feetY > DROP_SEGMENT_DELTA
     }
 
-    private fun repath(player: net.minecraft.client.network.ClientPlayerEntity) {
+    private fun repath(player: net.minecraft.client.player.LocalPlayer) {
         val goal = goalPos ?: return
-        val speed = player.movementSpeed.toDouble()
+        val speed = player.speed.toDouble()
         modMessage("§eRepathing...")
-        val newPath = PathFinder.findPath(player.blockPos, goal, speed)
+        val newPath = PathFinder.findPath(player.blockPosition(), goal, speed)
         if (newPath != null) {
             currentPath = newPath
             currentIndex = 0
@@ -152,7 +152,7 @@ object PathExecutor {
         val py = player.y
         val pz = player.z
 
-        val speedMult = max(1.0f, player.movementSpeed / BASE_SPEED)
+        val speedMult = max(1.0f, player.speed / BASE_SPEED)
         val nodeReachHSq = BASE_NODE_REACH_H_SQ * speedMult * speedMult
         val maxLookahead = (BASE_MAX_LOOKAHEAD * speedMult).toInt()
         val scanWindow = maxLookahead + 4
@@ -166,13 +166,13 @@ object PathExecutor {
             val vDist = abs(py - path[i].feetY)
 
             if (path[i].action == MoveAction.JUMP) {
-                if (hDistSq < JUMP_LAND_H_SQ && vDist < JUMP_LAND_V && player.isOnGround) {
+                if (hDistSq < JUMP_LAND_H_SQ && vDist < JUMP_LAND_V && player.onGround()) {
                     currentIndex = i + 1
                 } else {
                     break
                 }
             } else if (isDropLanding(path, i)) {
-                if (hDistSq < DROP_LAND_H_SQ && vDist < DROP_LAND_V && player.isOnGround) {
+                if (hDistSq < DROP_LAND_H_SQ && vDist < DROP_LAND_V && player.onGround()) {
                     currentIndex = i + 1
                 } else {
                     break
@@ -199,7 +199,7 @@ object PathExecutor {
             lastIndex = currentIndex
         }
 
-        if (player.isOnGround) {
+        if (player.onGround()) {
             groundTicks++
             if (!smoothYaw.isNaN()) lastGroundYaw = smoothYaw
         } else {
@@ -208,9 +208,9 @@ object PathExecutor {
 
         val currentNode = path[currentIndex]
         val needsJump = currentNode.action == MoveAction.JUMP
-        val inJumpArc = needsJump && !player.isOnGround
+        val inJumpArc = needsJump && !player.onGround()
         val isDropSegment = currentIndex > 0 && path[currentIndex - 1].feetY - currentNode.feetY > DROP_SEGMENT_DELTA
-        val isFreefall = !player.isOnGround && !needsJump && isDropSegment
+        val isFreefall = !player.onGround() && !needsJump && isDropSegment
 
         val lookIdx = adaptiveLookahead(path, currentIndex, maxLookahead)
         val lookTarget = path[lookIdx]
@@ -218,7 +218,7 @@ object PathExecutor {
         val dz = (lookTarget.pos.z + 0.5) - pz
         val lookHDist = sqrt(dx * dx + dz * dz)
 
-        if (smoothYaw.isNaN()) smoothYaw = player.yaw
+        if (smoothYaw.isNaN()) smoothYaw = player.yRot
         var angleDelta = 0f
 
         val rotScale = min(speedMult, 3.0f)
@@ -237,11 +237,11 @@ object PathExecutor {
             val factor = min(baseFactor * rotScale, 1.0f)
             smoothYaw += wrapAngle(targetYaw - smoothYaw) * factor
         }
-        player.yaw = smoothYaw
+        player.yRot = smoothYaw
 
-        if (smoothPitch.isNaN()) smoothPitch = player.pitch
+        if (smoothPitch.isNaN()) smoothPitch = player.xRot
         smoothPitch += (0f - smoothPitch) * PITCH_SMOOTH_FACTOR
-        player.pitch = smoothPitch
+        player.xRot = smoothPitch
 
         InputManager.releaseAll()
 
@@ -254,7 +254,7 @@ object PathExecutor {
         if (inJumpArc || angleDelta < angleThreshold) {
             InputManager.press(MoveAction.FORWARD)
 
-            if (needsJump && player.isOnGround && groundTicks >= GROUND_TICKS_TO_JUMP) {
+            if (needsJump && player.onGround() && groundTicks >= GROUND_TICKS_TO_JUMP) {
                 val target = currentNode.pos
                 val tdx = abs((target.x + 0.5) - px)
                 val tdz = abs((target.z + 0.5) - pz)
@@ -279,7 +279,7 @@ object PathExecutor {
         if (path == null) return
 
         for (i in startIdx until path.size) {
-            val box = Box(path[i].pos)
+            val box = AABB(path[i].pos)
             val color = if (isFollowing && i == currentIndex) cTarget else cUpcoming
             draw3DBox(event.matrixStack, event.camera, box, color, depthTest = false)
         }

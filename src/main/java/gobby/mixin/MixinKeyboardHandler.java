@@ -3,10 +3,10 @@ package gobby.mixin;
 import gobby.Gobbyclient;
 import gobby.events.CharTypedEvent;
 import gobby.events.KeyPressGuiEvent;
-import net.minecraft.client.Keyboard;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.KeyboardHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -14,16 +14,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Keyboard.class)
-public class MixinKeyboard {
+@Mixin(KeyboardHandler.class)
+public class MixinKeyboardHandler {
 
-    @Shadow private MinecraftClient client;
+    @Shadow private Minecraft minecraft;
 
-    @Inject(method = "onKey(JILnet/minecraft/client/input/KeyInput;)V", at = @At("HEAD"), cancellable = true)
-    private void gobbyclient$onKeyPressed(long window, int action, KeyInput input, CallbackInfo ci) {
+    @Inject(method = "keyPress(JILnet/minecraft/client/input/KeyEvent;)V", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$onKeyPressed(long window, int action, KeyEvent input, CallbackInfo ci) {
         int key = input.key();
 
-        if (action == GLFW.GLFW_PRESS && key != GLFW.GLFW_KEY_UNKNOWN && client.world != null) {
+        if (action == GLFW.GLFW_PRESS && key != GLFW.GLFW_KEY_UNKNOWN && minecraft.level != null) {
             KeyPressGuiEvent event = Gobbyclient.EVENT_MANAGER.publish(new KeyPressGuiEvent(key));
 
             if (event.isCanceled()) {
@@ -32,8 +32,8 @@ public class MixinKeyboard {
         }
     }
 
-    @Inject(method = "onChar(JLnet/minecraft/client/input/CharInput;)V", at = @At("HEAD"), cancellable = true)
-    private void gobbyclient$onCharTyped(long window, CharInput input, CallbackInfo ci) {
+    @Inject(method = "charTyped(JLnet/minecraft/client/input/CharacterEvent;)V", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$onCharTyped(long window, CharacterEvent input, CallbackInfo ci) {
         CharTypedEvent event = Gobbyclient.EVENT_MANAGER.publish(new CharTypedEvent(input.codepoint()));
 
         if (event.isCanceled()) {

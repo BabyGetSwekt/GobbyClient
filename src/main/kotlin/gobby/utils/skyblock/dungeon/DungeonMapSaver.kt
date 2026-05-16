@@ -17,8 +17,8 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.START_X
 import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.map.MapTile
 import gobby.utils.skyblock.dungeon.tiles.RoomType
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -101,7 +101,7 @@ object DungeonMapSaver : RegionBlockCopier() {
     }
 
     fun copyMap() {
-        val server = mc.server ?: run { errorMessage("No integrated server found"); return }
+        val server = mc.singleplayerServer ?: run { errorMessage("No integrated server found"); return }
         if (!configFile.exists()) { errorMessage("No saved map found"); return }
         val serverWorld = BlockPaster.overworld(server) ?: return
 
@@ -115,14 +115,14 @@ object DungeonMapSaver : RegionBlockCopier() {
 
         var clearX = MIN_X
         fun clearStep() {
-            val air = Blocks.AIR.defaultState
-            val pos = BlockPos.Mutable()
+            val air = Blocks.AIR.defaultBlockState()
+            val pos = BlockPos.MutableBlockPos()
             var count = 0
             while (clearX <= MAX_X && count < PASTE_BATCH_SIZE) {
                 for (z in MIN_Z..MAX_Z) for (y in MAX_Y downTo MIN_Y) {
                     pos.set(clearX, y, z)
                     if (!serverWorld.getBlockState(pos).isAir) {
-                        serverWorld.setBlockState(pos, air, FLAGS_SILENT)
+                        serverWorld.setBlock(pos, air, FLAGS_SILENT)
                         count++
                     }
                 }
@@ -139,8 +139,8 @@ object DungeonMapSaver : RegionBlockCopier() {
                 modMessage("§aPasted ${allPositions.size} blocks")
 
                 data.spawn?.let { spawn ->
-                    val serverPlayer = server.playerManager.getPlayer(mc.player?.uuid ?: return@let)
-                    serverPlayer?.teleport(serverWorld, spawn[0] + 0.5, spawn[1].toDouble(), spawn[2] + 0.5, setOf(), 0f, 0f, false)
+                    val serverPlayer = server.playerList.getPlayer(mc.player?.uuid ?: return@let)
+                    serverPlayer?.teleportTo(serverWorld, spawn[0] + 0.5, spawn[1].toDouble(), spawn[2] + 0.5, emptySet<net.minecraft.world.entity.Relative>(), 0f, 0f, false)
                     modMessage("§aTeleported to entrance room")
                 }
             }

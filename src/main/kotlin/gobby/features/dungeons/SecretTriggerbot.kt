@@ -8,19 +8,19 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.Utils.equalsOneOf
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.ScanUtils.currentRoom
-import net.minecraft.block.ChestBlock
-import net.minecraft.block.entity.ChestBlockEntity
-import net.minecraft.block.entity.ChestLidAnimator
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.ChestBlock
+import net.minecraft.world.level.block.entity.ChestBlockEntity
+import net.minecraft.world.level.block.entity.ChestLidController
+import net.minecraft.core.BlockPos
 
 object SecretTriggerbot : Triggerbot("Secret Triggerbot", "Automatically right-clicks dungeon secrets", Category.DUNGEONS) {
 
     private val lidAnimatorField by lazy {
-        ChestBlockEntity::class.java.declaredFields.first { it.type == ChestLidAnimator::class.java }.apply { isAccessible = true }
+        ChestBlockEntity::class.java.declaredFields.first { it.type == ChestLidController::class.java }.apply { isAccessible = true }
     }
 
     override fun shouldActivate(): Boolean {
-        if (!inDungeons || inBoss || mc.currentScreen != null) return false
+        if (!inDungeons || inBoss || mc.screen != null) return false
         if (!enabled) return false
         if (currentRoom?.data?.name.equalsOneOf("Water Board", "Three Weirdos")) return false
         return true
@@ -28,11 +28,11 @@ object SecretTriggerbot : Triggerbot("Secret Triggerbot", "Automatically right-c
 
     override fun isValidBlock(pos: BlockPos): Boolean {
         if (!DungeonUtils.isSecret(pos)) return false
-        val world = mc.world ?: return false
+        val world = mc.level ?: return false
         if (world.getBlockState(pos).block is ChestBlock) {
             val be = world.getBlockEntity(pos) as? ChestBlockEntity ?: return false
-            val animator = lidAnimatorField.get(be) as? ChestLidAnimator ?: return false
-            if (animator.getProgress(0f) > 0f) return false
+            val animator = lidAnimatorField.get(be) as? ChestLidController ?: return false
+            if (animator.getOpenness(0f) > 0f) return false
         }
         return true
     }

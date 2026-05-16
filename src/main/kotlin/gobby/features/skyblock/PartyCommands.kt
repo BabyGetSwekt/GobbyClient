@@ -14,7 +14,7 @@ object PartyCommands : Module("Party Commands", "Enables party commands (!help i
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (mc.player == null || mc.world == null || !enabled) return
+        if (mc.player == null || mc.level == null || !enabled) return
         val rawMessage = event.message
         val match = partyMessageRegex.matchEntire(rawMessage) ?: return
         val (rank, username, message) = match.destructured
@@ -32,7 +32,7 @@ object PartyCommands : Module("Party Commands", "Enables party commands (!help i
             "!help" -> handleHelp(username, args)
             "!warp" -> sendCommand("p warp")
             "!pt" -> sendCommand("p transfer $username")
-            "!fps" -> partyMessage("FPS: ${mc.currentFps}")
+            "!fps" -> partyMessage("FPS: ${mc.fps}")
         }
     }
 

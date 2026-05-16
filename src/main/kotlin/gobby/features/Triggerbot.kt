@@ -8,9 +8,9 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.PlayerUtils
 import gobby.utils.timer.Clock
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.HitResult
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.HitResult
+import net.minecraft.core.BlockPos
 
 abstract class Triggerbot(
     name: String,
@@ -24,7 +24,7 @@ abstract class Triggerbot(
 
     @SubscribeEvent
     open fun onTick(event: ClientTickEvent.Pre) {
-        if (mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.level == null) return
         if (!shouldActivate()) return
         if (!clock.hasTimePassed(getClickDelay())) return
 
@@ -51,7 +51,7 @@ abstract class Triggerbot(
     open fun getBlockCooldown(): Long = 5000L
 
     protected open fun getTargetPos(): BlockPos? {
-        val hitResult = mc.crosshairTarget
+        val hitResult = mc.hitResult
         if (hitResult !is BlockHitResult || hitResult.type != HitResult.Type.BLOCK) return null
         return hitResult.blockPos
     }

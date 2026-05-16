@@ -6,7 +6,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.Ability
 import gobby.utils.parseAbilities
 import gobby.utils.skyblockID
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 /**
  * Tracks ability cooldowns parsed from item lore.

@@ -3,59 +3,58 @@ package gobby.utils.render
 import com.mojang.blaze3d.pipeline.BlendFunction
 import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.platform.DepthTestFunction
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode
-
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.render.VertexFormats
+import com.mojang.blaze3d.shaders.UniformType
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
+import gobby.mixin.accessor.RenderPipelinesAccessor
+import net.minecraft.resources.ResourceLocation
 
 object GobbyRenderPipelines {
 
-    val ESP_LINES: RenderPipeline = RenderPipelines.register(
-        RenderPipeline.builder()
+    private fun base(builder: RenderPipeline.Builder): RenderPipeline.Builder = builder
+        .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+        .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+        .withUniform("Fog", UniformType.UNIFORM_BUFFER)
+        .withBlend(BlendFunction.TRANSLUCENT)
+        .withCull(false)
+
+    val ESP_QUADS: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
+        base(RenderPipeline.builder())
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withLocation("pipeline/lines")
+            .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/esp_quads"))
             .build()
     )
 
-    val ESP_QUADS: RenderPipeline = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withVertexShader("core/position_color")
-            .withFragmentShader("core/position_color")
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+    val ESP_LINES: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
+        base(RenderPipeline.builder())
+            .withVertexShader("core/rendertype_lines")
+            .withFragmentShader("core/rendertype_lines")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withLocation("pipeline/lines")
-            .withCull(false)
+            .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/esp_lines"))
             .build()
     )
 
-    val ESP_TEST_LINES: RenderPipeline = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.RENDERTYPE_LINES_SNIPPET)
-            .withLocation("pipeline/gobby_esp_lines")
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .build()
-    )
-
-    val DEPTH_QUADS: RenderPipeline = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+    val DEPTH_QUADS: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
+        base(RenderPipeline.builder())
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withLocation("pipeline/gobby_depth_quads")
-            .withCull(false)
+            .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/depth_quads"))
             .build()
     )
 
-    val DEPTH_LINES: RenderPipeline = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.RENDERTYPE_LINES_SNIPPET)
-            .withLocation("pipeline/gobby_depth_lines")
+    val DEPTH_LINES: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
+        base(RenderPipeline.builder())
+            .withVertexShader("core/rendertype_lines")
+            .withFragmentShader("core/rendertype_lines")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/depth_lines"))
             .build()
     )
 }

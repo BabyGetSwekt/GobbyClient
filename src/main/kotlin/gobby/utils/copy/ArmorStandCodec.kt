@@ -1,22 +1,22 @@
 package gobby.utils.copy
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.storage.NbtWriteView
-import net.minecraft.util.ErrorReporter
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.level.storage.TagValueOutput
+import net.minecraft.util.ProblemReporter
 import org.slf4j.Logger
 
 object ArmorStandCodec {
 
-    fun encode(stand: ArmorStandEntity, logger: Logger): String? {
-        val world = mc.world ?: return null
+    fun encode(stand: ArmorStand, logger: Logger): String? {
+        val world = mc.level ?: return null
         return try {
-            val writeView = NbtWriteView.create(
-                ErrorReporter.Logging(stand.errorReporterContext, logger),
-                world.registryManager
+            val writeView = TagValueOutput.createWithContext(
+                ProblemReporter.DISCARDING,
+                world.registryAccess()
             )
-            stand.saveSelfData(writeView)
-            val nbt = writeView.nbt
+            stand.saveWithoutId(writeView)
+            val nbt = writeView.buildResult()
             nbt.putString("id", "minecraft:armor_stand")
             nbt.toString()
         } catch (_: Exception) {

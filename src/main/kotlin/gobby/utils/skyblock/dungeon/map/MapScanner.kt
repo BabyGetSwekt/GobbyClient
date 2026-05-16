@@ -9,8 +9,8 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.START_X
 import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
 
 object MapScanner {
 
@@ -60,7 +60,7 @@ object MapScanner {
      * Returns true when all chunks are loaded.
      */
     fun scan(grid: Array<MapTile>): Boolean {
-        val world = mc.world ?: return false
+        val world = mc.level ?: return false
         var allLoaded = true
 
         for (col in 0 until GRID_SIZE step 2) {
@@ -277,7 +277,7 @@ object MapScanner {
      * No ceiling or full-height wall = no passage = null.
      */
     private fun detectDoor(col: Int, row: Int, a: MapTile.Room, b: MapTile.Room): MapTile.Door? {
-        val world = mc.world ?: return null
+        val world = mc.level ?: return null
         val x = START_X + col * HALF_ROOM
         val z = START_Z + row * HALF_ROOM
 

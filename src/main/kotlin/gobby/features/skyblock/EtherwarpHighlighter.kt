@@ -7,7 +7,7 @@ import gobby.features.dungeons.EtherwarpTriggerbot
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.isEtherwarpable
-import net.minecraft.util.math.Box
+import net.minecraft.world.phys.AABB
 import java.awt.Color
 
 object EtherwarpHighlighter {
@@ -19,14 +19,14 @@ object EtherwarpHighlighter {
     fun onRender3D(event: NewRender3DEvent) {
         if (!(EtherwarpTriggerbot.enabled && EtherwarpTriggerbot.highlighter)) return
         val player = mc.player ?: return
-        if (!player.isSneaking) return
-        if (!player.mainHandStack.isEtherwarpable()) return
+        if (!player.isShiftKeyDown) return
+        if (!player.mainHandItem.isEtherwarpable()) return
 
         val etherPos = EtherwarpUtils.getEtherPos()
         val pos = etherPos.pos ?: return
         val color = if (etherPos.succeeded) validColor else invalidColor
 
-        val box = Box(
+        val box = AABB(
             pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
             pos.x + 1.0, pos.y + 1.0, pos.z + 1.0
         )

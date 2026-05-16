@@ -1,6 +1,6 @@
 package gobby.events
 
-import net.minecraft.network.packet.Packet
+import net.minecraft.network.protocol.Packet
 
 class PacketReceivedEvent(val packet: Packet<*>) : Events.Cancelable<Unit>()
 

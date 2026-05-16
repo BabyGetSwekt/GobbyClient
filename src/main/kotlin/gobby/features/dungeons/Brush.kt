@@ -18,19 +18,22 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
-import net.minecraft.block.BlockState
-import net.minecraft.block.Blocks
-import net.minecraft.block.SlabBlock
-import net.minecraft.block.StairsBlock
-import net.minecraft.block.enums.BlockHalf
-import net.minecraft.block.enums.SlabType
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.registry.Registries
-import net.minecraft.util.Identifier
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.HitResult
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.SlabBlock
+import net.minecraft.world.level.block.StairBlock
+import net.minecraft.world.level.block.state.properties.Half
+import net.minecraft.world.level.block.state.properties.SlabType
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.core.registries.BuiltInRegistries
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.HitResult
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import java.io.File
 
 object Brush {
@@ -80,30 +83,30 @@ object Brush {
     }
 
     private fun encodeCoord(coord: String, state: BlockState): String = when (state.block) {
-        is StairsBlock -> "$coord|facing=${state.get(StairsBlock.FACING).asString()},half=${state.get(StairsBlock.HALF).asString()}"
-        is SlabBlock -> "$coord|type=${state.get(SlabBlock.TYPE).asString()}"
+        is StairBlock -> "$coord|facing=${state.getValue(StairBlock.FACING).serializedName},half=${state.getValue(StairBlock.HALF).serializedName}"
+        is SlabBlock -> "$coord|type=${state.getValue(SlabBlock.TYPE).serializedName}"
         else -> coord
     }
 
     private fun decodeState(blockId: String, encoded: String): BlockState {
-        val block = Registries.BLOCK.get(Identifier.of(blockId))
-        var state = block.defaultState
+        val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
+        var state = block.defaultBlockState()
         val pipeIdx = encoded.indexOf('|')
         if (pipeIdx == -1) return state
 
         for (prop in encoded.substring(pipeIdx + 1).split(",")) {
             val (key, value) = prop.split("=", limit = 2)
             when (key) {
-                "facing" -> if (block is StairsBlock) state = state.with(StairsBlock.FACING, Direction.valueOf(value.uppercase()))
-                "half" -> if (block is StairsBlock) state = state.with(StairsBlock.HALF, BlockHalf.valueOf(value.uppercase()))
-                "type" -> if (block is SlabBlock) state = state.with(SlabBlock.TYPE, SlabType.valueOf(value.uppercase()))
+                "facing" -> if (block is StairBlock) state = state.setValue(StairBlock.FACING, Direction.valueOf(value.uppercase()))
+                "half" -> if (block is StairBlock) state = state.setValue(StairBlock.HALF, Half.valueOf(value.uppercase()))
+                "type" -> if (block is SlabBlock) state = state.setValue(SlabBlock.TYPE, SlabType.valueOf(value.uppercase()))
             }
         }
         return state
     }
 
     private fun getTargetedBlock(): BlockHitResult? {
-        val hit = mc.crosshairTarget
+        val hit = mc.hitResult
         if (hit !is BlockHitResult || hit.type != HitResult.Type.BLOCK) return null
         return hit
     }
@@ -114,25 +117,25 @@ object Brush {
         return removed
     }
 
-    private fun saveOriginalState(pos: BlockPos, world: ClientWorld) {
+    private fun saveOriginalState(pos: BlockPos, world: ClientLevel) {
         originalStates.putIfAbsent(pos, world.getBlockState(pos))
     }
 
     private fun computePlacementState(defaultState: BlockState, hitResult: BlockHitResult): BlockState {
         val player = mc.player ?: return defaultState
-        val hitY = hitResult.pos.y - hitResult.blockPos.y.toDouble()
-        val isUpper = when (hitResult.side) {
+        val hitY = hitResult.location.y - hitResult.blockPos.y.toDouble()
+        val isUpper = when (hitResult.direction) {
             Direction.UP -> false
             Direction.DOWN -> true
             else -> hitY > 0.5
         }
 
         return when (defaultState.block) {
-            is StairsBlock -> defaultState
-                .with(StairsBlock.FACING, player.horizontalFacing)
-                .with(StairsBlock.HALF, if (isUpper) BlockHalf.TOP else BlockHalf.BOTTOM)
+            is StairBlock -> defaultState
+                .setValue(StairBlock.FACING, player.direction)
+                .setValue(StairBlock.HALF, if (isUpper) Half.TOP else Half.BOTTOM)
             is SlabBlock -> defaultState
-                .with(SlabBlock.TYPE, if (isUpper) SlabType.TOP else SlabType.BOTTOM)
+                .setValue(SlabBlock.TYPE, if (isUpper) SlabType.TOP else SlabType.BOTTOM)
             else -> defaultState
         }
     }
@@ -222,90 +225,90 @@ object Brush {
     private fun saveBoss() = saveToFile(bossConfigFile, "boss brush", bossData)
 
     private fun applyBlockData(
-        world: ClientWorld,
+        world: ClientLevel,
         blockMap: Map<String, List<String>>,
         posMapper: (BlockPos) -> BlockPos = { it }
     ) {
         val stairPositions = mutableListOf<BlockPos>()
         for ((blockId, coords) in blockMap) {
-            val block = Registries.BLOCK.get(Identifier.of(blockId))
+            val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
             for (encoded in coords) {
                 val pos = posMapper(parseCoord(encoded))
                 val state = decodeState(blockId, encoded)
                 val oldState = world.getBlockState(pos)
                 saveOriginalState(pos, world)
-                world.setBlockState(pos, state)
-                mc.worldRenderer.updateBlock(world, pos, oldState, state, 3)
-                if (block is StairsBlock) stairPositions.add(pos)
+                world.setBlock(pos, state, 3)
+                mc.levelRenderer.blockChanged(world, pos, oldState, state, 3)
+                if (block is StairBlock) stairPositions.add(pos)
             }
         }
 
-        val random = net.minecraft.util.math.random.Random.create()
+        val random = net.minecraft.util.RandomSource.create()
         for (pos in stairPositions) {
             var state = world.getBlockState(pos)
             for (dir in Direction.entries) {
-                val neighborPos = pos.offset(dir)
-                state = state.getStateForNeighborUpdate(world, world, pos, dir, neighborPos, world.getBlockState(neighborPos), random)
+                val neighborPos = pos.relative(dir)
+                state = state.updateShape(world, world, pos, dir, neighborPos, world.getBlockState(neighborPos), random)
             }
             val current = world.getBlockState(pos)
             if (state != current) {
-                world.setBlockState(pos, state)
-                mc.worldRenderer.updateBlock(world, pos, current, state, 3)
+                world.setBlock(pos, state, 3)
+                mc.levelRenderer.blockChanged(world, pos, current, state, 3)
             }
         }
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (!mc.options.useKey.isPressed) rightClickUsed = false
-        if (!mc.options.attackKey.isPressed) leftClickUsed = false
+        if (!mc.options.keyUse.isDown) rightClickUsed = false
+        if (!mc.options.keyAttack.isDown) leftClickUsed = false
 
-        val inGui = mc.currentScreen != null
+        val inGui = mc.screen != null
         if (wasInGui && !inGui) {
-            rightClickUsed = mc.options.useKey.isPressed
-            leftClickUsed = mc.options.attackKey.isPressed
+            rightClickUsed = mc.options.keyUse.isDown
+            leftClickUsed = mc.options.keyAttack.isDown
         }
         wasInGui = inGui
 
         if (inDungeons && inBoss && !wasInBoss) {
-            val world = mc.world
+            val world = mc.level
             val floorBlocks = bossData[dungeonFloor.toString()]
             if (world != null && floorBlocks != null) applyBlockData(world, floorBlocks)
         }
         wasInBoss = inDungeons && inBoss
 
         if (!enabled) return
-        if (!mc.options.pickItemKey.wasPressed()) return
-        val world = mc.world ?: return
+        if (!mc.options.keyPickItem.consumeClick()) return
+        val world = mc.level ?: return
         val hitResult = getTargetedBlock() ?: return
         val block = world.getBlockState(hitResult.blockPos).block
         if (block == Blocks.AIR) return
         BlockSelector.selectedBlock = block
-        modMessage("Selected block: §a${Registries.BLOCK.getId(block)}")
+        modMessage("Selected block: §a${BuiltInRegistries.BLOCK.getKey(block)}")
     }
 
     @SubscribeEvent
     fun onRightClick(event: RightClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (rightClickUsed) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val selectedBlock = BlockSelector.selectedBlock ?: return
 
-        var placePos = hitResult.blockPos.offset(hitResult.side)
-        if (!world.getBlockState(placePos).isAir) placePos = placePos.offset(hitResult.side)
-        val blockId = Registries.BLOCK.getId(selectedBlock).toString()
+        var placePos = hitResult.blockPos.relative(hitResult.direction)
+        if (!world.getBlockState(placePos).isAir) placePos = placePos.relative(hitResult.direction)
+        val blockId = BuiltInRegistries.BLOCK.getKey(selectedBlock).toString()
         val ctx = resolveContext(placePos) ?: return
 
         removeCoord(ctx.blocks, ctx.coord)
         saveOriginalState(placePos, world)
-        val state = computePlacementState(selectedBlock.defaultState, hitResult)
+        val state = computePlacementState(selectedBlock.defaultBlockState(), hitResult)
         val encodedCoord = encodeCoord(ctx.coord, state)
         ctx.blocks.getOrPut(blockId) { mutableListOf() }.add(encodedCoord)
-        world.setBlockState(placePos, state)
+        world.setBlock(placePos, state, 3)
         ctx.save()
 
         rightClickUsed = true
@@ -315,25 +318,25 @@ object Brush {
     fun onLeftClick(event: LeftClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (leftClickUsed) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val pos = hitResult.blockPos
         val ctx = resolveContext(pos) ?: return
 
         val found = removeCoord(ctx.blocks, ctx.coord)
         if (found) {
-            val original = originalStates.remove(pos) ?: Blocks.AIR.defaultState
-            world.setBlockState(pos, original)
+            val original = originalStates.remove(pos) ?: Blocks.AIR.defaultBlockState()
+            world.setBlock(pos, original, 3)
         } else {
             val currentState = world.getBlockState(pos)
             if (currentState.isAir) return
             ctx.blocks.getOrPut("minecraft:air") { mutableListOf() }.add(ctx.coord)
             saveOriginalState(pos, world)
-            world.setBlockState(pos, Blocks.AIR.defaultState)
-            mc.worldRenderer.updateBlock(world, pos, currentState, Blocks.AIR.defaultState, 3)
+            world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3)
+            mc.levelRenderer.blockChanged(world, pos, currentState, Blocks.AIR.defaultBlockState(), 3)
         }
         ctx.save()
 
@@ -353,7 +356,7 @@ object Brush {
     @SubscribeEvent
     fun onRoomEnter(event: RoomEnterEvent) {
         val room = event.room ?: return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val roomBlocks = brushData[room.data.name] ?: return
         applyBlockData(world, roomBlocks) { room.getRealCoords(it) }
     }

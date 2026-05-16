@@ -15,11 +15,11 @@ import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.rotation.AngleUtils
 import gobby.utils.skyblockID
-import net.minecraft.item.BowItem
-import net.minecraft.item.EnderPearlItem
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.MathHelper
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.item.BowItem
+import net.minecraft.world.item.EnderpearlItem
+import net.minecraft.world.phys.AABB
+import net.minecraft.util.Mth
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import kotlin.math.cos
 import kotlin.math.min
@@ -29,7 +29,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
 
     private val showBow by BooleanSetting("Bow", true, desc = "Render trajectory while holding a bow")
     private val showPearl by BooleanSetting("Pearl", true, desc = "Render trajectory while holding an ender pearl")
-    private val boxColor by ColorSetting("Box Color", Color(0, 200, 255, 255), desc = "Color of the impact box")
+    private val boxColor by ColorSetting("AABB Color", Color(0, 200, 255, 255), desc = "Color of the impact box")
     private val lineColor by ColorSetting("Line Color", Color(0, 200, 255, 200), desc = "Color of the trajectory line")
     private val simulationTicks by NumberSetting("Simulation Ticks", default = 60, min = 5, max = 200, step = 1, desc = "How far ahead to predict the trajectory in ticks")
 
@@ -46,7 +46,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
 
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
-        val drawing = mc.player?.takeIf { it.isUsingItem && it.activeItem.item is BowItem } != null
+        val drawing = mc.player?.takeIf { it.isUsingItem && it.useItem.item is BowItem } != null
         lastDrawTicks = drawTicks
         drawTicks = if (drawing) min(drawTicks + 1, FULL_DRAW_TICKS) else 0
     }
@@ -55,57 +55,57 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled) return
         val player = mc.player ?: return
-        val held = player.mainHandStack.takeUnless { it.isEmpty } ?: return
+        val held = player.mainHandItem.takeUnless { it.isEmpty } ?: return
 
-        val partial = mc.renderTickCounter.getTickProgress(false)
-        val yaw = MathHelper.lerp(partial, player.lastYaw, player.yaw)
-        val pitch = MathHelper.lerp(partial, player.lastPitch, player.pitch)
-        val eye = player.getCameraPosVec(partial)
+        val partial = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
+        val yaw = Mth.lerp(partial, player.yRotO, player.yRot)
+        val pitch = Mth.lerp(partial, player.xRotO, player.xRot)
+        val eye = player.getEyePosition(partial)
 
         when {
             showBow && held.item is BowItem -> renderBow(event, yaw, pitch, eye, held.isShortbow(), held.skyblockID == "TERMINATOR")
-            showPearl && held.item is EnderPearlItem -> renderPearl(event, yaw, pitch, eye)
+            showPearl && held.item is EnderpearlItem -> renderPearl(event, yaw, pitch, eye)
         }
     }
 
-    private fun renderBow(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3d, isShortbow: Boolean, isTerminator: Boolean) {
+    private fun renderBow(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3, isShortbow: Boolean, isTerminator: Boolean) {
         if (isTerminator) {
             TERMINATOR_OFFSETS.forEach { offset ->
                 val origin = if (offset == 0f) eye else eye.subtract(0.0, SIDE_ARROW_Y_DROP, 0.0)
-                val velocity = AngleUtils.directionFromAngles(yaw + offset, pitch).multiply(BowSimulator.SHORTBOW_VELOCITY)
+                val velocity = AngleUtils.directionFromAngles(yaw + offset, pitch).scale(BowSimulator.SHORTBOW_VELOCITY)
                 renderHit(event, BowSimulator.simulate(origin, velocity, BowSimulator.ARROW_GRAVITY, simulationTicks, checkEntities = true))
             }
             return
         }
         val velocity = if (isShortbow) BowSimulator.SHORTBOW_VELOCITY else currentBowVelocity()
-        val outcome = BowSimulator.simulate(eye, AngleUtils.directionFromAngles(yaw, pitch).multiply(velocity), BowSimulator.ARROW_GRAVITY, simulationTicks, checkEntities = true)
+        val outcome = BowSimulator.simulate(eye, AngleUtils.directionFromAngles(yaw, pitch).scale(velocity), BowSimulator.ARROW_GRAVITY, simulationTicks, checkEntities = true)
         renderTrail(event, outcome.trail)
         renderHit(event, outcome)
     }
 
-    private fun renderPearl(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3d) {
+    private fun renderPearl(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3) {
         val origin = eye.add(handOffset(yaw))
-        val outcome = BowSimulator.simulate(origin, AngleUtils.directionFromAngles(yaw, pitch).multiply(BowSimulator.PEARL_VELOCITY), BowSimulator.PEARL_GRAVITY, simulationTicks, checkEntities = false)
+        val outcome = BowSimulator.simulate(origin, AngleUtils.directionFromAngles(yaw, pitch).scale(BowSimulator.PEARL_VELOCITY), BowSimulator.PEARL_GRAVITY, simulationTicks, checkEntities = false)
         renderTrail(event, outcome.trail)
         renderHit(event, outcome)
     }
 
-    private fun handOffset(yaw: Float): Vec3d {
+    private fun handOffset(yaw: Float): Vec3 {
         val rad = Math.toRadians(yaw.toDouble())
-        return Vec3d(-cos(rad) * HAND_LATERAL, -HAND_Y_DROP, -sin(rad) * HAND_LATERAL)
+        return Vec3(-cos(rad) * HAND_LATERAL, -HAND_Y_DROP, -sin(rad) * HAND_LATERAL)
     }
 
     private fun renderHit(event: NewRender3DEvent, outcome: BowSimulator.Outcome) = when {
         outcome.hitEntity != null -> draw3DBox(event.matrixStack, event.camera, outcome.hitEntity!!.boundingBox, boxColor, filled = false, depthTest = true)
-        outcome.impact != null -> draw3DBox(event.matrixStack, event.camera, Box.of(outcome.impact, BOX_SIZE, BOX_SIZE, BOX_SIZE), boxColor, filled = true, depthTest = true)
+        outcome.impact != null -> draw3DBox(event.matrixStack, event.camera, AABB.ofSize(outcome.impact, BOX_SIZE, BOX_SIZE, BOX_SIZE), boxColor, filled = true, depthTest = true)
         else -> Unit
     }
 
-    private fun renderTrail(event: NewRender3DEvent, trail: List<Vec3d>) =
+    private fun renderTrail(event: NewRender3DEvent, trail: List<Vec3>) =
         trail.zipWithNext { a, b -> drawLine3D(event.matrixStack, event.camera, a, b, lineColor, depthTest = true) }
 
     private fun currentBowVelocity(): Double {
-        val partial = mc.renderTickCounter.getTickProgress(false)
+        val partial = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
         val interpolated = lastDrawTicks + (drawTicks - lastDrawTicks) * partial
         return min(interpolated / FULL_DRAW_TICKS, 1f).toDouble() * 3.0
     }

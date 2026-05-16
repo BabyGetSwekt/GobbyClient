@@ -37,9 +37,9 @@ abstract class ChunkAreaScanner {
     protected fun scannedCount(): Int = scannedChunks.size
 
     private fun scanLoadedChunks() {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         for (cx in minCX..maxCX) for (cz in minCZ..maxCZ) {
-            if (!world.chunkManager.isChunkLoaded(cx, cz)) continue
+            if (world.chunkSource.getChunk(cx, cz, false) == null) continue
             val packed = packChunk(cx, cz)
             if (packed in scannedChunks) continue
             scanChunk(cx, cz)
@@ -65,11 +65,11 @@ abstract class ChunkAreaScanner {
     @SubscribeEvent
     fun onTickScan(event: ClientTickEvent.Post) {
         if (!isScanning || scannedChunks.size >= totalChunks) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         for (cx in minCX..maxCX) for (cz in minCZ..maxCZ) {
             val packed = packChunk(cx, cz)
             if (packed in scannedChunks) continue
-            if (!world.chunkManager.isChunkLoaded(cx, cz)) continue
+            if (world.chunkSource.getChunk(cx, cz, false) == null) continue
             scanChunk(cx, cz)
             scannedChunks.add(packed)
         }

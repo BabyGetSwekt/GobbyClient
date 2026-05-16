@@ -1,17 +1,16 @@
 package gobby.mixin.render;
 
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import gobby.Gobbyclient;
 import gobby.events.render.NewRender3DEvent;
 import gobby.mixin.accessor.CameraAccessor;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.Frustum;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.util.ObjectAllocator;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.culling.Frustum;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
@@ -20,11 +19,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(value = WorldRenderer.class)
-public class MixinWorldRenderer {
+@Mixin(value = LevelRenderer.class)
+public class MixinLevelRenderer {
 
-    @Inject(at = @At("TAIL"), method = "render(Lnet/minecraft/client/util/ObjectAllocator;Lnet/minecraft/client/render/RenderTickCounter;ZLnet/minecraft/client/render/Camera;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V")
-    public void gobbyclient$render(ObjectAllocator allocator, RenderTickCounter tickCounter, boolean renderBlockOutline,
+    @Inject(at = @At("TAIL"), method = "renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V")
+    public void gobbyclient$render(GraphicsResourceAllocator allocator, DeltaTracker tickCounter, boolean renderBlockOutline,
                        Camera camera, Matrix4f positionMatrix, Matrix4f matrix4f, Matrix4f projectionMatrix,
                        GpuBufferSlice fogBuffer, Vector4f fogColor, boolean renderSky,
                        CallbackInfo ci) {
@@ -34,11 +33,11 @@ public class MixinWorldRenderer {
         RenderSystem.getModelViewStack().pushMatrix().mul(positionMatrix);
         Frustum frustum = new Frustum(positionMatrix, projectionMatrix);
         //? if <=1.21.10
-        frustum.setPosition(camera.getPos().x, camera.getPos().y, camera.getPos().z);
+        frustum.prepare(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
         //? if >=1.21.11
-        /*{ Vec3d cp = ((CameraAccessor)(Object) camera).gobbyclient$getPos(); frustum.setPosition(cp.x, cp.y, cp.z); }*/
+        /*frustum.prepare(camera.position().x, camera.position().y, camera.position().z);*/
 
-        MatrixStack matrixStack = new MatrixStack();
+        PoseStack matrixStack = new PoseStack();
         NewRender3DEvent renderEvent = new NewRender3DEvent(matrixStack, frustum, tickCounter, camera);
         Gobbyclient.EVENT_MANAGER.publish(renderEvent);
 

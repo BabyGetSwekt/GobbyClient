@@ -10,9 +10,9 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
-import net.minecraft.client.network.PlayerListEntry
-import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket
-import net.minecraft.util.Formatting
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
+import net.minecraft.ChatFormatting
 
 object DungeonListener {
 
@@ -49,9 +49,9 @@ object DungeonListener {
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (!inDungeons) return
-        if (event.packet !is PlayerListS2CPacket) return
+        if (event.packet !is ClientboundPlayerInfoUpdatePacket) return
 
-        val tabEntries = mc.networkHandler?.playerList ?: return
+        val tabEntries = mc.connection?.listedOnlinePlayers ?: return
         updateDungeonTeammates(tabEntries)
     }
 
@@ -97,14 +97,14 @@ object DungeonListener {
     }
 
     fun refreshTeammates() {
-        val tabList = mc.networkHandler?.playerList ?: return
+        val tabList = mc.connection?.listedOnlinePlayers ?: return
         updateDungeonTeammates(tabList)
     }
 
-    private fun updateDungeonTeammates(tabList: Collection<PlayerListEntry>) {
+    private fun updateDungeonTeammates(tabList: Collection<PlayerInfo>) {
         for (entry in tabList.toList()) {
-            val displayText = entry.displayName ?: continue
-            val line = Formatting.strip(displayText.string) ?: continue
+            val displayText = entry.tabListDisplayName ?: continue
+            val line = ChatFormatting.stripFormatting(displayText.string) ?: continue
             if (line.isBlank()) continue
 
             val match = teammateRegex.find(line) ?: continue

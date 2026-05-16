@@ -8,9 +8,9 @@ import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils
-import net.minecraft.block.entity.SkullBlockEntity
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.BlockView
+import net.minecraft.world.level.block.entity.SkullBlockEntity
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.BlockGetter
 
 object SecretHitbox : Module(
     "Secret Hitbox", "Extends secret block hitboxes to a full block",
@@ -33,10 +33,10 @@ object SecretHitbox : Module(
         return normalLeverHitbox || f7LeverHitbox
     }
 
-    fun isSecretSkull(world: BlockView, pos: BlockPos): Boolean {
+    fun isSecretSkull(world: BlockGetter, pos: BlockPos): Boolean {
         if (!shouldExpand() || !skulls) return false
         val blockEntity = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
-        val id = blockEntity.owner?.gameProfile?.id?.toString() ?: return false
+        val id = blockEntity.ownerProfile?.partialProfile()?.id?.toString() ?: return false
         return id == DungeonUtils.WITHER_ESSENCE_ID || id == DungeonUtils.REDSTONE_KEY
     }
 }

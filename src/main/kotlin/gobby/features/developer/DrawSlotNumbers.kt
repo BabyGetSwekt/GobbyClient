@@ -2,18 +2,19 @@ package gobby.features.developer
 
 import gobby.gui.click.Category
 import gobby.gui.click.Module
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.ingame.HandledScreen
-import net.minecraft.text.Text
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.network.chat.Component
 
 object DrawSlotNumbers : Module("Draw Slot Numbers", "Draws slot index numbers in container GUIs", Category.DEVELOPER) {
 
-    fun onDrawSlots(screen: HandledScreen<*>, ctx: DrawContext) {
+    fun onDrawSlots(screen: AbstractContainerScreen<*>, ctx: GuiGraphics) {
         if (!enabled) return
-        val handler = screen.screenHandler
+        val handler = screen.menu
 
         for (slot in handler.slots) {
-            ctx.drawText(screen.textRenderer, Text.literal(slot.id.toString()), slot.x, slot.y, 0xFFFFFFFF.toInt(), true)
+            ctx.drawString(Minecraft.getInstance().font, Component.literal(slot.index.toString()), slot.x, slot.y, 0xFFFFFFFF.toInt(), true)
         }
     }
 }

@@ -1,8 +1,8 @@
 package gobby.utils.rotation
 
 import gobby.utils.PlayerUtils.getEyePosition
-import net.minecraft.util.math.Direction
-import net.minecraft.util.math.Vec3d
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -10,7 +10,7 @@ import kotlin.math.sqrt
 
 object AngleUtils {
 
-    fun calcAimAngles(target: Vec3d): Pair<Float, Float>? = calcAimAngles(target.x, target.y, target.z)
+    fun calcAimAngles(target: Vec3): Pair<Float, Float>? = calcAimAngles(target.x, target.y, target.z)
 
     fun calcAimAngles(targetX: Double, targetY: Double, targetZ: Double): Pair<Float, Float>? {
         val eye = getEyePosition() ?: return null
@@ -26,14 +26,14 @@ object AngleUtils {
         return yaw to pitch
     }
 
-    fun calcAimAnglesBetween(from: Vec3d, to: Vec3d): Pair<Float, Float> =
+    fun calcAimAnglesBetween(from: Vec3, to: Vec3): Pair<Float, Float> =
         calcAimAnglesFromDelta(to.x - from.x, to.y - from.y, to.z - from.z)
 
-    fun directionFromAngles(yaw: Float, pitch: Float): Vec3d {
+    fun directionFromAngles(yaw: Float, pitch: Float): Vec3 {
         val y = Math.toRadians(yaw.toDouble())
         val p = Math.toRadians(pitch.toDouble())
         val cosP = cos(p)
-        return Vec3d(-cosP * sin(y), -sin(p), cosP * cos(y))
+        return Vec3(-cosP * sin(y), -sin(p), cosP * cos(y))
     }
 
     fun Direction.horizontalDegrees(): Float = when (this) {

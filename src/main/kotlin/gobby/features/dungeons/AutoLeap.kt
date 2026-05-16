@@ -13,7 +13,7 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.doorOpener
 
 object AutoLeap : Module("Auto Leap", "Automatically leaps to the door opener", Category.DUNGEONS) {
 
-    val mode by SelectorSetting("Mode", 0, listOf("Auto Leap", "Left Click"), desc = "Auto Leap: Automatically leaps\nLeft Click: Only leaps when you left click")
+    val mode by SelectorSetting("Mode", 0, listOf("Auto Leap", "Left MouseButtonInfo"), desc = "Auto Leap: Automatically leaps\nLeft MouseButtonInfo: Only leaps when you left click")
 
     private val witherDoorRegex = Regex("""^\w+ opened a WITHER door!$""")
 

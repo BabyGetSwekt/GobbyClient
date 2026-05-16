@@ -3,7 +3,7 @@ package gobby.utils.copy
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 
 abstract class RegionBlockCopier : ChunkAreaScanner() {
 
@@ -23,9 +23,9 @@ abstract class RegionBlockCopier : ChunkAreaScanner() {
     }
 
     final override fun scanChunk(cx: Int, cz: Int) {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val bounds = chunkBounds(cx, cz) ?: return
-        val registries = world.registryManager
+        val registries = world.registryAccess()
         val (minX, maxX, minY, maxY, minZ, maxZ) = bounds
         for (x in minX..maxX) for (y in minY..maxY) for (z in minZ..maxZ) {
             val pos = BlockPos(x, y, z)
@@ -36,7 +36,7 @@ abstract class RegionBlockCopier : ChunkAreaScanner() {
 
             val be = world.getBlockEntity(pos) ?: continue
             try {
-                cachedBlockEntities.add(BlockEntityData(intArrayOf(x, y, z), be.createNbt(registries).toString()))
+                cachedBlockEntities.add(BlockEntityData(intArrayOf(x, y, z), be.saveWithFullMetadata(registries).toString()))
             } catch (_: Exception) {}
         }
         scanExtras(cx, cz)

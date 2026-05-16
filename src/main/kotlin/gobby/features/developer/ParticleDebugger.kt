@@ -10,12 +10,12 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.entity.projectile.FireworkRocketEntity
-import net.minecraft.item.ItemStack
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket
-import net.minecraft.registry.Registries
-import net.minecraft.util.math.Vec3d
+import net.minecraft.core.component.DataComponents
+import net.minecraft.world.entity.projectile.FireworkRocketEntity
+import net.minecraft.world.item.ItemStack
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt
 
 object ParticleDebugger : Module("Particle Debugger", "Prints every particle spawned within range", Category.DEVELOPER) {
@@ -23,16 +23,16 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
     private val range by NumberSetting("Range", default = 32, min = 1, max = 64, step = 1, desc = "Block radius around player")
     private val detectFireworks by BooleanSetting("Detect Fireworks", true, desc = "Also log firework rocket explosion effects (client-generated via EntityStatus 17)")
 
-    private data class CachedFirework(val pos: Vec3d, val stack: ItemStack?)
+    private data class CachedFirework(val pos: Vec3, val stack: ItemStack?)
     private val fireworkCache = HashMap<Int, CachedFirework>()
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (!enabled) return
-        val world = mc.world ?: return
-        for (entity in world.entities) {
+        val world = mc.level ?: return
+        for (entity in world.entitiesForRendering()) {
             if (entity is FireworkRocketEntity) {
-                fireworkCache[entity.id] = CachedFirework(Vec3d(entity.x, entity.y, entity.z), runCatching { entity.stack }.getOrNull())
+                fireworkCache[entity.id] = CachedFirework(Vec3(entity.x, entity.y, entity.z), runCatching { entity.item }.getOrNull())
             }
         }
     }
@@ -45,7 +45,7 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
         val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
         val dist = sqrt(dx * dx + dy * dy + dz * dz)
         if (dist > range) return
-        val id = Registries.PARTICLE_TYPE.getId(event.effect.type)?.toString() ?: event.effect.type.toString()
+        val id = BuiltInRegistries.PARTICLE_TYPE.getKey(event.effect.type)?.toString() ?: event.effect.type.toString()
         val x = "%.2f".format(pos.x); val y = "%.2f".format(pos.y); val z = "%.2f".format(pos.z)
         val v = event.velocity
         val vx = "%.2f".format(v.x); val vy = "%.2f".format(v.y); val vz = "%.2f".format(v.z)
@@ -55,10 +55,10 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (!enabled || !detectFireworks) return
-        val packet = event.packet as? EntityStatusS2CPacket ?: return
-        val status = packet.status.toInt()
+        val packet = event.packet as? ClientboundEntityEventPacket ?: return
+        val status = packet.eventId.toInt()
         val id = readEntityId(packet)
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val liveAny = packet.getEntity(world)
         val isFirework = liveAny is FireworkRocketEntity || fireworkCache.containsKey(id)
         if (status != 17 && isFirework) {
@@ -68,11 +68,11 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
 
         val player = mc.player ?: return
         val live = liveAny as? FireworkRocketEntity
-        val pos: Vec3d = if (live != null) Vec3d(live.x, live.y, live.z) else fireworkCache[id]?.pos ?: run {
+        val pos: Vec3 = if (live != null) Vec3(live.x, live.y, live.z) else fireworkCache[id]?.pos ?: run {
             modMessage("§c[Particle] firework status=17 — entity gone and no cache")
             return
         }
-        val stack = live?.stack ?: fireworkCache[id]?.stack
+        val stack = live?.item ?: fireworkCache[id]?.stack
 
         val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
         val dist = sqrt(dx * dx + dy * dy + dz * dz)
@@ -93,20 +93,20 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
         }
     }
 
-    private fun readEntityId(packet: EntityStatusS2CPacket): Int? {
-        val f = EntityStatusS2CPacket::class.java.getDeclaredField("entityId")
+    private fun readEntityId(packet: ClientboundEntityEventPacket): Int? {
+        val f = ClientboundEntityEventPacket::class.java.getDeclaredField("entityId")
         f.isAccessible = true
         return f.getInt(packet)
     }
 
-    fun fireworkPos(packet: EntityStatusS2CPacket): Vec3d? {
+    fun fireworkPos(packet: ClientboundEntityEventPacket): Vec3? {
         val id = readEntityId(packet) ?: return null
         return fireworkCache[id]?.pos
     }
 
     private fun extractFireworkDetails(stack: ItemStack?): List<String>? {
         val s = stack ?: return null
-        val fireworks = s.get(DataComponentTypes.FIREWORKS) ?: return null
+        val fireworks = s.get(DataComponents.FIREWORKS) ?: return null
         val lines = mutableListOf<String>()
         lines.add("§8 └ §7flight=§f${fireworks.flightDuration}")
         fireworks.explosions.forEachIndexed { i, e ->

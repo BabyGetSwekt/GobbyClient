@@ -18,8 +18,8 @@ object TerminatorAC : Module("Terminator Autoclick", "Automatically left clicks 
     @SubscribeEvent
     fun onRenderWorld(event: NewRender3DEvent) {
         val player = mc.player ?: return
-        if (mc.world == null || mc.currentScreen != null || !enabled) return
-        if (!player.mainHandStack.isHolding("TERMINATOR") || !mc.options.useKey.isPressed) return
+        if (mc.level == null || mc.screen != null || !enabled) return
+        if (!player.mainHandItem.isHolding("TERMINATOR") || !mc.options.keyUse.isDown) return
 
         val currentTime = System.currentTimeMillis()
         if (currentTime < nextClickTime) return

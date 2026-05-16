@@ -11,8 +11,8 @@ import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.timer.Executor
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket
-import net.minecraft.util.Hand
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket
+import net.minecraft.world.InteractionHand
 
 object TestPearl {
 
@@ -24,8 +24,8 @@ object TestPearl {
                 val pitch = 1.5f
 
                 modMessage("Sending interact packet with sequence: ${getSequence()}")
-                val sendInteract = PlayerInteractItemC2SPacket(Hand.MAIN_HAND, getSequence(), yaw, pitch)
-                mc.networkHandler?.sendPacket(sendInteract)
+                val sendInteract = ServerboundUseItemPacket(InteractionHand.MAIN_HAND, getSequence(), yaw, pitch)
+                mc.connection?.send(sendInteract)
 
                 // TODO: Look into TeleportConfirmC2SPacket
                 Command.SINGLE_SUCCESS

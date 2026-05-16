@@ -1,13 +1,13 @@
 package gobby.pathfinder.world
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.block.BlockState
-import net.minecraft.block.Blocks
-import net.minecraft.block.ShapeContext
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
-import net.minecraft.util.shape.VoxelShape
-import net.minecraft.util.shape.VoxelShapes
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.phys.shapes.CollisionContext
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.shapes.VoxelShape
+import net.minecraft.world.phys.shapes.Shapes
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -37,20 +37,20 @@ object BlockCache {
         val key = pos.asLong()
         cache[key]?.let { return it }
 
-        val world = mc.world ?: return Blocks.AIR.defaultState
+        val world = mc.level ?: return Blocks.AIR.defaultBlockState()
         val state = world.getBlockState(pos)
         cache[key] = state
         return state
     }
 
     fun getCollisionShape(pos: BlockPos): VoxelShape {
-        val world = mc.world ?: return VoxelShapes.empty()
-        return getBlockState(pos).getCollisionShape(world, pos, ShapeContext.absent())
+        val world = mc.level ?: return Shapes.empty()
+        return getBlockState(pos).getCollisionShape(world, pos, CollisionContext.empty())
     }
 
     fun getCollisionHeight(pos: BlockPos): Double {
         val shape = getCollisionShape(pos)
-        return if (shape.isEmpty) 0.0 else shape.boundingBox.maxY
+        return if (shape.isEmpty) 0.0 else shape.bounds().maxY
     }
 
     fun getSupportTopYs(pos: BlockPos): List<Double> {
@@ -65,7 +65,7 @@ object BlockCache {
             return emptyList()
         }
 
-        val localTops = shape.boundingBoxes
+        val localTops = shape.toAabbs()
             .asSequence()
             .filter { box ->
                 !(CENTER_X + BODY_EPSILON < box.minX || CENTER_X - BODY_EPSILON > box.maxX) &&
@@ -88,8 +88,8 @@ object BlockCache {
         return ((feetY - pos.y) * 16.0).roundToInt()
     }
 
-    private fun buildPlayerBox(centerX: Double, feetY: Double, centerZ: Double): Box {
-        return Box(
+    private fun buildPlayerBox(centerX: Double, feetY: Double, centerZ: Double): AABB {
+        return AABB(
             centerX - PLAYER_HALF_WIDTH + HORIZONTAL_MARGIN,
             feetY + BODY_EPSILON,
             centerZ - PLAYER_HALF_WIDTH + HORIZONTAL_MARGIN,
@@ -99,8 +99,8 @@ object BlockCache {
         )
     }
 
-    private fun hasBlockCollision(box: Box): Boolean {
-        val world = mc.world ?: return false
+    private fun hasBlockCollision(box: AABB): Boolean {
+        val world = mc.level ?: return false
         return world.getBlockCollisions(null, box).iterator().hasNext()
     }
 
@@ -114,7 +114,7 @@ object BlockCache {
         val bodyBox = buildPlayerBox(pos.x + CENTER_X, feetY, pos.z + CENTER_Z)
         if (hasBlockCollision(bodyBox)) return false
 
-        val supportBox = Box(
+        val supportBox = AABB(
             bodyBox.minX,
             feetY - SUPPORT_EPSILON,
             bodyBox.minZ,
@@ -133,7 +133,7 @@ object BlockCache {
                 candidates.add(topY)
             }
         }
-        getSupportTopYs(pos.down()).forEach(candidates::add)
+        getSupportTopYs(pos.below()).forEach(candidates::add)
 
         for (feetY in candidates.sortedDescending()) {
             if (isStandable(pos, feetY)) {
@@ -198,8 +198,8 @@ object BlockCache {
 
     fun isWalkable(pos: BlockPos): Boolean {
         val feetClear = isSteppable(pos)
-        val headClear = isPassable(pos.up())
-        val groundSolid = isSolid(pos.down())
+        val headClear = isPassable(pos.above())
+        val groundSolid = isSolid(pos.below())
         return feetClear && headClear && groundSolid
     }
 

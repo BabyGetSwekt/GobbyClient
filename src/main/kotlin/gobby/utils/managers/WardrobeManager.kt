@@ -8,12 +8,12 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
 import gobby.utils.LocationUtils
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
-import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
-import net.minecraft.screen.slot.SlotActionType
-import net.minecraft.screen.sync.ItemStackHash
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.network.HashedStack
 
 object WardrobeManager {
 
@@ -51,23 +51,23 @@ object WardrobeManager {
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         when (val packet = event.packet) {
-            is OpenScreenS2CPacket -> {
+            is ClientboundOpenScreenPacket -> {
                 if (state != State.WAITING_SCREEN) return
-                if (!packet.name.string.contains("Wardrobe")) { reset(); return }
-                syncId = packet.syncId
+                if (!packet.title.string.contains("Wardrobe")) { reset(); return }
+                syncId = packet.containerId
                 state = State.WAITING_SLOT
                 event.cancel()
             }
 
-            is ScreenHandlerSlotUpdateS2CPacket -> {
+            is ClientboundContainerSetSlotPacket -> {
                 if (state != State.WAITING_SLOT) return
-                if (packet.syncId != syncId) return
+                if (packet.containerId != syncId) return
                 val slot = packet.slot
                 if (slot == targetSlot) {
-                    mc.networkHandler?.sendPacket(
-                        ClickSlotC2SPacket(syncId, 0, slot.toShort(), 0.toByte(), SlotActionType.PICKUP, Int2ObjectOpenHashMap<ItemStackHash>(), ItemStackHash.EMPTY)
+                    mc.connection?.send(
+                        ServerboundContainerClickPacket(syncId, 0, slot.toShort(), 0.toByte(), ClickType.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
                     )
-                    mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(syncId))
+                    mc.connection?.send(ServerboundContainerClosePacket(syncId))
                     reset()
                 }
                 if (slot > MAX_SLOT) reset()

@@ -9,8 +9,8 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.partyCoordRegex
 import gobby.utils.ChatUtils.publicCoordRegex
 import gobby.utils.render.RenderBeacon
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3i
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Vec3i
 import java.awt.Color
 
 object CoordWaypoints : Module("Coordinate Beacons", "Renders a beacon on coordinates", Category.SKYBLOCK, defaultEnabled = true) {
@@ -19,7 +19,7 @@ object CoordWaypoints : Module("Coordinate Beacons", "Renders a beacon on coordi
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (mc.player == null || mc.world == null || !enabled) return
+        if (mc.player == null || mc.level == null || !enabled) return
         val msg = event.message
 
         val match = publicCoordRegex.matchEntire(msg) ?: partyCoordRegex.matchEntire(msg)

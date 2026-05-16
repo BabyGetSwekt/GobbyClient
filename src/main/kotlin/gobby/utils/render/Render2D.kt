@@ -2,7 +2,7 @@ package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.ChatUtils.getColorAsInt
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphics
 import java.awt.Color
 
 object Render2D {
@@ -28,7 +28,7 @@ object Render2D {
         'r' to Color(255, 255, 255)    // Reset
     )
 
-    // Formatting codes
+    // ChatFormatting codes
     private val formatCodes = setOf('k', 'l', 'm', 'n', 'o', 'r')
 
     data class TextSegment(
@@ -47,10 +47,10 @@ object Render2D {
         y: Float,
         color: Color,
         scale: Float = 1.0f,
-        drawContext: DrawContext
+        drawContext: GuiGraphics
     ) {
         val segments = parseColorCodes(text, color)
-        val matrixStack = drawContext.matrices
+        val matrixStack = drawContext.pose()
         matrixStack.pushMatrix()
 
         matrixStack.translate(x, y)
@@ -59,15 +59,15 @@ object Render2D {
         var currentX = 0
         for (segment in segments) {
             if (segment.text.isNotEmpty()) {
-                drawContext.drawText(
-                    mc.textRenderer,
+                drawContext.drawString(
+                    mc.font,
                     segment.text,
                     currentX,
                     0,
                     segment.color.getColorAsInt(),
                     segment.bold
                 )
-                currentX += mc.textRenderer.getWidth(segment.text)
+                currentX += mc.font.width(segment.text)
             }
         }
 

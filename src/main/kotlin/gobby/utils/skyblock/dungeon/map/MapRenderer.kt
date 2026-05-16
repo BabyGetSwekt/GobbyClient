@@ -13,11 +13,14 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.map.MapConstants.STEP
 import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.texture.NativeImage
-import net.minecraft.client.texture.NativeImageBackedTexture
-import net.minecraft.util.Identifier
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.gui.GuiGraphics
+import com.mojang.blaze3d.platform.NativeImage
+import net.minecraft.client.renderer.texture.DynamicTexture
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 import java.awt.Color
 
 object MapRenderer {
@@ -36,7 +39,7 @@ object MapRenderer {
     private val COL_DOOR_BLOOD = Color(255, 0, 0)
     private val COL_DOOR_ENTRANCE = Color(20, 133, 0)
 
-    private val CHECKMARK_ID = Identifier.of("gobbyclient", "textures/white_checkmark")
+    private val CHECKMARK_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/white_checkmark")
     private var checkmarkRegistered = false
 
     private const val SKIN_TEX_SIZE = 64
@@ -77,7 +80,7 @@ object MapRenderer {
     }
 
     fun drawMap(
-        ctx: DrawContext,
+        ctx: GuiGraphics,
         grid: Array<MapTile>,
         checkmarks: Array<MapCheckmark>,
         renderNames: Boolean,
@@ -169,27 +172,27 @@ object MapRenderer {
         if (renderHeads) drawPlayers(ctx, headScale)
     }
 
-    private fun drawRoomName(ctx: DrawContext, data: RoomData, px: Int, py: Int, scalePercent: Int) {
-        val tr = mc.textRenderer
+    private fun drawRoomName(ctx: GuiGraphics, data: RoomData, px: Int, py: Int, scalePercent: Int) {
+        val tr = mc.font
         val name = data.name
         if (name.isEmpty()) return
 
         val displayName = HYPHENATED[name] ?: name
         val lines = displayName.split(" ", "\n")
         val styledLines = lines.map { ClickGUITheme.styledText(it) }
-        val totalHeight = tr.fontHeight * lines.size
+        val totalHeight = tr.lineHeight * lines.size
         val scale = NAME_SCALE * (scalePercent / 100f)
 
-        ctx.matrices.pushMatrix()
-        ctx.matrices.translate(px + CELL_SIZE / 2f, py + CELL_SIZE / 2f)
-        ctx.matrices.scale(scale, scale)
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(px + CELL_SIZE / 2f, py + CELL_SIZE / 2f)
+        ctx.pose().scale(scale, scale)
 
         val startY = -(totalHeight / 2)
         for (i in styledLines.indices) {
-            val tw = tr.getWidth(styledLines[i])
-            ctx.drawText(tr, styledLines[i], -tw / 2, startY + i * tr.fontHeight, Color.WHITE.rgb, true)
+            val tw = tr.width(styledLines[i])
+            ctx.drawString(tr, styledLines[i], -tw / 2, startY + i * tr.lineHeight, Color.WHITE.rgb, true)
         }
-        ctx.matrices.popMatrix()
+        ctx.pose().popMatrix()
     }
 
     /** Finds the pixel center for a room's checkmark. For L-shapes, uses the bend cell. */
@@ -211,7 +214,7 @@ object MapRenderer {
     }
 
     /** Draws checkmark centered at the given pixel position */
-    private fun drawCheckmark(ctx: DrawContext, checkmark: MapCheckmark, centerX: Int, centerY: Int) {
+    private fun drawCheckmark(ctx: GuiGraphics, checkmark: MapCheckmark, centerX: Int, centerY: Int) {
         registerCheckmarkTexture()
         val checkSize = (CELL_SIZE * 0.5f).toInt()
         val cx = centerX - checkSize / 2
@@ -223,7 +226,7 @@ object MapRenderer {
             else -> Color.WHITE.rgb
         }
 
-        ctx.drawTexture(
+        ctx.blit(
             RenderPipelines.GUI_TEXTURED, CHECKMARK_ID,
             cx, cy, 0f, 0f, checkSize, checkSize, checkSize, checkSize, tint
         )
@@ -236,19 +239,19 @@ object MapRenderer {
                 "assets/${CHECKMARK_ID.namespace}/${CHECKMARK_ID.path}.png"
             ) ?: return
             val image = NativeImage.read(stream)
-            mc.textureManager.registerTexture(CHECKMARK_ID, NativeImageBackedTexture({ CHECKMARK_ID.toString() }, image))
+            mc.textureManager.register(CHECKMARK_ID, DynamicTexture({ CHECKMARK_ID.toString() }, image))
             stream.close()
         } catch (_: Exception) {}
         checkmarkRegistered = true
     }
 
-    private fun drawPlayers(ctx: DrawContext, headScalePercent: Int) {
-        val world = mc.world ?: return
+    private fun drawPlayers(ctx: GuiGraphics, headScalePercent: Int) {
+        val world = mc.level ?: return
         val self = mc.player ?: return
         val teammateNames = DungeonListener.teammates.keys
         val headSize = maxOf(MIN_HEAD_SIZE, (DEFAULT_HEAD_SIZE * headScalePercent / 100f).toInt())
 
-        for (player in world.players) {
+        for (player in world.players()) {
             val name = player.name.string
             val isSelf = player == self
             if (!isSelf && name !in teammateNames) continue
@@ -262,16 +265,16 @@ object MapRenderer {
             val hx = pixelX - headSize / 2
             val hy = pixelY - headSize / 2
 
-            val entry = mc.networkHandler?.getPlayerListEntry(player.uuid) ?: continue
-            val skinTexture = entry.skinTextures?.body()?.texturePath()
+            val entry = mc.connection?.getPlayerInfo(player.uuid) ?: continue
+            val skinTexture = entry.skin.body().texturePath()
             if (skinTexture != null) {
                 val scale = headSize / FACE_SIZE.toFloat()
-                ctx.matrices.pushMatrix()
-                ctx.matrices.translate(hx.toFloat(), hy.toFloat())
-                ctx.matrices.scale(scale, scale)
-                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
-                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
-                ctx.matrices.popMatrix()
+                ctx.pose().pushMatrix()
+                ctx.pose().translate(hx.toFloat(), hy.toFloat())
+                ctx.pose().scale(scale, scale)
+                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+                ctx.pose().popMatrix()
             } else {
                 ctx.fill(hx - 1, hy - 1, hx + headSize + 1, hy + headSize + 1, Color.BLACK.rgb)
                 val c = if (isSelf) Color(0, 220, 0).rgb else Color(0, 180, 220).rgb

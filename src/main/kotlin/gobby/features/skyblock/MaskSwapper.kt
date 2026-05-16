@@ -27,7 +27,7 @@ object MaskSwapper : Module("Mask Swapper", "Swap masks with keybinds", Category
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
         if (!LocationUtils.onSkyblock) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
         val key = event.key
         if (key == 0) return
 

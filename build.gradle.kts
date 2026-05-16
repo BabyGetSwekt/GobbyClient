@@ -8,7 +8,6 @@ val mod_version: String by project
 val maven_group: String by project
 val archives_base_name: String by project
 val minecraft_version: String by project
-val yarn_mappings: String by project
 val loader_version: String by project
 val fabric_version: String by project
 val fabric_kotlin_version: String by project
@@ -48,7 +47,7 @@ configurations.all {
 dependencies {
 	// Minecraft
 	minecraft("com.mojang:minecraft:$minecraft_version")
-	mappings("net.fabricmc:yarn:$yarn_mappings:v2")
+	mappings(loom.officialMojangMappings())
 
 	// Fabric
 	modImplementation("net.fabricmc:fabric-loader:$loader_version")

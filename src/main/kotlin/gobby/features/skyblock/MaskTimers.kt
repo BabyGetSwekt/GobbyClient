@@ -8,10 +8,13 @@ import gobby.gui.click.SelectorSetting
 import gobby.gui.hud.HudSetting
 import gobby.utils.LocationUtils
 import gobby.utils.managers.InvincibilityManager
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.texture.NativeImage
-import net.minecraft.client.texture.NativeImageBackedTexture
-import net.minecraft.util.Identifier
+import net.minecraft.client.renderer.RenderPipelines
+import com.mojang.blaze3d.platform.NativeImage
+import net.minecraft.client.renderer.texture.DynamicTexture
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 
 object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns on a movable HUD", Category.SKYBLOCK) {
 
@@ -31,7 +34,7 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
 
     private enum class Mask(
         val label: String,
-        val sprite: Identifier,
+        val sprite: ResourceLocation,
         val visible: () -> Boolean,
         val onCooldown: () -> Boolean,
         val seconds: () -> Double
@@ -54,7 +57,7 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
 
     private val GREEN_ID = tex("green_checkmark")
     private val FAILED_ID = tex("failed")
-    private val registered = mutableSetOf<Identifier>()
+    private val registered = mutableSetOf<ResourceLocation>()
 
     private val maskHud by HudSetting("Mask Timers", "Movable mask cooldown display") { example ->
         ensureTextures()
@@ -71,24 +74,24 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
 
     private fun HudSetting.renderMask(mask: Mask, ready: Boolean, seconds: Double) {
         val ctx = drawContext ?: return
-        val tr = mc.textRenderer
+        val tr = mc.font
         var x = 0
         val y = getHeight()
         val rowTop = y
 
         if (showImages) {
             val statusIcon = if (ready) GREEN_ID else FAILED_ID
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, statusIcon, x, y, 0f, 0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, -1)
+            ctx.blit(RenderPipelines.GUI_TEXTURED, statusIcon, x, y, 0f, 0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, -1)
             x += ICON_SIZE + ICON_GAP
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, mask.sprite, x, y, 0f, 0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, -1)
+            ctx.blit(RenderPipelines.GUI_TEXTURED, mask.sprite, x, y, 0f, 0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, -1)
             x += ICON_SIZE + ICON_GAP
         }
 
         if (showText || !ready) {
             val text = if (ready) "§a${mask.label}: §fReady" else "§f${mask.label}: ${formatSeconds(seconds)}"
-            val textY = rowTop + (ICON_SIZE - tr.fontHeight) / 2
-            ctx.drawText(tr, text, x, textY, -1, true)
-            x += tr.getWidth(text)
+            val textY = rowTop + (ICON_SIZE - tr.lineHeight) / 2
+            ctx.drawString(tr, text, x, textY, -1, true)
+            x += tr.width(text)
         }
 
         setSize(x, rowTop + ICON_SIZE + ROW_GAP)
@@ -104,15 +107,15 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
         .filter { registered.add(it) }
         .forEach(::loadTexture)
 
-    private fun loadTexture(id: Identifier) {
+    private fun loadTexture(id: ResourceLocation) {
         val path = "assets/${id.namespace}/${id.path}.png"
         runCatching {
             MaskTimers::class.java.classLoader.getResourceAsStream(path)?.use { stream ->
                 val image = NativeImage.read(stream)
-                mc.textureManager.registerTexture(id, NativeImageBackedTexture({ id.toString() }, image))
+                mc.textureManager.register(id, DynamicTexture({ id.toString() }, image))
             }
         }
     }
 }
 
-private fun tex(name: String): Identifier = Identifier.of("gobbyclient", "textures/$name")
+private fun tex(name: String): ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/$name")

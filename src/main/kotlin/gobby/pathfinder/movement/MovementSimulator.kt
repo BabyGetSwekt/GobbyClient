@@ -3,7 +3,7 @@ package gobby.pathfinder.movement
 import gobby.pathfinder.movement.InputManager.MoveAction
 import gobby.pathfinder.world.BlockCache
 import gobby.pathfinder.world.BlockCache.StandSurface
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil

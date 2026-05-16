@@ -13,8 +13,8 @@ import gobby.utils.PlayerUtils
 import gobby.utils.Utils.getRandomInt
 import gobby.utils.isEtherwarpable
 import gobby.utils.skyblock.EtherwarpUtils
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
 
 object EtherwarpTriggerbot : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", Category.DUNGEONS) {
 
@@ -32,17 +32,17 @@ object EtherwarpTriggerbot : Triggerbot("Etherwarp", "Etherwarp triggerbot and h
         Blocks.PRISMARINE_WALL
     )
 
-    override fun shouldActivate(): Boolean = enabled && !inBoss && dungeonFloor != -1 && mc.currentScreen == null
+    override fun shouldActivate(): Boolean = enabled && !inBoss && dungeonFloor != -1 && mc.screen == null
 
     override fun isValidBlock(pos: BlockPos): Boolean =
-        mc.world?.getBlockState(pos)?.block in TARGET_BLOCKS
+        mc.level?.getBlockState(pos)?.block in TARGET_BLOCKS
 
     override fun getBlockCooldown(): Long = 3000L
 
     override fun getTargetPos(): BlockPos? {
         val player = mc.player ?: return null
-        if (!player.mainHandStack.isEtherwarpable()) return null
-        if (mode == 1 && !player.isSneaking) return null
+        if (!player.mainHandItem.isEtherwarpable()) return null
+        if (mode == 1 && !player.isShiftKeyDown) return null
         return EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos
     }
 
@@ -50,16 +50,16 @@ object EtherwarpTriggerbot : Triggerbot("Etherwarp", "Etherwarp triggerbot and h
         val player = mc.player ?: return
         when (mode) {
             0 -> { /* Auto sneak mode */
-                if (player.isSneaking) {
+                if (player.isShiftKeyDown) {
                     PlayerUtils.rightClick()
                 } else {
                     wasSneaking = false
-                    mc.options.sneakKey.isPressed = true
+                    mc.options.keyShift.isDown = true
                     sneakDelay = getRandomInt(3, 4)
                 }
             }
             1 -> { /* Manual sneak mode (you have to sneak urself) */
-                if (player.isSneaking) PlayerUtils.rightClick()
+                if (player.isShiftKeyDown) PlayerUtils.rightClick()
             }
         }
     }
@@ -75,7 +75,7 @@ object EtherwarpTriggerbot : Triggerbot("Etherwarp", "Etherwarp triggerbot and h
 
     private fun processSneakSequence() {
         sneakDelay--
-        if (sneakDelay == 0 && !wasSneaking) mc.options.sneakKey.isPressed = false
+        if (sneakDelay == 0 && !wasSneaking) mc.options.keyShift.isDown = false
         if (sneakDelay == 1) PlayerUtils.rightClick()
     }
 }

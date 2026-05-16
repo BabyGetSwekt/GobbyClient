@@ -21,11 +21,11 @@ import gobby.gui.click.ClickGUITheme.cTextBright
 import gobby.gui.click.ClickGUITheme.cTextDark
 import gobby.gui.click.ClickGUITheme.cTextGray
 import gobby.gui.click.ClickGUITheme.tr
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphics
 
 object PanelRenderer {
 
-    fun drawPanel(ctx: DrawContext, gui: ClickGUI, panel: ClickGUI.PanelState, mx: Int, my: Int) {
+    fun drawPanel(ctx: GuiGraphics, gui: ClickGUI, panel: ClickGUI.PanelState, mx: Int, my: Int) {
         val px = panel.x.toInt()
         val py = panel.y.toInt()
 
@@ -38,11 +38,11 @@ object PanelRenderer {
         // Header text centered
         val headerText = panel.category.displayName
         val nameW = ClickGUITheme.textW(headerText)
-        ClickGUITheme.drawText(ctx, px + (PW - nameW) / 2, py + (HH - tr.fontHeight) / 2, headerText, cTextBright)
+        ClickGUITheme.drawText(ctx, px + (PW - nameW) / 2, py + (HH - tr.lineHeight) / 2, headerText, cTextBright)
 
         // Collapse indicator
         val arrow = if (panel.collapsed) "+" else "-"
-        ClickGUITheme.drawText(ctx, px + PW - PAD - ClickGUITheme.textW(arrow), py + (HH - tr.fontHeight) / 2, arrow, cTextGray)
+        ClickGUITheme.drawText(ctx, px + PW - PAD - ClickGUITheme.textW(arrow), py + (HH - tr.lineHeight) / 2, arrow, cTextGray)
 
         if (panel.collapsed) {
             ClickGUITheme.fill(ctx, px, py + HH, PW, BOTTOM_ACCENT, cAccent)
@@ -104,7 +104,7 @@ object PanelRenderer {
         }
     }
 
-    private fun drawModuleRow(ctx: DrawContext, gui: ClickGUI, px: Int, y: Int, module: Module, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawModuleRow(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, module: Module, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         val inView = y + MH > clipTop && y < clipBot
         val hovered = inView && mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + MH).coerceAtMost(clipBot)
         val enabled = module.toggled && module.enabled
@@ -120,7 +120,7 @@ object PanelRenderer {
         // Module name - centered
         val nameW = ClickGUITheme.textW(module.name)
         val textCol = if (enabled) cTextBright else cText
-        ClickGUITheme.drawText(ctx, px + (PW - nameW) / 2, y + (MH - tr.fontHeight) / 2, module.name, textCol)
+        ClickGUITheme.drawText(ctx, px + (PW - nameW) / 2, y + (MH - tr.lineHeight) / 2, module.name, textCol)
 
         // Settings indicator dots on right when module has settings
         if (module.allSettings().any { it.isVisible }) {

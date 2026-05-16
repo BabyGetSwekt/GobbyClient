@@ -11,7 +11,7 @@ import gobby.gui.click.Module
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.render.NotificationRenderer
 import gobby.utils.timer.Clock
-import net.minecraft.network.packet.Packet
+import net.minecraft.network.protocol.Packet
 
 object LagSwitch : Module("Lag Switch", "Freezes outgoing packets", Category.SKYBLOCK) {
 
@@ -27,7 +27,7 @@ object LagSwitch : Module("Lag Switch", "Freezes outgoing packets", Category.SKY
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        if (!enabled || mc.currentScreen != null) return
+        if (!enabled || mc.screen != null) return
         if (toggleKey == 0 || event.key != toggleKey) return
         if (choking) stop() else start()
     }
@@ -48,8 +48,8 @@ object LagSwitch : Module("Lag Switch", "Freezes outgoing packets", Category.SKY
     private fun flush() {
         if (queue.isEmpty()) return
         flushing = true
-        val handler = mc.networkHandler
-        queue.forEach { handler?.sendPacket(it) }
+        val handler = mc.connection
+        queue.forEach { handler?.send(it) }
         queue.clear()
         flushing = false
     }

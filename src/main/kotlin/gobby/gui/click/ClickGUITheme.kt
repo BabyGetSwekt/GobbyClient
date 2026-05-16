@@ -1,18 +1,22 @@
 package gobby.gui.click
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.text.Style
-import net.minecraft.text.StyleSpriteSource
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.FontDescription
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 import java.awt.Color
 
 object ClickGUITheme {
 
     // Font
-    private val CUSTOM_FONT = StyleSpriteSource.Font(Identifier.of("gobbyclient", "custom"))
-    val FONT_STYLE: Style = Style.EMPTY.withFont(CUSTOM_FONT)
+    val FONT_STYLE: Style = Style.EMPTY.withFont(
+        FontDescription.Resource(ResourceLocation.fromNamespaceAndPath("gobbyclient", "custom"))
+    )
 
     // Layout
     const val PW = 130
@@ -71,31 +75,31 @@ object ClickGUITheme {
     val cSelectHighlight = Color(0, 140, 170, 100).rgb
 
     // Text renderer shortcut
-    val tr get() = mc.textRenderer
+    val tr get() = mc.font
 
-    fun styledText(s: String): Text = Text.literal(s).setStyle(FONT_STYLE)
+    fun styledText(s: String): Component = Component.literal(s).setStyle(FONT_STYLE)
 
-    fun textW(s: String): Int = tr.getWidth(styledText(s))
+    fun textW(s: String): Int = tr.width(styledText(s))
 
-    fun textWSmall(s: String): Int = (tr.getWidth(styledText(s)) * SETTING_SCALE).toInt()
+    fun textWSmall(s: String): Int = (tr.width(styledText(s)) * SETTING_SCALE).toInt()
 
-    fun drawText(ctx: DrawContext, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
-        ctx.drawText(tr, styledText(s), x, y, color, shadow)
+    fun drawText(ctx: GuiGraphics, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
+        ctx.drawString(tr, styledText(s), x, y, color, shadow)
     }
 
-    fun drawTextSmall(ctx: DrawContext, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
-        ctx.matrices.pushMatrix()
-        ctx.matrices.translate(x.toFloat(), y.toFloat())
-        ctx.matrices.scale(SETTING_SCALE, SETTING_SCALE)
-        ctx.drawText(tr, styledText(s), 0, 0, color, shadow)
-        ctx.matrices.popMatrix()
+    fun drawTextSmall(ctx: GuiGraphics, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(x.toFloat(), y.toFloat())
+        ctx.pose().scale(SETTING_SCALE, SETTING_SCALE)
+        ctx.drawString(tr, styledText(s), 0, 0, color, shadow)
+        ctx.pose().popMatrix()
     }
 
-    fun fill(ctx: DrawContext, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    fun fill(ctx: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
         ctx.fill(x, y, x + w, y + h, color)
     }
 
-    fun drawBorder(ctx: DrawContext, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    fun drawBorder(ctx: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
         fill(ctx, x, y, w, 1, color)
         fill(ctx, x, y + h - 1, w, 1, color)
         fill(ctx, x, y + 1, 1, h - 2, color)

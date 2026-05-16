@@ -20,27 +20,28 @@ import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.pathfinder.PathExecutor
 import gobby.pathfinder.core.PathFinder
 import gobby.utils.ChatUtils.errorMessage
+import gobby.utils.Utils.executeLater
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.sendMessage
 import gobby.utils.parseAbilities
 import gobby.utils.skyblockID
-import net.minecraft.registry.Registries
-import net.minecraft.text.ClickEvent
-import net.minecraft.text.HoverEvent
-import net.minecraft.text.Style
-import net.minecraft.text.Text
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.HitResult
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.Component
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.HitResult
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 
 object GobbyCommand {
 
     private fun openConfig(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal(name)
             .executes {
-                mc.send { mc.setScreen(ClickGUI()) }
+                mc.executeLater { mc.setScreen(ClickGUI()) }
                 Command.SINGLE_SUCCESS
             }
     }
@@ -65,7 +66,7 @@ object GobbyCommand {
             .then(
                 ClientCommandManager.literal("blockselector")
                     .executes {
-                        mc.send { BlockSelector.open() }
+                        mc.executeLater { BlockSelector.open() }
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -97,7 +98,7 @@ object GobbyCommand {
             .then(
                 ClientCommandManager.literal("modid")
                     .executes {
-                        mc.send { ModIdHiderScreen.open() }
+                        mc.executeLater { ModIdHiderScreen.open() }
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -118,9 +119,9 @@ object GobbyCommand {
                                                 val y = IntegerArgumentType.getInteger(context, "y")
                                                 val z = IntegerArgumentType.getInteger(context, "z")
                                                 val player = mc.player ?: return@executes 0
-                                                val start = player.blockPos
+                                                val start = player.blockPosition()
                                                 val goal = BlockPos(x, y, z)
-                                                val speed = player.movementSpeed.toDouble()
+                                                val speed = player.speed.toDouble()
 
                                                 modMessage("Pathfinding to $x $y $z (speed: ${"%.3f".format(speed)})...")
                                                 val path = PathFinder.findPath(start, goal, speed)
@@ -166,16 +167,16 @@ object GobbyCommand {
             .then(
                 ClientCommandManager.literal("lookingAt")
                     .executes {
-                        val hit = mc.crosshairTarget
+                        val hit = mc.hitResult
                         if (hit is BlockHitResult && hit.type == HitResult.Type.BLOCK) {
                             val pos = hit.blockPos
-                            val block = mc.world?.getBlockState(pos)?.block
-                            val blockName = Registries.BLOCK.getId(block).path.uppercase()
+                            val block = mc.level?.getBlockState(pos)?.block ?: return@executes Command.SINGLE_SUCCESS
+                            val blockName = BuiltInRegistries.BLOCK.getKey(block).path.uppercase()
                             val coords = "${pos.x}, ${pos.y}, ${pos.z}"
-                            modMessage(Text.literal("§a$blockName §7$coords")
+                            modMessage(Component.literal("§a$blockName §7$coords")
                                 .setStyle(Style.EMPTY
                                     .withClickEvent(ClickEvent.CopyToClipboard(coords))
-                                    .withHoverEvent(HoverEvent.ShowText(Text.literal("§eClick to copy coordinates")))
+                                    .withHoverEvent(HoverEvent.ShowText(Component.literal("§eClick to copy coordinates")))
                                 ))
 
                             if (LocationUtils.inDungeons && !LocationUtils.inBoss) {
@@ -183,10 +184,10 @@ object GobbyCommand {
                                 if (room != null) {
                                     val rel = room.getRelativeCoords(pos)
                                     val relCoords = "${rel.x}, ${rel.y}, ${rel.z}"
-                                    modMessage(Text.literal("§bRelative: §7$relCoords")
+                                    modMessage(Component.literal("§bRelative: §7$relCoords")
                                         .setStyle(Style.EMPTY
                                             .withClickEvent(ClickEvent.CopyToClipboard(relCoords))
-                                            .withHoverEvent(HoverEvent.ShowText(Text.literal("§eClick to copy relative coordinates")))
+                                            .withHoverEvent(HoverEvent.ShowText(Component.literal("§eClick to copy relative coordinates")))
                                         ))
                                 }
                             }
@@ -215,7 +216,7 @@ object GobbyCommand {
                 ClientCommandManager.literal("getcore")
                     .executes {
                         val player = mc.player ?: return@executes 0
-                        val center = ScanUtils.getRoomCenter(player.blockPos.x, player.blockPos.z)
+                        val center = ScanUtils.getRoomCenter(player.blockPosition().x, player.blockPosition().z)
                         val core = ScanUtils.getCore(center)
                         val roomData = ScanUtils.coreToRoomData[core]
                         if (roomData != null) {
@@ -236,7 +237,7 @@ object GobbyCommand {
             .then(
                 ClientCommandManager.literal("hud")
                     .executes {
-                        mc.send { mc.setScreen(HudEditor()) }
+                        mc.executeLater { mc.setScreen(HudEditor()) }
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -327,7 +328,7 @@ object GobbyCommand {
         return ClientCommandManager.literal("gobby")
             .then(ClientCommandManager.literal("copyMap")
                 .executes {
-                    if (!mc.isInSingleplayer) {
+                    if (!mc.isSingleplayer) {
                         errorMessage("This command can only be used in singleplayer")
                     } else {
                         DungeonMapSaver.copyMap()
@@ -343,7 +344,7 @@ object GobbyCommand {
                 .then(ClientCommandManager.argument("slot", IntegerArgumentType.integer())
                     .executes { ctx ->
                         val slot = IntegerArgumentType.getInteger(ctx, "slot")
-                        val id = mc.player?.playerScreenHandler?.slots?.getOrNull(slot)?.stack?.skyblockID ?: "none"
+                        val id = mc.player?.inventoryMenu?.slots?.getOrNull(slot)?.item?.skyblockID ?: "none"
                         modMessage("§eslot §f$slot §7→ §a${id.ifEmpty { "none" }}")
                         Command.SINGLE_SUCCESS
                     }
@@ -356,7 +357,7 @@ object GobbyCommand {
             .then(ClientCommandManager.literal("getItemID")
                 .executes {
                     val player = mc.player ?: return@executes 0
-                    val stack = player.mainHandStack
+                    val stack = player.mainHandItem
                     if (stack.isEmpty) {
                         errorMessage("You are not holding an item.")
                         return@executes Command.SINGLE_SUCCESS

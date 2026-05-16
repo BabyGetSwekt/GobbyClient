@@ -9,16 +9,16 @@ import gobby.events.network.SystemChatReceivedEvent
 import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonListener.endDialogues
-import net.minecraft.network.packet.s2c.common.CommonPingS2CPacket
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket
+import net.minecraft.network.protocol.common.ClientboundPingPacket
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket
 
 object EventDispatcher {
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         when (val p = event.packet) {
-            is CommonPingS2CPacket -> Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent())
-            is GameMessageS2CPacket -> {
+            is ClientboundPingPacket -> Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent())
+            is ClientboundSystemChatPacket -> {
                 if (Gobbyclient.EVENT_MANAGER.publish(SystemChatReceivedEvent(p.content().string.noControlCodes, p.content(), p.overlay())).isCanceled) event.cancel()
             }
         }

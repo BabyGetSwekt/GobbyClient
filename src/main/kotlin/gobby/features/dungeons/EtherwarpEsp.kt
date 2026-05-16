@@ -6,10 +6,13 @@ import gobby.features.render.BlockHighlighter
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
-import net.minecraft.block.BlockState
-import net.minecraft.registry.Registries
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.core.registries.BuiltInRegistries
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.core.BlockPos
 import java.awt.Color
 
 object EtherwarpEsp : BlockHighlighter() {
@@ -30,7 +33,7 @@ object EtherwarpEsp : BlockHighlighter() {
         val blocks = Brush.getRoomBlocks(room.data.name) ?: return
 
         for ((blockId, coords) in blocks) {
-            val block = Registries.BLOCK.get(Identifier.of(blockId))
+            val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
             if (block !in EtherwarpTriggerbot.TARGET_BLOCKS) continue
             for (encoded in coords) {
                 val parts = encoded.substringBefore("|").split(",").map { it.trim().toInt() }

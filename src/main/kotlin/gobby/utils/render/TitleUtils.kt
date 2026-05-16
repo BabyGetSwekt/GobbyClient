@@ -6,14 +6,14 @@ import gobby.events.core.SubscribeEvent
 import gobby.gui.GuiElement
 import gobby.gui.GuiElementManager
 import gobby.gui.click.ClickGUITheme
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.text.Text
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.network.chat.Component
 import java.awt.Color
 
 object TitleUtils : GuiElement() {
 
     private var title = ""
-    private var richText: Text? = null
+    private var richText: Component? = null
     private var color = Color.WHITE
     private var scale = 4f
     private var useCustomFont = false
@@ -57,7 +57,7 @@ object TitleUtils : GuiElement() {
         show(durationMs = Long.MAX_VALUE / 2)
     }
 
-    fun displayStyledTextServerTicks(text: Text, serverTicks: Int, scale: Float = 4f) {
+    fun displayStyledTextServerTicks(text: Component, serverTicks: Int, scale: Float = 4f) {
         TitleUtils.title = ""
         TitleUtils.richText = text
         TitleUtils.scale = scale
@@ -80,21 +80,21 @@ object TitleUtils : GuiElement() {
         serverTicksRemaining = 0
     }
 
-    override fun render(drawContext: DrawContext, screenWidth: Int, screenHeight: Int, alpha: Float) {
+    override fun render(drawContext: GuiGraphics, screenWidth: Int, screenHeight: Int, alpha: Float) {
         val rt = richText
         if (rt == null && title.isEmpty()) return
 
-        val tr = mc.textRenderer
+        val tr = mc.font
 
         if (rt != null) {
-            val textWidth = tr.getWidth(rt) * scale
+            val textWidth = tr.width(rt) * scale
             val x = (screenWidth / 2f) - (textWidth / 2f)
             val y = (screenHeight / 2f) - 30f
-            drawContext.matrices.pushMatrix()
-            drawContext.matrices.translate(x, y)
-            drawContext.matrices.scale(scale, scale)
-            drawContext.drawText(tr, rt, 0, 0, 0xFFFFFFFF.toInt(), true)
-            drawContext.matrices.popMatrix()
+            drawContext.pose().pushMatrix()
+            drawContext.pose().translate(x, y)
+            drawContext.pose().scale(scale, scale)
+            drawContext.drawString(tr, rt, 0, 0, 0xFFFFFFFF.toInt(), true)
+            drawContext.pose().popMatrix()
             return
         }
 
@@ -103,16 +103,16 @@ object TitleUtils : GuiElement() {
 
         if (useCustomFont) {
             val styledText = ClickGUITheme.styledText(title)
-            val textWidth = tr.getWidth(styledText) * scale
+            val textWidth = tr.width(styledText) * scale
             val x = (screenWidth / 2f) - (textWidth / 2f)
             val y = (screenHeight / 2f) - 30f
-            drawContext.matrices.pushMatrix()
-            drawContext.matrices.translate(x, y)
-            drawContext.matrices.scale(scale, scale)
-            drawContext.drawText(tr, styledText, 0, 0, argb, true)
-            drawContext.matrices.popMatrix()
+            drawContext.pose().pushMatrix()
+            drawContext.pose().translate(x, y)
+            drawContext.pose().scale(scale, scale)
+            drawContext.drawString(tr, styledText, 0, 0, argb, true)
+            drawContext.pose().popMatrix()
         } else {
-            val textWidth = tr.getWidth(title) * scale
+            val textWidth = tr.width(title) * scale
             val x = (screenWidth / 2f) - (textWidth / 2f)
             val y = (screenHeight / 2f) - 30f
             Render2D.drawString(title, x, y, renderColor, scale, drawContext)

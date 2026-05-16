@@ -1,17 +1,17 @@
 package gobby.mixinterface;
 
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.network.listener.ServerPlayPacketListener;
-import net.minecraft.network.packet.Packet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
 
 public interface IInteractionManagerAccessor {
 
     void gobbyclient$syncSelectedSlot();
 
-    void gobbyclient$sendSequencedPacket(ClientWorld world, GobbyclientSequencedPacketCreator creator);
+    void gobbyclient$sendSequencedPacket(ClientLevel world, GobbyclientSequencedPacketCreator creator);
 
     @FunctionalInterface
     interface GobbyclientSequencedPacketCreator {
-        Packet<ServerPlayPacketListener> predict(int sequence);
+        Packet<ServerGamePacketListener> predict(int sequence);
     }
 }

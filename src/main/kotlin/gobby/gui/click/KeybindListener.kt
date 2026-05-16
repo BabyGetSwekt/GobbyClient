@@ -9,7 +9,7 @@ object KeybindListener {
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
 
         val key = event.key
         if (key == 0) return

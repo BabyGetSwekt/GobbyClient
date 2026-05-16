@@ -46,7 +46,7 @@ object InvincibilityManager {
     private fun lookupBonzoCooldownSeconds(): Int {
         // Try the currently-equipped helmet first (most accurate — respects
         // ability upgrades/reforges on this specific item).
-        val helmet = mc.player?.inventory?.getStack(39)
+        val helmet = mc.player?.inventory?.getItem(39)
         if (helmet != null && helmet.skyblockID in BONZO_MASK_IDS) {
             AbilityManager.getAbilities(helmet)
                 .firstNotNullOfOrNull { it.cooldownSeconds }

@@ -1,20 +1,20 @@
 package gobby.utils
 
 import gobby.utils.skyblock.dungeon.tiles.Rotations
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
-import net.minecraft.util.math.Vec3i
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.Vec3i
 
 object VecUtils {
 
     data class Vec2(val x: Int, val z: Int)
 
-    fun Vec3d.addVec(
+    fun Vec3.addVec(
         x: Double = 0.0,
         y: Double = 0.0,
         z: Double = 0.0
-    ): Vec3d {
-        return Vec3d(this.x + x, this.y + y, this.z + z)
+    ): Vec3 {
+        return Vec3(this.x + x, this.y + y, this.z + z)
     }
 
     fun Vec3i.addVec(
@@ -25,7 +25,7 @@ object VecUtils {
         return Vec3i(this.x + x, this.y + y, this.z + z)
     }
 
-    fun Vec3d.subtractVec(x: Number = .0, y: Number = .0, z: Number = .0): Vec3d =
+    fun Vec3.subtractVec(x: Number = .0, y: Number = .0, z: Number = .0): Vec3 =
         this.addVec(-x.toDouble(), -y.toDouble(), -z.toDouble())
 
     fun Vec3i.subtractVec(x: Number = 0, y: Number = 0, z: Number = 0): Vec3i =
@@ -49,21 +49,21 @@ object VecUtils {
             else -> this
         }
 
-    fun Vec3d.rotateAroundNorth(rotation: Rotations): Vec3d =
+    fun Vec3.rotateAroundNorth(rotation: Rotations): Vec3 =
         when (rotation) {
-            Rotations.NORTH -> Vec3d(-this.x, this.y, -this.z)
-            Rotations.WEST ->  Vec3d(-this.z, this.y, this.x)
-            Rotations.SOUTH -> Vec3d(this.x, this.y, this.z)
-            Rotations.EAST ->  Vec3d(this.z, this.y, -this.x)
+            Rotations.NORTH -> Vec3(-this.x, this.y, -this.z)
+            Rotations.WEST ->  Vec3(-this.z, this.y, this.x)
+            Rotations.SOUTH -> Vec3(this.x, this.y, this.z)
+            Rotations.EAST ->  Vec3(this.z, this.y, -this.x)
             else -> this
         }
 
-    fun Vec3d.rotateToNorth(rotation: Rotations): Vec3d =
+    fun Vec3.rotateToNorth(rotation: Rotations): Vec3 =
         when (rotation) {
-            Rotations.NORTH -> Vec3d(-this.x, this.y, -this.z)
-            Rotations.WEST ->  Vec3d(this.z, this.y, -this.x)
-            Rotations.SOUTH -> Vec3d(this.x, this.y, this.z)
-            Rotations.EAST ->  Vec3d(-this.z, this.y, this.x)
+            Rotations.NORTH -> Vec3(-this.x, this.y, -this.z)
+            Rotations.WEST ->  Vec3(this.z, this.y, -this.x)
+            Rotations.SOUTH -> Vec3(this.x, this.y, this.z)
+            Rotations.EAST ->  Vec3(-this.z, this.y, this.x)
             else -> this
         }
 

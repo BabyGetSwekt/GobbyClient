@@ -250,12 +250,12 @@ class ModIdHiderScreen private constructor() : WindowScreen(
         populateEntries()
     }
 
-    override fun close() {
+    override fun onClose() {
         if (dirty && !forceClose) {
             dialogOverlay.unhide()
             return
         }
-        super.close()
+        super.onClose()
     }
 
     private fun tryClose() {
@@ -298,7 +298,7 @@ class ModIdHiderScreen private constructor() : WindowScreen(
         snitchPopup.unhide()
         Thread {
             Thread.sleep(2000)
-            mc.send { snitchPopup.hide() }
+            mc.execute { snitchPopup.hide() }
         }.apply { isDaemon = true }.start()
     }
 

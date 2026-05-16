@@ -10,6 +10,6 @@ import gobby.gui.click.Module
 @AlwaysEnabled
 object ModIdHiderModule : Module("Mod ID Hider", "Hide certain mod IDs from other mods", Category.SKYBLOCK, hasToggle = false) {
     val open by ActionSetting("Open", desc = "Opens the Mod ID Hider screen (can also be opened with /gobby modid)") {
-        mc.send { ModIdHiderScreen.open() }
+        mc.execute { ModIdHiderScreen.open() }
     }
 }

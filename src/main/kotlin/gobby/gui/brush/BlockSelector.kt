@@ -17,11 +17,11 @@ import gobby.features.dungeons.EtherwarpTriggerbot
 import gobby.gui.components.BlockItemComponent
 import gobby.gui.components.GobbyScrollPanel
 import gobby.utils.ChatUtils.modMessage
-import net.minecraft.block.Block
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.registry.Registries
+import net.minecraft.world.level.block.Block
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.core.registries.BuiltInRegistries
 import java.awt.Color
 
 class BlockSelector private constructor (
@@ -149,10 +149,10 @@ class BlockSelector private constructor (
     }
 
     private fun populateBlocks() {
-        for (block in Registries.BLOCK) {
+        for (block in BuiltInRegistries.BLOCK) {
             if (block.asItem() == Items.AIR) continue
 
-            val id = Registries.BLOCK.getId(block).toString()
+            val id = BuiltInRegistries.BLOCK.getKey(block).toString()
             val stack = ItemStack(block.asItem())
             val component = BlockItemComponent(id, stack).constrain {
                 x = CramSiblingConstraint(2f)
@@ -202,7 +202,7 @@ class BlockSelector private constructor (
         }
     }
 
-    fun drawBlockItems(context: DrawContext) {
+    fun drawBlockItems(context: GuiGraphics) {
         val clipLeft = scrollPanel.scrollArea.getLeft().toInt()
         val clipTop = scrollPanel.scrollArea.getTop().toInt()
         val clipRight = scrollPanel.scrollArea.getRight().toInt()
@@ -222,7 +222,7 @@ class BlockSelector private constructor (
                 else -> BlockItemComponent.BG_COLOR
             }
             context.fill(left, top, right, bottom, bg)
-            context.drawItem(entry.stack, left + 2, top + 2)
+            context.renderItem(entry.stack, left + 2, top + 2)
 
             if (entry.block in EtherwarpTriggerbot.TARGET_BLOCKS) {
                 val c = BlockItemComponent.ETHERWARP_COLOR
@@ -233,7 +233,7 @@ class BlockSelector private constructor (
             }
 
             if (Brush.isFavorite(entry.id)) {
-                context.drawText(mc.textRenderer, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
+                context.drawString(mc.font, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
             }
         }
         context.disableScissor()
@@ -255,7 +255,7 @@ class BlockSelector private constructor (
         var selectedBlock: Block? = null
 
         @JvmStatic
-        var currentDrawContext: DrawContext? = null
+        var currentDrawContext: GuiGraphics? = null
 
         private var activeInstance: BlockSelector? = null
 
@@ -266,7 +266,7 @@ class BlockSelector private constructor (
         }
 
         @JvmStatic
-        fun drawBlockItemsIfActive(context: DrawContext) {
+        fun drawBlockItemsIfActive(context: GuiGraphics) {
             activeInstance?.drawBlockItems(context)
         }
     }

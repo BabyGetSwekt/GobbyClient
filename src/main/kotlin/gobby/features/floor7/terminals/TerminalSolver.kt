@@ -4,7 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.skyblock.dungeon.TerminalUtils
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
 
 abstract class TerminalSolver {
 
@@ -12,17 +12,17 @@ abstract class TerminalSolver {
 
     abstract val isEnabled: Boolean
     abstract fun matchesTitle(title: String): Boolean
-    abstract fun solve(screen: GenericContainerScreen): TerminalClick?
+    abstract fun solve(screen: ContainerScreen): TerminalClick?
 
-    open fun onActivate(screen: GenericContainerScreen) {}
+    open fun onActivate(screen: ContainerScreen) {}
     open fun onDeactivate() {}
 
     fun isActive(): Boolean = active
 
-    protected fun tickScreen(): GenericContainerScreen? {
+    protected fun tickScreen(): ContainerScreen? {
         if (TerminalUtils.isGuardFailed() || !isEnabled) return null
 
-        val screen = (mc.currentScreen as? GenericContainerScreen)
+        val screen = (mc.screen as? ContainerScreen)
             ?.takeIf { matchesTitle(it.title.string) }
 
         if (screen == null) {

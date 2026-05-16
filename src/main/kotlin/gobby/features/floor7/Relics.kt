@@ -12,12 +12,12 @@ import gobby.utils.skyblockID
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.Relic
 import gobby.utils.timer.Clock
-import net.minecraft.entity.EquipmentSlot
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.EntityHitResult
-import net.minecraft.util.hit.HitResult
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.EntityHitResult
+import net.minecraft.world.phys.HitResult
 
 object Relics : Module(
     "Relics", "Quality of life features for relics on F7/M7.",
@@ -31,7 +31,7 @@ object Relics : Module(
     private val clickedBlocks = mutableMapOf<BlockPos, Clock>()
 
     private fun getHeldRelic(): Relic =
-        Relic.fromItemID(mc.player?.mainHandStack?.skyblockID)
+        Relic.fromItemID(mc.player?.mainHandItem?.skyblockID)
 
     @SubscribeEvent
     fun onRightClick(event: RightClickEvent) {
@@ -39,15 +39,15 @@ object Relics : Module(
         val relic = getHeldRelic()
         if (relic == Relic.None) return
 
-        val hit = mc.crosshairTarget
+        val hit = mc.hitResult
         if (hit !is BlockHitResult || hit.type != HitResult.Type.BLOCK) return
         if (hit.blockPos != relic.cauldronPos) event.cancel()
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        if (!enabled || !relicTriggerbot || mc.player == null || mc.world == null) return
-        if (DungeonUtils.getPhase() != 5 || mc.currentScreen != null) return
+        if (!enabled || !relicTriggerbot || mc.player == null || mc.level == null) return
+        if (DungeonUtils.getPhase() != 5 || mc.screen != null) return
         if (!clock.hasTimePassed(100)) return
 
         if (clickedBlocks.isNotEmpty()) clickedBlocks.entries.removeIf { it.value.hasTimePassed(5000) }
@@ -55,18 +55,18 @@ object Relics : Module(
         val relic = getHeldRelic()
 
         if (relic == Relic.None) {
-            val hit = mc.crosshairTarget ?: return
+            val hit = mc.hitResult ?: return
             if (hit !is EntityHitResult || hit.type != HitResult.Type.ENTITY) return
             val entity = hit.entity
-            if (entity !is ArmorStandEntity) return
-            if (!entity.getEquippedStack(EquipmentSlot.HEAD).name.string.contains("Relic")) return
+            if (entity !is ArmorStand) return
+            if (!entity.getItemBySlot(EquipmentSlot.HEAD).hoverName.string.contains("Relic")) return
 
             PlayerUtils.rightClick()
             clock.update()
             return
         }
 
-        val hit = mc.crosshairTarget
+        val hit = mc.hitResult
         if (hit !is BlockHitResult || hit.type != HitResult.Type.BLOCK) return
         val pos = hit.blockPos
         if (pos in clickedBlocks) return

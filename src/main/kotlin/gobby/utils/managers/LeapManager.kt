@@ -11,17 +11,17 @@ import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket
-import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket
-import net.minecraft.screen.ScreenHandler
-import net.minecraft.screen.slot.SlotActionType
-import net.minecraft.screen.sync.ItemStackHash
-import net.minecraft.util.Formatting
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.world.inventory.AbstractContainerMenu
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.network.HashedStack
+import net.minecraft.ChatFormatting
 
 object LeapManager {
 
@@ -33,7 +33,7 @@ object LeapManager {
         private set
     var leapTarget: String? = null
         private set
-    private var container: ScreenHandler? = null
+    private var container: AbstractContainerMenu? = null
     private var ticks = 0
 
     fun scheduleLeap(name: String): Boolean {
@@ -69,7 +69,7 @@ object LeapManager {
             state = State.OPENING_MENU
             PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
                 val p = mc.player ?: return@register
-                PlayerUtils.useItem(p.yaw, p.pitch)
+                PlayerUtils.useItem(p.yRot, p.xRot)
             }
         } else {
             state = State.SWAPPING
@@ -86,7 +86,7 @@ object LeapManager {
             state = State.OPENING_MENU
             PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
                 val p = mc.player ?: return@register
-                PlayerUtils.useItem(p.yaw, p.pitch)
+                PlayerUtils.useItem(p.yRot, p.xRot)
             }
         }
 
@@ -98,24 +98,24 @@ object LeapManager {
         if (state == State.IDLE) return
 
         when (val packet = event.packet) {
-            is OpenScreenS2CPacket -> {
+            is ClientboundOpenScreenPacket -> {
                 if (state != State.OPENING_MENU) return
-                if (!packet.name.string.contains("Spirit Leap")) return
-                if (packet.syncId < 1 || packet.syncId > 100) return
+                if (!packet.title.string.contains("Spirit Leap")) return
+                if (packet.containerId < 1 || packet.containerId > 100) return
                 val player = mc.player ?: return
-                container = packet.screenHandlerType.create(packet.syncId, player.inventory)
+                container = packet.type.create(packet.containerId, player.inventory)
                 state = State.MENU_OPENED
                 event.cancel()
             }
 
-            is ScreenHandlerSlotUpdateS2CPacket -> {
+            is ClientboundContainerSetSlotPacket -> {
                 if (state != State.MENU_OPENED) return
                 val handler = container ?: return
-                if (packet.syncId != handler.syncId) return
+                if (packet.containerId != handler.containerId) return
                 val slot = packet.slot
                 if (slot < 11) return
 
-                handler.setStackInSlot(slot, packet.revision, packet.stack)
+                handler.setItem(slot, packet.stateId, packet.item)
 
                 if (slot > 16) {
                     modMessage("§cFailed to find leap target!")
@@ -123,9 +123,9 @@ object LeapManager {
                     return
                 }
 
-                val stack = packet.stack
+                val stack = packet.item
                 if (stack.item != Items.PLAYER_HEAD) return
-                val itemName = Formatting.strip(stack.name.string) ?: return
+                val itemName = ChatFormatting.stripFormatting(stack.hoverName.string) ?: return
                 if (!itemName.equals(leapTarget, ignoreCase = true)) return
 
                 state = State.LEAPING
@@ -137,38 +137,38 @@ object LeapManager {
         }
     }
 
-    private fun sendWindowClick(slotNumber: Int, player: PlayerEntity, handler: ScreenHandler) {
-        val connection = mc.networkHandler ?: return
+    private fun sendWindowClick(slotNumber: Int, player: Player, handler: AbstractContainerMenu) {
+        val connection = mc.connection ?: return
         val slots = handler.slots
-        val before = slots.map { it.stack.copy() }
+        val before = slots.map { it.item.copy() }
 
-        handler.onSlotClick(slotNumber, 0, SlotActionType.CLONE, player)
+        handler.clicked(slotNumber, 0, ClickType.CLONE, player)
 
-        val changed = Int2ObjectOpenHashMap<ItemStackHash>()
+        val changed = Int2ObjectOpenHashMap<HashedStack>()
         for (i in before.indices) {
-            if (!ItemStack.areEqual(before[i], slots[i].stack)) {
-                changed.put(i, ItemStackHash.fromItemStack(slots[i].stack, connection.componentHasher))
+            if (!ItemStack.matches(before[i], slots[i].item)) {
+                changed.put(i, HashedStack.create(slots[i].item, connection.decoratedHashOpsGenenerator()))
             }
         }
 
-        val cursorHash = ItemStackHash.fromItemStack(handler.cursorStack, connection.componentHasher)
-        connection.sendPacket(
-            ClickSlotC2SPacket(
-                handler.syncId,
-                handler.revision,
+        val cursorHash = HashedStack.create(handler.carried, connection.decoratedHashOpsGenenerator())
+        connection.send(
+            ServerboundContainerClickPacket(
+                handler.containerId,
+                handler.stateId,
                 slotNumber.toShort(),
                 0.toByte(),
-                SlotActionType.CLONE,
+                ClickType.CLONE,
                 changed,
                 cursorHash
             )
         )
-        connection.sendPacket(CloseHandledScreenC2SPacket(handler.syncId))
+        connection.send(ServerboundContainerClosePacket(handler.containerId))
     }
 
     private fun close() {
         val handler = container ?: return
-        mc.networkHandler?.sendPacket(CloseHandledScreenC2SPacket(handler.syncId))
+        mc.connection?.send(ServerboundContainerClosePacket(handler.containerId))
         reset()
     }
 

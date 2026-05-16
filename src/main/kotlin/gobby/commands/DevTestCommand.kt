@@ -28,7 +28,7 @@ object DevTestCommand {
     private fun getItemID(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal(name)
             .executes {
-                modMessage(mc?.player?.mainHandStack?.skyblockID ?: "No item or no skyblock ID")
+                modMessage(mc?.player?.mainHandItem?.skyblockID ?: "No item or no skyblock ID")
                 Command.SINGLE_SUCCESS
             }
     }

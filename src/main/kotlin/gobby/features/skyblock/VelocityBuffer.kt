@@ -13,10 +13,11 @@ import gobby.gui.hud.HudSetting
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.render.NotificationRenderer
 import gobby.utils.timer.Clock
-import net.minecraft.network.packet.Packet
-import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket
-import net.minecraft.network.packet.s2c.common.KeepAliveS2CPacket
-import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket
+import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.game.ClientGamePacketListener
+import net.minecraft.network.protocol.common.ClientboundDisconnectPacket
+import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket
 import java.awt.Color
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -42,14 +43,14 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
         val vc = if (example) 2 else velocityCount.get()
         val tc = if (example) 47 else queue.size
         val text = "§bVelo: §f$vc §8| §7Total: §f$tc"
-        val tr = mc.textRenderer
-        ctx.drawText(tr, text, 0, 0, Color.WHITE.rgb, true)
-        setSize(tr.getWidth(text), tr.fontHeight)
+        val tr = mc.font
+        ctx.drawString(tr, text, 0, 0, Color.WHITE.rgb, true)
+        setSize(tr.width(text), tr.lineHeight)
     }
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        if (!enabled || mc.currentScreen != null) return
+        if (!enabled || mc.screen != null) return
         if (toggleKey == 0 || event.key != toggleKey) return
         if (active) stop() else start()
     }
@@ -73,12 +74,12 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
     private fun flushAll() {
         if (!releasing.compareAndSet(false, true)) return
         val count = queue.size
-        val handler = mc.networkHandler
+        val handler = mc.connection
         if (handler != null) {
             mc.execute {
                 while (queue.isNotEmpty()) {
                     val packet = queue.poll() ?: break
-                    try { (packet as Packet<Any>).apply(handler as Any) } catch (_: Exception) {}
+                    try { (packet as Packet<ClientGamePacketListener>).handle(handler) } catch (_: Exception) {}
                 }
                 velocityCount.set(0)
                 releasing.set(false)
@@ -102,7 +103,7 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
             return
         }
 
-        val attackPressed = mc.options.attackKey.isPressed
+        val attackPressed = mc.options.keyAttack.isDown
         if (attackPressed && !attackKeyLastTick && velocityCount.get() > 0) {
             releaseOneVelocity()
         }
@@ -116,13 +117,13 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
         val packet = event.packet
 
         // Always let these through
-        if (packet is KeepAliveS2CPacket || packet is DisconnectS2CPacket) return
+        if (packet is ClientboundKeepAlivePacket || packet is ClientboundDisconnectPacket) return
 
         event.cancel()
 
         // Track velocity count
-        if (packet is EntityVelocityUpdateS2CPacket && packet.entityId == (mc.player?.id ?: -1)) {
-            val vel = packet.velocity
+        if (packet is ClientboundSetEntityMotionPacket && packet.id == (mc.player?.id ?: -1)) {
+            val vel = packet.movement
             modMessage("§d[Velocity captured] §f(${f(vel.x)}, ${f(vel.y)}, ${f(vel.z)})")
             velocityCount.incrementAndGet()
         }
@@ -134,7 +135,7 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
     private fun releaseOneVelocity() {
         if (!releasing.compareAndSet(false, true)) return
 
-        val handler = mc.networkHandler
+        val handler = mc.connection
         if (handler == null) { releasing.set(false); return }
 
         mc.execute {
@@ -145,9 +146,9 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
             while (queue.isNotEmpty()) {
                 val packet = queue.poll() ?: break
                 if (!found) {
-                    try { (packet as Packet<Any>).apply(handler as Any) } catch (_: Exception) {}
-                    if (packet is EntityVelocityUpdateS2CPacket && packet.entityId == playerId) {
-                        val vel = packet.velocity
+                    try { (packet as Packet<ClientGamePacketListener>).handle(handler) } catch (_: Exception) {}
+                    if (packet is ClientboundSetEntityMotionPacket && packet.id == playerId) {
+                        val vel = packet.movement
                         modMessage("§aReleased velocity (${f(vel.x)}, ${f(vel.y)}, ${f(vel.z)}) §7[${velocityCount.get() - 1} left]")
                         velocityCount.decrementAndGet()
                         found = true

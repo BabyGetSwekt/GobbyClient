@@ -15,9 +15,9 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.HALF_ROOM
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.render.Interpolate
-import net.minecraft.entity.Entity
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.entity.mob.BlazeEntity
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.monster.Blaze
 import java.awt.Color
 
 object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Category.DUNGEONS) {
@@ -61,8 +61,8 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
             draw3DBox(event.matrixStack, event.camera, mob.boundingBox, color, filled = true, depthTest = false)
         }
         all.take(3).zipWithNext().forEachIndexed { i, (a, b) ->
-            val from = Interpolate.interpolateEntity(a).add(0.0, a.height / 2.0, 0.0)
-            val to = Interpolate.interpolateEntity(b).add(0.0, b.height / 2.0, 0.0)
+            val from = Interpolate.interpolateEntity(a).add(0.0, a.bbHeight / 2.0, 0.0)
+            val to = Interpolate.interpolateEntity(b).add(0.0, b.bbHeight / 2.0, 0.0)
             drawLine3D(event.matrixStack, event.camera, from, to, COLORS[i + 1], depthTest = false)
         }
     }
@@ -73,15 +73,15 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
             if (hiddenEntities.isNotEmpty()) restoreHidden()
             return
         }
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val xRange = (roomCenterX - HALF_ROOM)..(roomCenterX + HALF_ROOM)
         val zRange = (roomCenterZ - HALF_ROOM)..(roomCenterZ + HALF_ROOM)
-        world.entities.asSequence()
+        world.entitiesForRendering().asSequence()
             .filter { it.x.toInt() in xRange && it.z.toInt() in zRange }
             .forEach { e ->
                 when (e) {
-                    is BlazeEntity -> { e.isInvisible = true; hiddenEntities.add(e) }
-                    is ArmorStandEntity if e.customName?.string?.contains("Blaze") == true -> {
+                    is Blaze -> { e.isInvisible = true; hiddenEntities.add(e) }
+                    is ArmorStand if e.customName?.string?.contains("Blaze") == true -> {
                         e.isInvisible = true
                         e.isCustomNameVisible = false
                         hiddenEntities.add(e)
@@ -95,10 +95,10 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
         if (!enabled || !inBlazeRoom || !hideBlazes) return
         val p = event.pos
         val hit = hiddenEntities.asSequence()
-            .filterIsInstance<BlazeEntity>()
+            .filterIsInstance<Blaze>()
             .any {
                 val dx = p.x - it.x
-                val dy = p.y - (it.y + it.height / 2.0)
+                val dy = p.y - (it.y + it.bbHeight / 2.0)
                 val dz = p.z - it.z
                 dx * dx + dy * dy + dz * dz < 4.0
             }
@@ -114,17 +114,17 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
     private fun parseMaxHp(name: String): Int? =
         HP_REGEX.find(name)?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
 
-    private fun getCorrespondingBlaze(label: ArmorStandEntity): Entity? {
-        val box = label.boundingBox.offset(0.0, -1.5, 0.0).expand(0.6, 1.0, 0.6)
-        return label.entityWorld.getOtherEntities(label, box) { it is BlazeEntity }.firstOrNull()
+    private fun getCorrespondingBlaze(label: ArmorStand): Entity? {
+        val box = label.boundingBox.move(0.0, -1.5, 0.0).inflate(0.6, 1.0, 0.6)
+        return label.level().getEntities(label, box).filterIsInstance<Blaze>().firstOrNull()
     }
 
     private fun scanTargets(): List<Entity> {
-        val world = mc.world ?: return emptyList()
+        val world = mc.level ?: return emptyList()
         val xRange = (roomCenterX - HALF_ROOM)..(roomCenterX + HALF_ROOM)
         val zRange = (roomCenterZ - HALF_ROOM)..(roomCenterZ + HALF_ROOM)
-        return world.entities
-            .filterIsInstance<ArmorStandEntity>()
+        return world.entitiesForRendering()
+            .filterIsInstance<ArmorStand>()
             .filter { it.x.toInt() in xRange && it.z.toInt() in zRange }
             .mapNotNull { stand ->
                 val custom = stand.customName?.string ?: return@mapNotNull null
@@ -139,7 +139,7 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
     private fun restoreHidden() {
         hiddenEntities.forEach {
             it.isInvisible = false
-            if (it is ArmorStandEntity) it.isCustomNameVisible = true
+            if (it is ArmorStand) it.isCustomNameVisible = true
         }
         hiddenEntities.clear()
     }

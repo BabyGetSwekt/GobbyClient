@@ -8,9 +8,9 @@ import gobby.gui.click.ColorSetting
 import gobby.gui.click.SelectorSetting
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
-import net.minecraft.entity.Entity
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.player.Player
 import java.awt.Color
 
 object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses in dungeons", Category.DUNGEONS) {
@@ -31,21 +31,21 @@ object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses 
     override fun shouldHighlight(entity: Entity): Boolean {
         if (!inDungeons || inBoss) return false
 
-        if (entity is ArmorStandEntity) {
+        if (entity is ArmorStand) {
             val customName = entity.customName?.string ?: ""
             if (customName.contains("Angry Archaeologist")) return true
         }
 
-        if (entity !is PlayerEntity) return false
+        if (entity !is Player) return false
         if (entity == mc.player) return false
-        if (entity.isDead || entity.isSleeping) return false
+        if (entity.isRemoved() || entity.isSleeping) return false
         val name = entity.name.string
         val customName = entity.customName?.string ?: ""
         return MINIBOSS_NAMES.any { name.contains(it) || customName.contains(it) }
     }
 
     override fun resolveEntity(entity: Entity): Entity? {
-        if (entity is ArmorStandEntity) {
+        if (entity is ArmorStand) {
             return getCorrespondingMob(entity)
         }
         return entity

@@ -2,10 +2,10 @@ package gobby.utils.render
 
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
-import net.minecraft.client.render.Camera
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
+import net.minecraft.client.Camera
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
 import java.awt.Color
 
 object RenderBlock {
@@ -37,10 +37,10 @@ object RenderBlock {
         }
     }
 
-    private fun renderBlock(matrixStack: MatrixStack, camera: Camera, block: BlockData) {
+    private fun renderBlock(matrixStack: PoseStack, camera: Camera, block: BlockData) {
         val blockPos = block.pos
 
-        val box = Box(
+        val box = AABB(
             blockPos.x.toDouble(), blockPos.y.toDouble(), blockPos.z.toDouble(),
             blockPos.x + 1.0, blockPos.y + 1.0, blockPos.z + 1.0
         )

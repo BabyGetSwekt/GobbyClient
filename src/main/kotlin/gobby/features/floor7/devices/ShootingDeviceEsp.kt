@@ -8,10 +8,10 @@ import gobby.events.render.NewRender3DEvent
 import gobby.features.render.BlockHighlighter
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.render.BlockRenderUtils.draw3DBox
-import net.minecraft.block.BlockState
-import net.minecraft.block.Blocks
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
 import java.awt.Color
 
 object ShootingDeviceEsp : BlockHighlighter() {
@@ -38,7 +38,7 @@ object ShootingDeviceEsp : BlockHighlighter() {
         if (pos !in AutoPre4.shootPositions) return
         if (AutoPre4.deviceCompleted) return
         if (event.oldState?.block == Blocks.EMERALD_BLOCK && event.newState.block != Blocks.EMERALD_BLOCK) {
-            completedShots.add(pos.toImmutable())
+            completedShots.add(pos.immutable())
         }
     }
 
@@ -63,7 +63,7 @@ object ShootingDeviceEsp : BlockHighlighter() {
         }
 
         for (pos in completedShots) {
-            val box = Box(
+            val box = AABB(
                 pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
                 pos.x + 1.0, pos.y + 1.0, pos.z + 1.0
             )
@@ -73,7 +73,7 @@ object ShootingDeviceEsp : BlockHighlighter() {
         if (!AutoPre4.enabled) return
         val aim = AutoPre4.currentAimTarget ?: return
         val half = AIM_BOX_SIZE / 2.0
-        val aimBox = Box(
+        val aimBox = AABB(
             aim.x - half, aim.y - half, aim.z - half,
             aim.x + half, aim.y + half, aim.z + half
         )

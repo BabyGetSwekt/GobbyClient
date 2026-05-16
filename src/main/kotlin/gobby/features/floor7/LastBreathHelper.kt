@@ -32,22 +32,22 @@ object LastBreathHelper {
 
     @SubscribeEvent
     fun onMouseButton(event: MouseButtonEvent) {
-        if (mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.level == null) return
         if (dungeonFloor != 7 || !inBoss) return
         if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
         if (event.button != MouseButtonEvent.RIGHT_BUTTON) return
-        if (mc.currentScreen != null) return
+        if (mc.screen != null) return
 
         rcButtonState = event.action == MouseButtonEvent.PRESS
     }
 
     @SubscribeEvent
     fun onServerTick(event: ServerTickEvent) {
-        if (mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.level == null) return
         if (dungeonFloor != 7 || !inBoss) return
         if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
 
-        if (!mc?.player?.mainHandStack?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH")) {
+        if (!mc?.player?.mainHandItem?.skyblockID.equalsOneOf("LAST_BREATH", "STARRED_LAST_BREATH")) {
             ticks = 0
             return
         }
@@ -56,19 +56,19 @@ object LastBreathHelper {
             if (ticks < getMaxTicks()) ticks++
 
             if (ticks == getMaxTicks()) {
-                Executor.execute(1) { mc.options.useKey.isPressed = false }
+                Executor.execute(1) { mc.options.keyUse.isDown = false }
 
-                Executor.execute(3) { mc.options.useKey.isPressed = rcButtonState }
+                Executor.execute(3) { mc.options.keyUse.isDown = rcButtonState }
             }
         }
     }
 
     @SubscribeEvent
     fun onClientTick(event: ClientTickEvent.Pre) {
-        if (mc.player == null || mc.world == null) return
+        if (mc.player == null || mc.level == null) return
         if (dungeonFloor != 7 || !inBoss) return
         if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
-        if (mc.options.useKey.isPressed) {
+        if (mc.options.keyUse.isDown) {
             lbCharged = true
         } else {
             lbCharged = false

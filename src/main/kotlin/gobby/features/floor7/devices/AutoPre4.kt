@@ -30,10 +30,10 @@ import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.getSection
 import gobby.utils.skyblockID
 import gobby.utils.timer.Clock
-import net.minecraft.block.Blocks
-import net.minecraft.state.property.Properties
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 
 object AutoPre4 : Module(
     "Auto Pre 4", "Automatically completes the fourth device",
@@ -76,28 +76,28 @@ object AutoPre4 : Module(
     private var state: State = State.IDLE
     var deviceCompleted: Boolean = false
         private set
-    var currentAimTarget: Vec3d? = null
+    var currentAimTarget: Vec3? = null
         private set
     private val isShootingPhase: Boolean get() = state in SHOOTING_STATES
 
     private fun isNearPlate() = posY == 127.0 && posX in 62.0..65.0 && posZ in 34.0..37.0
 
-    fun isPlateDown(): Boolean = mc.world?.getBlockState(platePos)?.let {
-        it.block == Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE && it.get(Properties.POWER) > 0
+    fun isPlateDown(): Boolean = mc.level?.getBlockState(platePos)?.let {
+        it.block == Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE && it.getValue(BlockStateProperties.POWER) > 0
     } ?: false
 
     private fun isHoldingTerminator(): Boolean {
-        val mainHand = mc.player?.mainHandStack?.takeUnless { it.isEmpty } ?: return lastWasTerminator
+        val mainHand = mc.player?.mainHandItem?.takeUnless { it.isEmpty } ?: return lastWasTerminator
         return (mainHand.skyblockID == "TERMINATOR").also { lastWasTerminator = it }
     }
 
-    private fun aimCoords(pos: BlockPos): Vec3d {
+    private fun aimCoords(pos: BlockPos): Vec3 {
         val xOffset = if (isHoldingTerminator()) offsetMap[pos.x] ?: 0.5 else 0.5
-        return Vec3d(pos.x + xOffset, pos.y + 1.1, pos.z.toDouble())
+        return Vec3(pos.x + xOffset, pos.y + 1.1, pos.z.toDouble())
     }
 
     private fun isAtPlateWithBow() =
-        isNearPlate() && isPlateDown() && mc.player?.mainHandStack?.hasItemID("minecraft:bow") == true
+        isNearPlate() && isPlateDown() && mc.player?.mainHandItem?.hasItemID("minecraft:bow") == true
 
     private fun setEmerald(pos: BlockPos) {
         currentEmerald = pos
@@ -118,17 +118,17 @@ object AutoPre4 : Module(
         state = State.IDLE
     }
 
-    private fun smartPrefireTarget(): Vec3d? {
+    private fun smartPrefireTarget(): Vec3? {
         val lastY = shotAt.lastOrNull()?.y ?: return null
         val remaining = shootPositions.filter { it.y == lastY && it !in shotAt }
         return when (remaining.size) {
             1 -> aimCoords(remaining[0])
-            2 -> aimCoords(remaining[0]).add(aimCoords(remaining[1])).multiply(0.5)
+            2 -> aimCoords(remaining[0]).add(aimCoords(remaining[1])).scale(0.5)
             else -> null
         }
     }
 
-    private fun shootCoord(): Vec3d? {
+    private fun shootCoord(): Vec3? {
         currentEmerald?.takeIf { hasNewEmerald }?.let {
             resetPrefire()
             if (it !in shotAt) shotAt.add(it)
@@ -141,14 +141,14 @@ object AutoPre4 : Module(
     }
 
     private fun scanExistingEmerald() {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         shootPositions.firstOrNull { it !in shotAt && world.getBlockState(it).block == Blocks.EMERALD_BLOCK }
             ?.let(::setEmerald)
     }
 
     @SubscribeEvent
     fun onBlockChange(event: BlockStateChangeEvent) {
-        if (mc.world == null || mc.player == null || dungeonFloor != 7 || !inBoss) return
+        if (mc.level == null || mc.player == null || dungeonFloor != 7 || !inBoss) return
         val pos = event.blockPos.takeIf { it in shootPositions } ?: return
         when {
             event.newState.block == Blocks.EMERALD_BLOCK -> setEmerald(pos)
@@ -158,7 +158,7 @@ object AutoPre4 : Module(
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        mc.world ?: return
+        mc.level ?: return
         mc.player ?: return
 
         if (bonzoScheduled && bonzoClock.hasTimePassed(BONZO_SWAP_DELAY_MS)) {
@@ -191,7 +191,7 @@ object AutoPre4 : Module(
         if (!isAtPlateWithBow()) return resetShooting()
         if (!prefireGate.hasTimePassed(PREFIRE_GATE_MS)) return
         val player = mc.player ?: return
-        bowShootSpeedMs = player.mainHandStack.getBowShootSpeedMs()
+        bowShootSpeedMs = player.mainHandItem.getBowShootSpeedMs()
         if (!shotClock.hasTimePassed(bowShootSpeedMs)) return
 
         val target = shootCoord() ?: return

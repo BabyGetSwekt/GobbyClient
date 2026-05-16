@@ -12,7 +12,7 @@ import gobby.utils.Utils.equalsOneOf
 import gobby.utils.render.Interpolate.interpolateColorC
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonPad
-import net.minecraft.text.Text
+import net.minecraft.network.chat.Component
 import java.awt.Color
 
 object PadTimers : Module(
@@ -33,12 +33,12 @@ object PadTimers : Module(
 
     private var ticks = 0
     private var active = false
-    private var displayText: Text? = null
+    private var displayText: Component? = null
 
     private val padHud by HudSetting("Pad Timer", "Shows when to crush the pad.") { example ->
         if (example) {
             styledText(
-                Text.empty()
+                Component.empty()
                     .append(styledColored("Crush ", Color.WHITE))
                     .append(styledColored("Purple", COL_PURPLE))
                     .append(styledColored(" in ", Color.WHITE))
@@ -49,9 +49,9 @@ object PadTimers : Module(
         }
     }
 
-    private fun styledColored(s: String, color: Color): Text {
+    private fun styledColored(s: String, color: Color): Component {
         val argb = (0xFF shl 24) or (color.red shl 16) or (color.green shl 8) or color.blue
-        return Text.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
+        return Component.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
     }
 
     @SubscribeEvent
@@ -78,13 +78,13 @@ object PadTimers : Module(
         if (remaining < 0) { displayText = null; return }
 
         displayText = if (remaining == 0) {
-            Text.empty()
+            Component.empty()
                 .append(styledColored("Crush ", Color.WHITE))
                 .append(styledColored(name, padColor))
                 .append(styledColored(" NOW!", Color.WHITE))
         } else {
             val ratio = remaining.toFloat() / crushAt
-            Text.empty()
+            Component.empty()
                 .append(styledColored("Crush ", Color.WHITE))
                 .append(styledColored(name, padColor))
                 .append(styledColored(" in ", Color.WHITE))

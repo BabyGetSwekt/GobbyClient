@@ -8,7 +8,7 @@ import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.minecraft.text.Text
+import net.minecraft.network.chat.Component
 
 object SimulateCommand {
 
@@ -20,7 +20,7 @@ object SimulateCommand {
                         ClientCommandManager.argument("message", StringArgumentType.greedyString())
                             .executes { context ->
                                 val message = StringArgumentType.getString(context, "message")
-                                mc.messageHandler.onGameMessage(Text.of(message), false)
+                                mc.gui.chat.addMessage(Component.literal(message))
                                 Command.SINGLE_SUCCESS
                             }
                     )

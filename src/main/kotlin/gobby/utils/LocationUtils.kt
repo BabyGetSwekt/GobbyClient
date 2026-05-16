@@ -10,22 +10,21 @@ import gobby.utils.Utils.posX
 import gobby.utils.Utils.posZ
 import gobby.utils.timer.Executor
 import it.unimi.dsi.fastutil.objects.ObjectArrayList
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.PlayerListEntry
-import net.minecraft.scoreboard.ScoreHolder
-import net.minecraft.scoreboard.Scoreboard
-import net.minecraft.scoreboard.ScoreboardDisplaySlot
-import net.minecraft.scoreboard.ScoreboardObjective
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
-import net.minecraft.scoreboard.Team
+import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.world.scores.ScoreHolder
+import net.minecraft.world.scores.Scoreboard
+import net.minecraft.world.scores.DisplaySlot
+import net.minecraft.world.scores.Objective
+import net.minecraft.network.chat.Component
+import net.minecraft.ChatFormatting
 import java.util.Collections
 
 object LocationUtils {
 
     private val floorRegex = Regex("The Catacombs \\((\\w+)\\)\$")
 
-    val TEXT_SCOREBOARD = ObjectArrayList<Text>()
+    val TEXT_SCOREBOARD = ObjectArrayList<Component>()
     val STRING_SCOREBOARD = ObjectArrayList<String>()
 
     var onHypixel = false
@@ -43,7 +42,7 @@ object LocationUtils {
     val inBoss: Boolean get() = inBoss()
 
     fun update() {
-        val client = MinecraftClient.getInstance() ?: return
+        val client = Minecraft.getInstance() ?: return
         updateScoreboard(client)
         updateTablist(client)
         updateFloor()
@@ -51,7 +50,7 @@ object LocationUtils {
 
     @SubscribeEvent
     fun onConnect(event: ClientConnectedToServerEvent) {
-        val client = MinecraftClient.getInstance() ?: return
+        val client = Minecraft.getInstance() ?: return
         Executor.schedule(70) {
             onHypixel = isConnectedToHypixel(client)
         }
@@ -66,36 +65,36 @@ object LocationUtils {
         dungeonFloor = -1
     }
 
-    fun updateScoreboard(client: MinecraftClient) {
+    fun updateScoreboard(client: Minecraft) {
         try {
             TEXT_SCOREBOARD.clear()
             STRING_SCOREBOARD.clear()
 
             val player = client.player ?: return
 
-            val scoreboard: Scoreboard = player.networkHandler.scoreboard
-            val objective: ScoreboardObjective? =
-                scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.FROM_ID.apply(1))
+            val scoreboard: Scoreboard = player.connection.scoreboard()
+            val objective: Objective? =
+                scoreboard.getDisplayObjective(DisplaySlot.BY_ID.apply(1))
 
-            val textLines = ObjectArrayList<Text>()
+            val textLines = ObjectArrayList<Component>()
             val stringLines = ObjectArrayList<String>()
 
-            for (scoreHolder: ScoreHolder in scoreboard.knownScoreHolders) {
-                val holderObjectives = scoreboard.getScoreHolderObjectives(scoreHolder)
+            for (scoreHolder: ScoreHolder in scoreboard.trackedPlayers) {
+                val holderObjectives = scoreboard.listPlayerScores(scoreHolder)
                 if (objective != null && holderObjectives.containsKey(objective)) {
-                    val scObjName = Formatting.strip(objective.displayName.string)?.uppercase() ?: ""
+                    val scObjName = ChatFormatting.stripFormatting(objective.displayName.string)?.uppercase() ?: ""
                     onSkyblock = scObjName.contains("SKYBLOCK")
-                    val team: Team? = scoreboard.getScoreHolderTeam(scoreHolder.nameForScoreboard)
+                    val team = scoreboard.getPlayersTeam(scoreHolder.scoreboardName)
 
                     if (team != null) {
-                        val textLine = Text.empty()
-                            .append(team.prefix.copy())
-                            .append(team.suffix.copy())
+                        val textLine = Component.empty()
+                            .append(team.playerPrefix.copy())
+                            .append(team.playerSuffix.copy())
 
-                        val strLine = team.prefix.string + team.suffix.string
+                        val strLine = team.playerPrefix.string + team.playerSuffix.string
 
                         if (strLine.trim().isNotEmpty()) {
-                            val formatted = Formatting.strip(strLine)
+                            val formatted = ChatFormatting.stripFormatting(strLine)
                             textLines.add(textLine)
                             stringLines.add(formatted)
                         }
@@ -105,7 +104,7 @@ object LocationUtils {
 
             if (objective != null) {
                 stringLines.add(objective.displayName.string)
-                textLines.add(Text.empty().append(objective.displayName.copy()))
+                textLines.add(Component.empty().append(objective.displayName.copy()))
 
                 Collections.reverse(stringLines)
                 Collections.reverse(textLines)
@@ -122,15 +121,15 @@ object LocationUtils {
         }
     }
 
-    fun updateTablist(client: MinecraftClient, debug: Boolean = false): List<String>? {
-        val tabList = client.networkHandler?.playerList ?: return emptyList()
+    fun updateTablist(client: Minecraft, debug: Boolean = false): List<String>? {
+        val tabList = client.connection?.listedOnlinePlayers ?: return emptyList()
         val sortedTabList = tabList.sortedWith(
-            compareBy<PlayerListEntry> { it.scoreboardTeam?.name ?: "" }
+            compareBy<PlayerInfo> { it.team?.name ?: "" }
                 .thenBy { it.profile.name.lowercase() }
         )
         for (entry in sortedTabList) {
-            val raw = entry.displayName?.string ?: continue
-            val line = Formatting.strip(raw) ?: continue
+            val raw = entry.tabListDisplayName?.string ?: continue
+            val line = ChatFormatting.stripFormatting(raw) ?: continue
             if (line.isEmpty()) continue
             if (debug) modMessage("Player in tab: $line")
 
@@ -156,9 +155,9 @@ object LocationUtils {
     }
 
 
-    private fun isConnectedToHypixel(client: MinecraftClient): Boolean {
-        val serverAddress = client.currentServerEntry?.address?.lowercase() ?: ""
-        val serverBrand = client.player?.networkHandler?.brand ?: ""
+    private fun isConnectedToHypixel(client: Minecraft): Boolean {
+        val serverAddress = client.currentServer?.ip?.lowercase() ?: ""
+        val serverBrand = client.connection?.serverBrand() ?: ""
         return (serverAddress.isNotEmpty() && serverAddress.equals("ilovecatgirls.xyz", ignoreCase = true))
                 || serverAddress.contains("hypixel.net")
                 || serverAddress.contains("hypixel.io")
@@ -169,8 +168,8 @@ object LocationUtils {
     private fun updateFloor() {
         if (!inDungeons) return
 
-        val client = MinecraftClient.getInstance() ?: return
-        val serverAddress = client.currentServerEntry?.address?.lowercase() ?: ""
+        val client = Minecraft.getInstance() ?: return
+        val serverAddress = client.currentServer?.ip?.lowercase() ?: ""
         if (serverAddress.contains("hypixelp3sim.zapto.org")) {
             dungeonFloor = 7
             return
