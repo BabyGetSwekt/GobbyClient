@@ -207,8 +207,8 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
     private fun drawCard(context: GuiGraphics, button: LeapButton, x: Int, y: Int, hovered: Boolean) {
         val dungeonClass = button.teammate.dungeonClass
-        val bgColor = if (hovered) CLASS_HOVER_COLORS[dungeonClass]!! else CLASS_BG_COLORS[dungeonClass]!!
-        val accentColor = CLASS_COLORS[dungeonClass]!!
+        val bgColor = (if (hovered) CLASS_HOVER_COLORS else CLASS_BG_COLORS)[dungeonClass] ?: Color.DARK_GRAY
+        val accentColor = CLASS_COLORS[dungeonClass] ?: Color.WHITE
 
         // Background + left accent
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, bgColor.rgb)

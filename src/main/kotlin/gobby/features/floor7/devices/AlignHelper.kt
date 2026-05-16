@@ -39,7 +39,7 @@ object AlignHelper : Module(
         val solution = AutoAlign.currentSolution ?: return
 
         if (!AutoAlign.remainingClicks.containsKey(index)) {
-            if (sneakOverrides && mc.player!!.isShiftKeyDown) return
+            if (sneakOverrides && mc.player?.isShiftKeyDown == true) return
             event.cancel()
             return
         }

@@ -106,20 +106,18 @@ object AutoAlign : Module(
     }
 
     private fun solveClosestFrame(player: net.minecraft.client.player.LocalPlayer) {
-        val solution = currentSolution!!
-        val frames = currentFrames!!
+        val solution = currentSolution ?: return
+        val frames = currentFrames ?: return
 
-        val sortedFrames = frames.mapIndexed { i, f -> i to f }
-            .filter { it.second != null }
-            .sortedBy { (_, f) -> player.distanceToSqr(f!!.entity.x, f.entity.y, f.entity.z) }
+        val sortedFrames = frames.mapIndexedNotNull { i, f -> f?.let { i to it } }
+            .sortedBy { (_, f) -> player.distanceToSqr(f.entity.x, f.entity.y, f.entity.z) }
 
         for ((index, frameData) in sortedFrames) {
-            if (frameData == null) continue
             val entity = frameData.entity
-
             if (player.distanceToSqr(entity.x, entity.y, entity.z) > MAX_INTERACT_RANGE_SQ) continue
 
-            var clicks = clicksNeeded(frameData.rotation, solution[index]!!)
+            val target = solution[index] ?: continue
+            var clicks = clicksNeeded(frameData.rotation, target)
 
             if (!inP3 && unsolved(frames, solution) <= 1) clicks--
             if (clicks <= 0) continue
@@ -155,7 +153,8 @@ object AutoAlign : Module(
 
     private fun unsolved(frames: List<FrameData?>, solution: List<Int?>): Int {
         return frames.withIndex().count { (i, f) ->
-            f != null && clicksNeeded(f.rotation, solution[i]!!) > 0
+            val target = solution[i]
+            f != null && target != null && clicksNeeded(f.rotation, target) > 0
         }
     }
 
@@ -178,8 +177,9 @@ object AutoAlign : Module(
                 val index = dy + dz * GRID_SIZE
                 val lastClick = recentClicks[index] ?: 0
 
-                if (currentFrames != null && now - lastClick < CLICK_CACHE_DURATION) {
-                    result.add(currentFrames!![index])
+                val cached = currentFrames
+                if (cached != null && now - lastClick < CLICK_CACHE_DURATION) {
+                    result.add(cached[index])
                 } else {
                     val key = "${deviceCornerPos.x},${deviceCornerPos.y + dy},${deviceCornerPos.z + dz}"
                     result.add(frameMap[key])
