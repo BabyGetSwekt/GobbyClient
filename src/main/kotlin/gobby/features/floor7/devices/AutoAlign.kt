@@ -11,6 +11,7 @@ import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getPhase
+import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.entity.decoration.ItemFrame
 import net.minecraft.world.item.Items
 import net.minecraft.network.protocol.game.ServerboundInteractPacket
@@ -105,7 +106,7 @@ object AutoAlign : Module(
         }
     }
 
-    private fun solveClosestFrame(player: net.minecraft.client.player.LocalPlayer) {
+    private fun solveClosestFrame(player: LocalPlayer) {
         val solution = currentSolution ?: return
         val frames = currentFrames ?: return
 
@@ -135,7 +136,7 @@ object AutoAlign : Module(
         entity: ItemFrame,
         frameData: FrameData,
         clicks: Int,
-        player: net.minecraft.client.player.LocalPlayer
+        player: LocalPlayer
     ) {
         val networkHandler = player.connection
         repeat(clicks) {

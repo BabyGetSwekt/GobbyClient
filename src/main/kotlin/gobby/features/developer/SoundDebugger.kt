@@ -11,6 +11,7 @@ import gobby.utils.ChatUtils.modMessage
 import net.minecraft.network.protocol.game.ClientboundEntityEventPacket
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket
 import net.minecraft.network.protocol.game.ClientboundSoundPacket
+import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt
 
 object SoundDebugger : Module("Sound Debugger", "Prints every sound played within range", Category.DEVELOPER) {
@@ -46,7 +47,7 @@ object SoundDebugger : Module("Sound Debugger", "Prints every sound played withi
                 if (packet.eventId.toInt() != 17) return
                 val world = mc.level ?: return
                 val live = packet.getEntity(world)
-                val pos = if (live != null) net.minecraft.world.phys.Vec3(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
+                val pos = if (live != null) Vec3(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
                 val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
                 val dist = sqrt(dx * dx + dy * dy + dz * dz)
                 if (dist > range) return

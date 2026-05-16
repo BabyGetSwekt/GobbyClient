@@ -5,6 +5,7 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.CHECK_FAILED
 import gobby.utils.skyblock.dungeon.map.MapConstants.CHECK_GREEN
 import gobby.utils.skyblock.dungeon.map.MapConstants.CHECK_WHITE
 import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.MapItem
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData
@@ -89,7 +90,7 @@ object MapCheckmarks {
         return true
     }
 
-    private fun findMapState(player: net.minecraft.world.entity.player.Player): MapItemSavedData? {
+    private fun findMapState(player: Player): MapItemSavedData? {
         val world = mc.level ?: return null
         for (slot in 0..8) {
             val stack = player.inventory.getItem(slot)

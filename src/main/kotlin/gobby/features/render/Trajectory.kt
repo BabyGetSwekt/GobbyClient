@@ -95,10 +95,14 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
         return Vec3(-cos(rad) * HAND_LATERAL, -HAND_Y_DROP, -sin(rad) * HAND_LATERAL)
     }
 
-    private fun renderHit(event: NewRender3DEvent, outcome: BowSimulator.Outcome) = when {
-        outcome.hitEntity != null -> draw3DBox(event.matrixStack, event.camera, outcome.hitEntity!!.boundingBox, boxColor, filled = false, depthTest = true)
-        outcome.impact != null -> draw3DBox(event.matrixStack, event.camera, AABB.ofSize(outcome.impact, BOX_SIZE, BOX_SIZE, BOX_SIZE), boxColor, filled = true, depthTest = true)
-        else -> Unit
+    private fun renderHit(event: NewRender3DEvent, outcome: BowSimulator.Outcome) {
+        outcome.hitEntity?.let { entity ->
+            draw3DBox(event.matrixStack, event.camera, entity.boundingBox, boxColor, filled = false, depthTest = true)
+            return
+        }
+        outcome.impact?.let { impact ->
+            draw3DBox(event.matrixStack, event.camera, AABB.ofSize(impact, BOX_SIZE, BOX_SIZE, BOX_SIZE), boxColor, filled = true, depthTest = true)
+        }
     }
 
     private fun renderTrail(event: NewRender3DEvent, trail: List<Vec3>) =

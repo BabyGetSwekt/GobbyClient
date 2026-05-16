@@ -12,6 +12,7 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.util.ProblemReporter
+import net.minecraft.world.level.storage.TagValueOutput
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -64,7 +65,7 @@ object ArmorStandSaver : Module(
     private fun encodeArmorStand(stand: ArmorStand): String? {
         val world = mc.level ?: return null
         return try {
-            val writeView = net.minecraft.world.level.storage.TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess())
+            val writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess())
             stand.saveWithoutId(writeView)
             val nbt = writeView.buildResult()
             nbt.putString("id", "minecraft:armor_stand")

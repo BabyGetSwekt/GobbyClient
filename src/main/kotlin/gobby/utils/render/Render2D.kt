@@ -106,9 +106,10 @@ object Render2D {
 
                 val code = chars[i + 1].lowercaseChar()
 
+                val mappedColor = colorCodes[code]
                 when {
-                    colorCodes.containsKey(code) -> {
-                        currentColor = colorCodes[code]!!
+                    mappedColor != null -> {
+                        currentColor = mappedColor
                         // Reset formatting when color changes (except for 'r' which is handled separately)
                         if (code != 'r') {
                             bold = false

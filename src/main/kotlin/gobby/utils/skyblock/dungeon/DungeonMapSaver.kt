@@ -17,6 +17,7 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.START_X
 import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.map.MapTile
 import gobby.utils.skyblock.dungeon.tiles.RoomType
+import net.minecraft.world.entity.Relative
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.core.BlockPos
 import org.slf4j.LoggerFactory
@@ -140,7 +141,7 @@ object DungeonMapSaver : RegionBlockCopier() {
 
                 data.spawn?.let { spawn ->
                     val serverPlayer = server.playerList.getPlayer(mc.player?.uuid ?: return@let)
-                    serverPlayer?.teleportTo(serverWorld, spawn[0] + 0.5, spawn[1].toDouble(), spawn[2] + 0.5, emptySet<net.minecraft.world.entity.Relative>(), 0f, 0f, false)
+                    serverPlayer?.teleportTo(serverWorld, spawn[0] + 0.5, spawn[1].toDouble(), spawn[2] + 0.5, emptySet<Relative>(), 0f, 0f, false)
                     modMessage("§aTeleported to entrance room")
                 }
             }

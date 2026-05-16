@@ -19,6 +19,7 @@ import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.TagParser
 import net.minecraft.core.BlockPos
+import net.minecraft.server.MinecraftServer
 import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.math.max
@@ -171,7 +172,7 @@ object StructureCopier : RegionBlockCopier() {
     }
 
     private fun pasteIntegrated(
-        server: net.minecraft.server.MinecraftServer,
+        server: MinecraftServer,
         data: StructureData,
         allPositions: List<Pair<BlockPos, BlockState>>,
         fileName: String

@@ -10,6 +10,7 @@ import gobby.pathfinder.movement.InputManager
 import gobby.pathfinder.movement.InputManager.MoveAction
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.render.BlockRenderUtils.draw3DBox
+import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.AABB
 import java.awt.Color
@@ -123,7 +124,7 @@ object PathExecutor {
         return index > 0 && path[index - 1].feetY - path[index].feetY > DROP_SEGMENT_DELTA
     }
 
-    private fun repath(player: net.minecraft.client.player.LocalPlayer) {
+    private fun repath(player: LocalPlayer) {
         val goal = goalPos ?: return
         val speed = player.speed.toDouble()
         modMessage("§eRepathing...")

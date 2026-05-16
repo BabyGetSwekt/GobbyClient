@@ -34,6 +34,7 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+import net.minecraft.util.RandomSource
 import java.io.File
 
 object Brush {
@@ -243,7 +244,7 @@ object Brush {
             }
         }
 
-        val random = net.minecraft.util.RandomSource.create()
+        val random = RandomSource.create()
         for (pos in stairPositions) {
             var state = world.getBlockState(pos)
             for (dir in Direction.entries) {

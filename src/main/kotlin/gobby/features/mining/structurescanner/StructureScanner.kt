@@ -13,6 +13,7 @@ import gobby.utils.LocationUtils
 import gobby.utils.render.RenderBeacon
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.chunk.LevelChunkSection
 import net.minecraft.world.level.chunk.LevelChunk
@@ -153,7 +154,7 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         return true
     }
 
-    private fun matchesEntry(entry: ColumnEntry<*>, state: net.minecraft.world.level.block.state.BlockState): Boolean {
+    private fun matchesEntry(entry: ColumnEntry<*>, state: BlockState): Boolean {
         @Suppress("UNCHECKED_CAST")
         return (entry as ColumnEntry<Comparable<Comparable<*>>>).matches(state)
     }

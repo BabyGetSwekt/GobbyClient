@@ -116,8 +116,8 @@ fun ItemStack.parseAbilities(): List<Ability> {
     var currentCooldown: Int? = null
 
     fun flush() {
-        if (currentName != null) {
-            abilities.add(Ability(currentName!!, currentTrigger, currentMana, currentSoulflow, currentCooldown))
+        currentName?.let { name ->
+            abilities.add(Ability(name, currentTrigger, currentMana, currentSoulflow, currentCooldown))
         }
         currentName = null
         currentTrigger = null
