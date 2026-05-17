@@ -1,6 +1,6 @@
 package gobby.features.skyblock
 
-import gobby.Gobbyclient
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketSentEvent
 import gobby.events.core.SubscribeEvent
@@ -59,29 +59,29 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
     private var currentHighestY: Int? = null
     private var isInEntrance = false
 
-    override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && Gobbyclient.mc.screen == null
+    override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && mc.screen == null
 
     override fun isValidBlock(pos: BlockPos): Boolean =
-        Gobbyclient.mc.level?.getBlockState(pos)?.block in TARGET_BLOCKS
+        mc.level?.getBlockState(pos)?.block in TARGET_BLOCKS
 
     override fun getBlockCooldown(): Long = 3000L
 
     override fun getTargetPos(): BlockPos? {
-        val player = Gobbyclient.mc.player ?: return null
+        val player = mc.player ?: return null
         if (!player.mainHandItem.isEtherwarpable()) return null
         if (mode == 1 && !player.isShiftKeyDown) return null
         return EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos
     }
 
     override fun performAction() {
-        val player = Gobbyclient.mc.player ?: return
+        val player = mc.player ?: return
         when (mode) {
             0 -> {
                 if (player.isShiftKeyDown) {
                     PlayerUtils.rightClick()
                 } else {
                     wasSneaking = false
-                    Gobbyclient.mc.options.keyShift.isDown = true
+                    mc.options.keyShift.isDown = true
                     sneakDelay = Utils.getRandomInt(3, 4)
                 }
             }
@@ -102,7 +102,7 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
 
     private fun processSneakSequence() {
         sneakDelay--
-        if (sneakDelay == 0 && !wasSneaking) Gobbyclient.mc.options.keyShift.isDown = false
+        if (sneakDelay == 0 && !wasSneaking) mc.options.keyShift.isDown = false
         if (sneakDelay == 1) PlayerUtils.rightClick()
     }
 
@@ -115,10 +115,10 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
         if (!enabled || !preventDeath) return
-        if (Gobbyclient.mc.screen != null) return
+        if (mc.screen != null) return
         if (event.packet !is ServerboundUseItemPacket) return
         if (isInEntrance) return
-        val player = Gobbyclient.mc.player ?: return
+        val player = mc.player ?: return
         if (!player.mainHandItem.isEtherwarpable()) return
         val highestY = currentHighestY ?: return
         val hit = EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos ?: return
@@ -131,7 +131,7 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled || !highlighter) return
-        val player = Gobbyclient.mc.player ?: return
+        val player = mc.player ?: return
         if (!player.isShiftKeyDown) return
         if (!player.mainHandItem.isEtherwarpable()) return
 
