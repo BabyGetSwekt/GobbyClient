@@ -105,7 +105,6 @@ object ModuleManager {
         StarredMobEsp,
         MiniBossEsp,
         DungeonMap,
-        BloodBlink,
         DoorKeyEsp,
         AutoLeap,
         LeapOverlay,

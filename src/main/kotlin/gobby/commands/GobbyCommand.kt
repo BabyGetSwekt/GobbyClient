@@ -9,7 +9,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.gui.ModIdHiderScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
-import gobby.features.dungeons.BloodBlink
 import gobby.features.dungeons.DungeonMap
 //import gobby.features.force.AutoUpdater
 import gobby.utils.skyblock.dungeon.DungeonMapSaver
@@ -258,7 +257,6 @@ object GobbyCommand {
         event.register(lookingAtCommand())
         event.register(mapCommand())
         event.register(getCoreCommand())
-        event.register(bloodCommand())
         event.register(saveMapCommand())
         event.register(copyMapCommand())
         event.register(getItemIDCommand())
@@ -383,16 +381,6 @@ object GobbyCommand {
                         }
                     }
                     modMessage("§b§m                              ")
-                    Command.SINGLE_SUCCESS
-                }
-            )
-    }
-
-    private fun bloodCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("blood")
-                .executes {
-                    BloodBlink.retryBlink()
                     Command.SINGLE_SUCCESS
                 }
             )
