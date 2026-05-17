@@ -19,6 +19,7 @@ import gobby.utils.render.BlockRenderUtils
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.skyblock.dungeon.tiles.RoomType
 import net.minecraft.core.BlockPos
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.AABB
@@ -114,14 +115,13 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
-        if (!enabled || !preventDeath) return
-        if (mc.screen != null) return
-        if (event.packet !is ServerboundUseItemPacket) return
+        if (!enabled || !preventDeath || mc.screen != null) return
+        if (event.packet !is ServerboundUseItemPacket && event.packet !is ServerboundUseItemOnPacket) return
         if (isInEntrance) return
         val player = mc.player ?: return
         if (!player.mainHandItem.isEtherwarpable()) return
         val highestY = currentHighestY ?: return
-        val hit = EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos ?: return
+        val hit = EtherwarpUtils.getEtherPos().pos ?: return
         if (hit.y >= highestY) {
             event.cancel()
             ChatUtils.errorMessage("Prevented you from going out of the dungeon")
