@@ -1,10 +1,18 @@
 package gobby.gui.click
 
-enum class Category(val displayName: String) {
-    DUNGEONS("Dungeons"),
-    FLOOR7("Floor 7"),
-    SKYBLOCK("Skyblock"),
-    MINING("Mining"),
-    RENDER("Render"),
-    DEVELOPER("Developer")
+//? if <=1.21.10
+import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
+
+enum class Category(val displayName: String, iconName: String) {
+    DUNGEONS("Dungeons", "dungeons"),
+    FLOOR7("Floor 7", "floor7"),
+    SKYBLOCK("Skyblock", "skyblock"),
+    MINING("Mining", "mining"),
+    RENDER("Render", "render"),
+    DEVELOPER("Developer", "developer");
+
+    val iconTexture: ResourceLocation =
+        ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/category/$iconName")
 }

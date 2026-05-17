@@ -1,5 +1,6 @@
 package gobby.mixin.accessor;
 
+//? if <=1.21.10 {
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,3 +21,12 @@ public interface CompositeStateBuilderAccessor {
     @Invoker("createCompositeState")
     RenderType.CompositeState invokeCreateCompositeState(boolean affectsOutline);
 }
+//?}
+
+//? if >=1.21.11 {
+/*import gobby.Gobbyclient;
+import org.spongepowered.asm.mixin.Mixin;
+
+@Mixin(Gobbyclient.class)
+public interface CompositeStateBuilderAccessor {}*/
+//?}

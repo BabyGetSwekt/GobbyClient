@@ -1,7 +1,7 @@
 package gobby.gui.hud
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.gui.click.ClickGUITheme
+import gobby.gui.click.FONT_STYLE
 import gobby.gui.click.HudButton
 import gobby.gui.click.Module
 import net.minecraft.client.gui.GuiGraphics
@@ -83,6 +83,6 @@ class HudSetting(
 
     private fun styledColored(s: String, color: Color): Component {
         val argb = (0xFF shl 24) or (color.red shl 16) or (color.green shl 8) or color.blue
-        return Component.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
+        return Component.literal(s).setStyle(FONT_STYLE.withColor(argb))
     }
 }

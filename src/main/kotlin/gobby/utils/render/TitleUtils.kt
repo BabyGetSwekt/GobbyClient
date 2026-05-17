@@ -5,7 +5,7 @@ import gobby.events.ServerTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.GuiElement
 import gobby.gui.GuiElementManager
-import gobby.gui.click.ClickGUITheme
+import gobby.gui.click.styledText
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
 import java.awt.Color
@@ -102,7 +102,7 @@ object TitleUtils : GuiElement() {
         val argb = renderColor.rgb
 
         if (useCustomFont) {
-            val styledText = ClickGUITheme.styledText(title)
+            val styledText = styledText(title)
             val textWidth = tr.width(styledText) * scale
             val x = (screenWidth / 2f) - (textWidth / 2f)
             val y = (screenHeight / 2f) - 30f

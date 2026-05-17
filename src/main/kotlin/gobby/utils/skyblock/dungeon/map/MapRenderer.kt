@@ -1,7 +1,7 @@
 package gobby.utils.skyblock.dungeon.map
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.gui.click.ClickGUITheme
+import gobby.gui.click.styledText
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_SIZE
 import gobby.utils.skyblock.dungeon.map.MapConstants.DOOR_THICKNESS
@@ -179,7 +179,7 @@ object MapRenderer {
 
         val displayName = HYPHENATED[name] ?: name
         val lines = displayName.split(" ", "\n")
-        val styledLines = lines.map { ClickGUITheme.styledText(it) }
+        val styledLines = lines.map { styledText(it) }
         val totalHeight = tr.lineHeight * lines.size
         val scale = NAME_SCALE * (scalePercent / 100f)
 

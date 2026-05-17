@@ -3,7 +3,7 @@ package gobby.utils.render
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.Render2DEvent
-import gobby.gui.click.ClickGUITheme
+import gobby.gui.click.styledText
 import gobby.utils.timer.Clock
 import net.minecraft.client.gui.GuiGraphics
 import java.awt.Color
@@ -67,8 +67,8 @@ object NotificationRenderer {
         val barColor = if (notif.enabled) Color(80, 220, 100, alphaInt) else Color(220, 60, 60, alphaInt)
         ctx.fill(x, y, x + (WIDTH * progress).toInt(), y + BAR_HEIGHT, barColor.rgb)
 
-        val nameText = ClickGUITheme.styledText(notif.name)
-        val stateText = ClickGUITheme.styledText(if (notif.enabled) "ON" else "OFF")
+        val nameText = styledText(notif.name)
+        val stateText = styledText(if (notif.enabled) "ON" else "OFF")
         val nameWidth = tr.width(nameText)
         val stateWidth = tr.width(stateText)
         val scale = if (nameWidth + 4 + stateWidth > WIDTH - 8) (WIDTH - 8f) / (nameWidth + 4 + stateWidth) else 1f

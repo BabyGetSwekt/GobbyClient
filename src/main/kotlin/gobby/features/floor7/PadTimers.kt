@@ -5,7 +5,7 @@ import gobby.events.ServerTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.Category
-import gobby.gui.click.ClickGUITheme
+import gobby.gui.click.FONT_STYLE
 import gobby.gui.click.Module
 import gobby.gui.hud.HudSetting
 import gobby.utils.Utils.equalsOneOf
@@ -51,7 +51,7 @@ object PadTimers : Module(
 
     private fun styledColored(s: String, color: Color): Component {
         val argb = (0xFF shl 24) or (color.red shl 16) or (color.green shl 8) or color.blue
-        return Component.literal(s).setStyle(ClickGUITheme.FONT_STYLE.withColor(argb))
+        return Component.literal(s).setStyle(FONT_STYLE.withColor(argb))
     }
 
     @SubscribeEvent

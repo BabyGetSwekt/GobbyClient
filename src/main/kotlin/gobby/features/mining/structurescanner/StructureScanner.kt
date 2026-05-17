@@ -18,10 +18,9 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.level.chunk.LevelChunkSection
 import net.minecraft.world.level.chunk.LevelChunk
 
-object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for known mining structures and beacons them", Category.MINING) {
+object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for known mining structures and beacons them (WIP DO NOT USE)", Category.MINING) {
 
     private val notifyChat by BooleanSetting("Chat Notify", true, desc = "Send a chat message when a new structure is found")
-    private val onlyOnTargetIsland by BooleanSetting("Island Lock", true, desc = "Only scan when on the structure's island (saves CPU)")
     private val debug by BooleanSetting("Debug", false, desc = "Print scanner diagnostics")
 
     private val scannedChunks = LongOpenHashSet()
@@ -110,7 +109,6 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
     }
 
     private fun candidatesForCurrentIsland(): List<Structure> {
-        if (!onlyOnTargetIsland) return Structures.ALL
         val location = LocationUtils.location
         return Structures.ALL.filter { it.island == null || it.island == location }
     }

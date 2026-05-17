@@ -7,7 +7,10 @@ import com.mojang.blaze3d.shaders.UniformType
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.VertexFormat
 import gobby.mixin.accessor.RenderPipelinesAccessor
+//? if <=1.21.10
 import net.minecraft.resources.ResourceLocation
+//? if >=1.21.11
+/*import net.minecraft.resources.Identifier as ResourceLocation*/
 
 object GobbyRenderPipelines {
 

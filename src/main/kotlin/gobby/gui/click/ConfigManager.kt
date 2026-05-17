@@ -37,15 +37,6 @@ object ConfigManager {
             }
             root.add("modules", modulesJson)
 
-            val panelsJson = JsonObject()
-            for ((cat, pos) in ClickGUI.panelPositions) {
-                val pj = JsonObject()
-                pj.addProperty("x", pos.first)
-                pj.addProperty("y", pos.second)
-                panelsJson.add(cat.name, pj)
-            }
-            root.add("panels", panelsJson)
-
             val hudsJson = JsonObject()
             for (hud in HudManager.getAll()) {
                 val hj = JsonObject()
@@ -94,16 +85,6 @@ object ConfigManager {
                 }
             }
 
-            val panelsJson = root.getAsJsonObject("panels")
-            if (panelsJson != null) {
-                for (cat in Category.entries) {
-                    val pj = panelsJson.getAsJsonObject(cat.name) ?: continue
-                    val x = pj.get("x")?.asFloat ?: continue
-                    val y = pj.get("y")?.asFloat ?: continue
-                    ClickGUI.panelPositions[cat] = Pair(x, y)
-                }
-            }
-
             val hudsJson = root.getAsJsonObject("huds")
             if (hudsJson != null) {
                 for (hud in HudManager.getAll()) {
@@ -113,6 +94,7 @@ object ConfigManager {
                     hud.hudScale = hj.get("scale")?.asFloat ?: 1f
                 }
             }
+
         } catch (e: Exception) {
             Gobbyclient.logger.error("Failed to load config", e)
         }

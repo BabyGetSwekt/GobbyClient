@@ -5,7 +5,6 @@ import gobby.mixin.accessor.CameraAccessor
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.world.level.block.Block
-import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.Camera
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.LivingEntity
@@ -13,13 +12,26 @@ import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
+import java.awt.Desktop
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.StringSelection
 import java.util.Locale
 
 object Utils {
 
     fun setClipboard(text: String) {
-        val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
-        clipboard.setContents(java.awt.datatransfer.StringSelection(text), null)
+        val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+        clipboard.setContents(StringSelection(text), null)
+    }
+
+    fun getClipboard(): String = runCatching {
+        Toolkit.getDefaultToolkit().systemClipboard
+            .getData(DataFlavor.stringFlavor) as? String ?: ""
+    }.getOrDefault("")
+
+    fun openUrl(url: String) {
+        runCatching { Desktop.getDesktop().browse(java.net.URI(url)) }
     }
 
     /**
