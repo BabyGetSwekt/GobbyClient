@@ -4,7 +4,6 @@ import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.developer.DevMode
 import gobby.events.network.ClientConnectedToServerEvent
-import gobby.utils.ChatUtils.kuudraTierRegex
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.Utils.posX
 import gobby.utils.Utils.posZ
@@ -20,9 +19,36 @@ import net.minecraft.network.chat.Component
 import net.minecraft.ChatFormatting
 import java.util.Collections
 
+enum class Island(val location: String) {
+    BACKWATER_BAYOU("Backwater Bayou"),
+    CRIMSON_ISLE("Crimson Isle"),
+    CRYSTAL_HOLLOWS("Crystal Hollows"),
+    DARK_AUCTION("Dark Auction"),
+    DEEP_CAVERNS("Deep Caverns"),
+    DUNGEON("Catacombs"),
+    DUNGEON_HUB("Dungeon Hub"),
+    DWARVEN_MINES("Dwarven Mines"),
+    END("The End"),
+    FARMING_ISLAND("The Farming Islands"),
+    GALATEA("Galatea"),
+    GARDEN("Garden"),
+    GOLD_MINE("Gold Mine"),
+    HUB("Hub"),
+    JERRY_WORKSHOP("Jerry's Workshop"),
+    KUUDRA("Kuudra"),
+    MINESHAFT("Mineshaft"),
+    PARK("The Park"),
+    PRIVATE_ISLAND("Private Island"),
+    RIFT("The Rift"),
+    SINGLEPLAYER("Singleplayer"),
+    SPIDERS_DEN("Spider's Den"),
+}
+
 object LocationUtils {
 
     private val floorRegex = Regex("The Catacombs \\((\\w+)\\)\$")
+
+    fun isIn(island: Island): Boolean = location == island.location
 
     val TEXT_SCOREBOARD = ObjectArrayList<Component>()
     val STRING_SCOREBOARD = ObjectArrayList<String>()
@@ -43,6 +69,11 @@ object LocationUtils {
 
     fun update() {
         val client = Minecraft.getInstance() ?: return
+        if (client.isSingleplayer) {
+            location = Island.SINGLEPLAYER.location
+            area = Island.SINGLEPLAYER.location
+            return
+        }
         updateScoreboard(client)
         updateTablist(client)
         updateFloor()

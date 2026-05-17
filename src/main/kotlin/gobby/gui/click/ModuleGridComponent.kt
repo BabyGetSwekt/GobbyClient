@@ -123,7 +123,7 @@ object ModuleGridComponent {
             if (pos !in r) return@forEachIndexed
             val canToggle = mod.hasToggle && mod.toggled && !mod.isAlwaysEnabled
             when (button) {
-                0 -> if (canToggle) mod.enabled = !mod.enabled
+                0 -> if (canToggle) { mod.enabled = !mod.enabled; ConfigManager.save() }
                 1 -> gui.openSettings(mod)
             }
             return true

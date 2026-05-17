@@ -99,6 +99,7 @@ object ModuleSettingsComponent {
         val baseY = gui.contentY + gui.scrollOffset.toInt()
         if (mod.hasToggle && mod.toggled && !mod.isAlwaysEnabled && (mx to my) in toggleRect(gui, baseY)) {
             mod.enabled = !mod.enabled
+            ConfigManager.save()
             return true
         }
 

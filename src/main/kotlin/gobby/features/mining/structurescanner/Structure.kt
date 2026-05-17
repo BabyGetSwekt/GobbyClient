@@ -25,7 +25,6 @@ data class Structure(
     val column: List<ColumnEntry<*>>,
     val waypointOffset: BlockPos = BlockPos.ZERO,
     val yRange: IntRange = 0..255,
-    val island: String? = null,
     val unique: Boolean = true,
     val dedupRadius: Int = 0
 ) {

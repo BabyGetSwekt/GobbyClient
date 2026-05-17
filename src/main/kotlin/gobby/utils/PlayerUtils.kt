@@ -16,9 +16,21 @@ import net.minecraft.world.phys.Vec3
 
 object PlayerUtils {
 
+    const val STANDING_EYE_HEIGHT = 1.62
+    const val MODERN_SNEAK_HEIGHT = 1.27
+    const val LEGACY_SNEAK_HEIGHT = 1.54
+
+    private val modernIslands = setOf(Island.GALATEA, Island.PARK, Island.HUB, Island.SPIDERS_DEN)
+
+    fun getEyeHeight(): Double {
+        val player = mc.player ?: return STANDING_EYE_HEIGHT
+        if (!player.isCrouching) return STANDING_EYE_HEIGHT
+        return if (modernIslands.any(LocationUtils::isIn)) MODERN_SNEAK_HEIGHT else LEGACY_SNEAK_HEIGHT
+    }
+
     fun getEyePosition(): Vec3? {
         val player = mc.player ?: return null
-        return Vec3(player.x, player.eyeY, player.z)
+        return Vec3(player.x, player.y + getEyeHeight(), player.z)
     }
 
     fun leftClick() {
@@ -41,7 +53,7 @@ object PlayerUtils {
         val player = mc.player ?: return false
         val world = mc.level ?: return false
         val manager = mc.gameMode ?: return false
-        if (player.isSpectator || DungeonUtils.isDead || player.isRemoved()) return false
+        if (player.isSpectator || DungeonUtils.isDead || player.isRemoved) return false
         val accessor = manager as IInteractionManagerAccessor
         accessor.`gobbyclient$syncSelectedSlot`()
         accessor.`gobbyclient$sendSequencedPacket`(world) { sequence ->

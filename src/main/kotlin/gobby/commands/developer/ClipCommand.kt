@@ -8,6 +8,8 @@ import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
+import gobby.utils.Island
+import gobby.utils.LocationUtils
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import kotlin.math.cos
@@ -23,7 +25,7 @@ object ClipCommand {
                         ClientCommandManager.argument("blocks", DoubleArgumentType.doubleArg())
                             .executes { context ->
                                 val player = mc.player ?: return@executes Command.SINGLE_SUCCESS
-                                if (!mc.isSingleplayer) {
+                                if (!LocationUtils.isIn(Island.SINGLEPLAYER)) {
                                     errorMessage("Clip can only be used in singleplayer.")
                                     return@executes Command.SINGLE_SUCCESS
                                 }

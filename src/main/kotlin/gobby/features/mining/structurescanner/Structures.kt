@@ -7,7 +7,6 @@ import java.awt.Color
 
 object Structures {
 
-    private const val CRYSTAL_HOLLOWS = "Crystal Hollows"
     private val CRYSTAL_HOLLOWS_Y = 30..189
 
     val ALL: List<Structure> = listOf(
@@ -25,7 +24,6 @@ object Structures {
             ),
             waypointOffset = BlockPos(0, 5, 0),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS
         ),
         Structure(
             id = "king",
@@ -39,7 +37,6 @@ object Structures {
             ),
             waypointOffset = BlockPos(1, -1, 2),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS
         ),
         Structure(
             id = "divan",
@@ -53,7 +50,6 @@ object Structures {
             ),
             waypointOffset = BlockPos(0, 5, 0),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS
         ),
         Structure(
             id = "city",
@@ -71,7 +67,6 @@ object Structures {
             ),
             waypointOffset = BlockPos(24, 0, -17),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS
         ),
         Structure(
             id = "temple",
@@ -88,7 +83,6 @@ object Structures {
             ),
             waypointOffset = BlockPos(-45, 47, -18),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS
         ),
         Structure(
             id = "fairy_grotto",
@@ -96,7 +90,6 @@ object Structures {
             color = Color(255, 85, 255),
             column = listOf(col(Blocks.MAGENTA_STAINED_GLASS)),
             yRange = CRYSTAL_HOLLOWS_Y,
-            island = CRYSTAL_HOLLOWS,
             unique = false,
             dedupRadius = 5
         )

@@ -93,7 +93,8 @@ private val ABILITY_HEADER_REGEX = Regex("^Ability:\\s+(.+?)\\s*$")
 private val MANA_COST_REGEX = Regex("^Mana Cost:\\s+([\\d,]+)")
 private val SOULFLOW_COST_REGEX = Regex("^Soulflow Cost:\\s+([\\d,]+)")
 private val COOLDOWN_REGEX = Regex("^Cooldown:\\s+([\\d,]+)s")
-private const val BASE_TRANSMISSION_RANGE = 8
+private const val BASE_INSTANT_TRANSMISSION_RANGE = 8
+private const val BASE_ETHER_TRANSMISSION_RANGE = 57
 
 private fun splitNameAndTrigger(raw: String): Pair<String, String?> {
     for (trigger in ABILITY_TRIGGERS) {
@@ -181,7 +182,9 @@ fun ItemStack.getTunedTransmission(): Int {
 
 fun ItemStack.isShortbow(): Boolean = this.hoverName.string.contains("Shortbow") || this.skyblockID == "TERMINATOR"
 
-fun ItemStack.getInstantTransmissionRange(): Int = BASE_TRANSMISSION_RANGE + getTunedTransmission()
+fun ItemStack.getInstantTransmissionRange(): Int = BASE_INSTANT_TRANSMISSION_RANGE + getTunedTransmission()
+
+fun ItemStack.getEtherTransmissionRange(): Int = BASE_INSTANT_TRANSMISSION_RANGE + getTunedTransmission()
 
 val SPIRIT_MASK_IDS = setOf("SPIRIT_MASK", "STARRED_SPIRIT_MASK")
 val BONZO_MASK_IDS = setOf("BONZO_MASK", "STARRED_BONZO_MASK")

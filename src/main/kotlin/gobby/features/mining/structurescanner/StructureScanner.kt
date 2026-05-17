@@ -9,6 +9,7 @@ import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.ChatUtils.modMessage
+import gobby.utils.Island
 import gobby.utils.LocationUtils
 import gobby.utils.render.RenderBeacon
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
@@ -108,10 +109,8 @@ object StructureScanner : Module("Structure Scanner", "Scans loaded chunks for k
         }
     }
 
-    private fun candidatesForCurrentIsland(): List<Structure> {
-        val location = LocationUtils.location
-        return Structures.ALL.filter { it.island == null || it.island == location }
-    }
+    private fun candidatesForCurrentIsland(): List<Structure> =
+        if (LocationUtils.isIn(Island.CRYSTAL_HOLLOWS)) Structures.ALL else emptyList()
 
     private fun sectionOverlapsAnyRange(minY: Int, maxY: Int, structures: List<Structure>): Boolean =
         structures.any { it.yRange.first <= maxY && it.yRange.last >= minY }
