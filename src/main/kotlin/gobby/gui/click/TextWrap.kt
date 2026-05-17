@@ -6,11 +6,22 @@ object TextWrap {
 
     fun wrap(text: String, maxWidth: Int, scale: Float, maxLines: Int): List<String> {
         if (text.isEmpty() || maxWidth <= 0 || maxLines <= 0) return emptyList()
-        if (textWScaled(text, scale) <= maxWidth) return listOf(text)
         val out = mutableListOf<String>()
+        for (paragraph in text.split('\n')) {
+            if (out.size >= maxLines) break
+            wrapParagraph(paragraph, maxWidth, scale, maxLines - out.size, out)
+        }
+        return out
+    }
+
+    private fun wrapParagraph(text: String, maxWidth: Int, scale: Float, maxLines: Int, out: MutableList<String>) {
+        if (maxLines <= 0) return
+        if (text.isEmpty()) { out.add(""); return }
+        if (textWScaled(text, scale) <= maxWidth) { out.add(text); return }
         var remaining = text
-        while (remaining.isNotEmpty() && out.size < maxLines) {
-            val isLast = out.size == maxLines - 1
+        var added = 0
+        while (remaining.isNotEmpty() && added < maxLines) {
+            val isLast = added == maxLines - 1
             val hardCut = maxFit(remaining, maxWidth, scale)
             val cut = if (!isLast && hardCut < remaining.length) {
                 remaining.substring(0, hardCut).lastIndexOf(' ').takeIf { it > 0 } ?: hardCut
@@ -18,9 +29,9 @@ object TextWrap {
             val raw = remaining.substring(0, cut)
             val line = if (isLast && cut < remaining.length) truncateToFit(raw, maxWidth, scale) else raw
             out.add(line.trim())
+            added++
             remaining = remaining.drop(cut).trimStart()
         }
-        return out
     }
 
     private fun maxFit(text: String, maxWidth: Int, scale: Float): Int =
