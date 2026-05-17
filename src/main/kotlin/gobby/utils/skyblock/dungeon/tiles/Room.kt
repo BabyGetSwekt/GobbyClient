@@ -20,6 +20,7 @@ data class Room(
     var data: RoomData,
     var clayPos: BlockPos = BlockPos(0, 0, 0),
     val roomComponents: MutableSet<RoomComponent>,
+    var highestY: Int = 0,
 )
 
 data class RoomComponent(val x: Int, val z: Int, val core: Int = 0) {

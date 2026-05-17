@@ -3,6 +3,7 @@ package gobby.features.dungeons
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
 import gobby.features.render.BlockHighlighter
+import gobby.features.skyblock.Etherwarp
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
@@ -19,7 +20,7 @@ object EtherwarpEsp : BlockHighlighter() {
 
     private val highlightColor = Color(255, 255, 0, 60)
 
-    override fun isEnabled(): Boolean = EtherwarpTriggerbot.enabled && EtherwarpTriggerbot.esp && inDungeons && !inBoss
+    override fun isEnabled(): Boolean = Etherwarp.enabled && Etherwarp.esp && inDungeons && !inBoss
 
     override fun getStatePredicate(): (BlockState) -> Boolean = { false }
 
@@ -34,7 +35,7 @@ object EtherwarpEsp : BlockHighlighter() {
 
         for ((blockId, coords) in blocks) {
             val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
-            if (block !in EtherwarpTriggerbot.TARGET_BLOCKS) continue
+            if (block !in Etherwarp.TARGET_BLOCKS) continue
             for (encoded in coords) {
                 val parts = encoded.substringBefore("|").split(",").map { it.trim().toInt() }
                 val realPos = room.getRealCoords(BlockPos(parts[0], parts[1], parts[2]))

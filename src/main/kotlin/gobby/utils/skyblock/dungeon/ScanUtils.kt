@@ -92,11 +92,11 @@ object ScanUtils {
         lastRoomPos = roomCenter
 
         passedRooms.find { room -> room.roomComponents.any { it.vec2 == roomCenter } }?.let { cached ->
-            if (currentRoom?.roomComponents?.none { it.vec2 == roomCenter } == true) Gobbyclient.EVENT_MANAGER.publish(RoomEnterEvent(cached))
+            if (currentRoom?.roomComponents?.none { it.vec2 == roomCenter } == true) Gobbyclient.EVENT_MANAGER.publish(RoomEnterEvent(cached, cached.highestY))
             return
         }
 
-        scanRoom(roomCenter)?.let { room -> if (room.rotation != Rotations.NONE) Gobbyclient.EVENT_MANAGER.publish(RoomEnterEvent(room)) } ?: devMessage("${getCore(roomCenter)} at $roomCenter is not a registered room core (last registered visited room is ${currentRoom?.data?.name})")
+        scanRoom(roomCenter)?.let { room -> if (room.rotation != Rotations.NONE) Gobbyclient.EVENT_MANAGER.publish(RoomEnterEvent(room, room.highestY)) } ?: devMessage("${getCore(roomCenter)} at $roomCenter is not a registered room core (last registered visited room is ${currentRoom?.data?.name})")
     }
 
     private fun updateRotation(room: Room, roomHeight: Int) {
@@ -132,7 +132,7 @@ object ScanUtils {
         val roomHeight = getTopLayerOfRoom(vec2, chunk)
         return getCoreAtHeight(vec2, roomHeight, chunk).let { core ->
             coreToRoomData[core]?.let { roomData ->
-                Room(data = roomData, roomComponents = findRoomComponentsRecursively(vec2, roomData.cores, roomHeight, world))
+                Room(data = roomData, roomComponents = findRoomComponentsRecursively(vec2, roomData.cores, roomHeight, world), highestY = roomHeight)
             }?.apply { updateRotation(this, roomHeight) }
         }
     }
