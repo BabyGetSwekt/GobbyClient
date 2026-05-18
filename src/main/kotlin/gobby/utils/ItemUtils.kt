@@ -184,7 +184,7 @@ fun ItemStack.isShortbow(): Boolean = this.hoverName.string.contains("Shortbow")
 
 fun ItemStack.getInstantTransmissionRange(): Int = BASE_INSTANT_TRANSMISSION_RANGE + getTunedTransmission()
 
-fun ItemStack.getEtherTransmissionRange(): Int = BASE_INSTANT_TRANSMISSION_RANGE + getTunedTransmission()
+fun ItemStack.getEtherTransmissionRange(): Int = BASE_ETHER_TRANSMISSION_RANGE + getTunedTransmission()
 
 val SPIRIT_MASK_IDS = setOf("SPIRIT_MASK", "STARRED_SPIRIT_MASK")
 val BONZO_MASK_IDS = setOf("BONZO_MASK", "STARRED_BONZO_MASK")
