@@ -1,12 +1,10 @@
 package gobby.features.render
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.events.BlockStateChangeEvent
 import gobby.events.ChunkLoadEvent
-import gobby.events.ChunkUnloadEvent
-import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
+import gobby.events.util.ChunkScopedCache
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import net.minecraft.world.level.block.state.BlockState
@@ -15,7 +13,7 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.level.chunk.LevelChunk
 import java.awt.Color
 
-abstract class BlockHighlighter {
+abstract class BlockHighlighter : ChunkScopedCache() {
 
     enum class RenderMode { FULL_BLOCK, OUTLINE, NODE }
 
@@ -70,24 +68,24 @@ abstract class BlockHighlighter {
         }
     }
 
-    @SubscribeEvent
-    fun onChunkUnload(event: ChunkUnloadEvent) {
-        val chunkPos = event.chunk.pos
+    override fun onChunkEvicted(chunkX: Int, chunkZ: Int) {
         highlightedBlocks.removeIf { pos ->
-            pos.x shr 4 == chunkPos.x && pos.z shr 4 == chunkPos.z
+            pos.x shr 4 == chunkX && pos.z shr 4 == chunkZ
         }
     }
 
-    @SubscribeEvent
-    fun onBlockStateChange(event: BlockStateChangeEvent) {
+    override fun onPosEvicted(pos: BlockPos, newState: BlockState) {
         if (!isEnabled()) return
-
         val predicate = getStatePredicate()
-        if (predicate(event.newState) && isValidPosition(event.blockPos)) {
-            highlightedBlocks.add(event.blockPos.immutable())
+        if (predicate(newState) && isValidPosition(pos)) {
+            highlightedBlocks.add(pos.immutable())
         } else {
-            highlightedBlocks.remove(event.blockPos)
+            highlightedBlocks.remove(pos)
         }
+    }
+
+    override fun onAllEvicted() {
+        highlightedBlocks.clear()
     }
 
     @SubscribeEvent
@@ -114,11 +112,6 @@ abstract class BlockHighlighter {
             }
             draw3DBox(matrixStack, camera, box, color, depthTest = depthTest())
         }
-    }
-
-    @SubscribeEvent
-    fun onWorldLoad(event: WorldLoadEvent) {
-        highlightedBlocks.clear()
     }
 
     abstract fun isEnabled(): Boolean

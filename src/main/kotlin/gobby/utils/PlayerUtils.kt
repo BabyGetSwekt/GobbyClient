@@ -28,6 +28,11 @@ object PlayerUtils {
         return if (modernIslands.any(LocationUtils::isIn)) MODERN_SNEAK_HEIGHT else LEGACY_SNEAK_HEIGHT
     }
 
+    fun getSyncedPos(): Vec3? {
+        val player = mc.player ?: return null
+        return Vec3(player.xo, player.yo, player.zo)
+    }
+
     fun getEyePosition(): Vec3? {
         val player = mc.player ?: return null
         return Vec3(player.x, player.y + getEyeHeight(), player.z)

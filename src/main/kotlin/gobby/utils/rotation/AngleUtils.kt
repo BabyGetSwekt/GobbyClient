@@ -36,6 +36,13 @@ object AngleUtils {
         return Vec3(-cosP * sin(y), -sin(p), cosP * cos(y))
     }
 
+    fun wrapDegrees(delta: Float): Float {
+        var d = delta % 360f
+        if (d > 180f) d -= 360f
+        if (d < -180f) d += 360f
+        return d
+    }
+
     fun Direction.horizontalDegrees(): Float = when (this) {
         Direction.SOUTH -> 0f
         Direction.WEST -> 90f

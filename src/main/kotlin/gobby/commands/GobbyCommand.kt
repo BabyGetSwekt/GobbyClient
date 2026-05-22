@@ -17,7 +17,9 @@ import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.pathfinder.PathExecutor
-import gobby.pathfinder.core.PathFinder
+import gobby.pathfinder.RouteEngine
+import gobby.pathfinder.RoutePlan
+import gobby.pathfinder.TravelMode
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.Utils.executeLater
 import gobby.utils.ChatUtils.modMessage
@@ -34,6 +36,17 @@ import net.minecraft.world.phys.HitResult
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
+import gobby.pathfinder.navmesh.WalkMeshScanner
+import gobby.pathfinder.navmesh.WalkPolygon
+import gobby.pathfinder.world.BlockCache
+import gobby.utils.StructureCopier
+import gobby.utils.MovementRecorder
+import gobby.utils.skyblock.dungeon.RoomCopier
+import com.mojang.brigadier.context.CommandContext
+import java.io.File
+import java.util.Locale
+import kotlin.math.abs
 
 object GobbyCommand {
 
@@ -83,7 +96,8 @@ object GobbyCommand {
                         modMessage("§e/gobby blockselector §7- Pick a block for the brush")
                         modMessage("§e/gobby brush §7- Toggle brush mode")
                         modMessage("§e/gobby sendcoords §7- Send your coords in chat")
-                        modMessage("§e/gobby path <x> <y> <z> §7- Pathfind to coordinates (BETA + WIP)")
+                        modMessage("§e/gobby path <x> <y> <z> §7- Walk-pathfind to coordinates (BETA + WIP)")
+                        modMessage("§e/gobby flypath <x> <y> <z> §7- Fly-pathfind to coordinates (BETA + WIP)")
                         modMessage("§e/gobby pathstop §7- Stop following a path")
                         modMessage("§e/gobby update §7- Force check for updates")
                         modMessage("§b§m                              ")
@@ -118,18 +132,11 @@ object GobbyCommand {
                                                 val y = IntegerArgumentType.getInteger(context, "y")
                                                 val z = IntegerArgumentType.getInteger(context, "z")
                                                 val player = mc.player ?: return@executes 0
-                                                val start = player.blockPosition()
-                                                val goal = BlockPos(x, y, z)
-                                                val speed = player.speed.toDouble()
+                                                val start = player.position()
+                                                val goal = Vec3(x + 0.5, y.toDouble(), z + 0.5)
 
-                                                modMessage("Pathfinding to $x $y $z (speed: ${"%.3f".format(speed)})...")
-                                                val path = PathFinder.findPath(start, goal, speed)
-                                                if (path != null) {
-                                                    PathExecutor.start(path)
-                                                    modMessage("§aPath found! ${path.size} nodes. Following path... Use §e/gobby pathstop §ato cancel.")
-                                                } else {
-                                                    modMessage("§cNo path found to $x $y $z")
-                                                }
+                                                modMessage("Planning route to $x $y $z...")
+                                                PathExecutor.beginLongPath(start, goal, TravelMode.WALK)
                                                 Command.SINGLE_SUCCESS
                                             }
                                     )
@@ -147,6 +154,232 @@ object GobbyCommand {
                         modMessage("§cPath following stopped.")
                         Command.SINGLE_SUCCESS
                     }
+            )
+    }
+
+    private fun recordCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("record")
+                    .then(ClientCommandManager.literal("start")
+                        .executes {
+                            MovementRecorder.start()
+                            Command.SINGLE_SUCCESS
+                        }
+                        .then(ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                            .then(ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                .then(ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                    .executes { ctx ->
+                                        val tx = IntegerArgumentType.getInteger(ctx, "x")
+                                        val ty = IntegerArgumentType.getInteger(ctx, "y")
+                                        val tz = IntegerArgumentType.getInteger(ctx, "z")
+                                        MovementRecorder.start(BlockPos(tx, ty, tz))
+                                        Command.SINGLE_SUCCESS
+                                    })))
+                    )
+                    .then(ClientCommandManager.literal("stop").executes {
+                        MovementRecorder.stop()
+                        Command.SINGLE_SUCCESS
+                    })
+            )
+    }
+
+    private fun meshDumpCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("meshdump")
+                    .then(
+                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                            .then(
+                                ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                    .then(
+                                        ClientCommandManager.argument("radius", IntegerArgumentType.integer(1, 256))
+                                            .executes { context -> runMeshDump(context) }
+                                    )
+                            )
+                    )
+            )
+    }
+
+    private fun runMeshDump(context: CommandContext<FabricClientCommandSource?>): Int {
+        val player = mc.player ?: return 0
+        val cx = IntegerArgumentType.getInteger(context, "x")
+        val cz = IntegerArgumentType.getInteger(context, "z")
+        val radius = IntegerArgumentType.getInteger(context, "radius")
+        val center = Vec3(cx + 0.5, player.y, cz + 0.5)
+        val scanRange = (radius + 16).coerceAtMost(192)
+        val mesh = WalkMeshScanner.scan(player.position(), center, scanRange)
+        val polys = mesh.polygons.filter {
+            val midX = (it.minX + it.maxX) / 2.0
+            val midZ = (it.minZ + it.maxZ) / 2.0
+            abs(midX - cx) <= radius && abs(midZ - cz) <= radius
+        }
+        val included = polys.toHashSet()
+        val sb = StringBuilder()
+        sb.append("{\n  \"center\": [$cx, $cz], \"radius\": $radius,\n")
+        sb.append("  \"totalPolysInMesh\": ${mesh.polygons.size},\n")
+        sb.append("  \"polysInRegion\": ${polys.size},\n")
+        sb.append("  \"polygons\": [\n")
+        for ((idx, p) in polys.withIndex()) {
+            val portalsJson = p.portals.joinToString(",") { pt ->
+                val opp = pt.opposite(p)
+                val deltaY = opp.surfaceY - p.surfaceY
+                val inRegion = if (opp in included) "true" else "false"
+                "{\"to\":${opp.id},\"toY\":${"%.3f".format(Locale.US,opp.surfaceY)},\"dY\":${"%.3f".format(Locale.US,deltaY)},\"step\":${pt.isHeightStep},\"inRegion\":$inRegion," +
+                    "\"l\":[${"%.2f".format(Locale.US, pt.left.x)},${"%.2f".format(Locale.US, pt.left.y)},${"%.2f".format(Locale.US, pt.left.z)}]," +
+                    "\"r\":[${"%.2f".format(Locale.US, pt.right.x)},${"%.2f".format(Locale.US, pt.right.y)},${"%.2f".format(Locale.US, pt.right.z)}]}"
+            }
+            sb.append("    {\"id\":${p.id},\"x\":[${p.minX},${p.maxX}],\"z\":[${p.minZ},${p.maxZ}],")
+            sb.append("\"y\":${"%.3f".format(Locale.US,p.surfaceY)},\"clear\":${p.wallClearance},")
+            sb.append("\"portals\":[$portalsJson]}")
+            if (idx < polys.size - 1) sb.append(",")
+            sb.append("\n")
+        }
+        sb.append("  ]\n}\n")
+        val dir = File("./config/gobbyclientFabric/")
+        dir.mkdirs()
+        val file = File(dir, "meshdump_${cx}_${cz}_r${radius}.json")
+        file.writeText(sb.toString())
+        modMessage("§aMesh dump: §f${polys.size}§a polys in region (mesh total: §f${mesh.polygons.size}§a)")
+        modMessage("§7Saved to §f${file.absolutePath}")
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun pathDebugCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("pathdebug")
+                    .then(
+                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                            .then(
+                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                    .then(
+                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                            .executes { context -> runPathDebug(context) }
+                                    )
+                            )
+                    )
+            )
+    }
+
+    private fun runPathDebug(context: CommandContext<FabricClientCommandSource?>): Int {
+        val player = mc.player ?: return 0
+        val x = IntegerArgumentType.getInteger(context, "x")
+        val y = IntegerArgumentType.getInteger(context, "y")
+        val z = IntegerArgumentType.getInteger(context, "z")
+        val start = player.position()
+        val goal = Vec3(x + 0.5, y.toDouble(), z + 0.5)
+        val mesh = WalkMeshScanner.scan(start, goal, 128)
+        val divider = "§b§m                              "
+        val sb = StringBuilder()
+        sb.append(divider).append('\n')
+        sb.append("§ePathDebug §7start=§f(${"%.1f".format(start.x)},${"%.1f".format(start.y)},${"%.1f".format(start.z)}) §7goal=§f($x,$y,$z)").append('\n')
+        sb.append("§ePolys in mesh: §a${mesh.polygons.size}").append('\n')
+        if (mesh.polygons.isEmpty()) {
+            sb.append("§cMesh is empty — no walkable surfaces.").append('\n')
+            sb.append(divider)
+            modMessage(sb.toString())
+            return Command.SINGLE_SUCCESS
+        }
+        val startContain = mesh.polygonContaining(start)
+        val startPoly = startContain ?: mesh.nearestPolygon(start)
+        val goalContain = mesh.polygonContaining(goal)
+        val goalPoly = goalContain ?: mesh.nearestPolygon(goal)
+        val startTag = if (startContain != null) "§acontained" else "§enearest"
+        val goalTag = if (goalContain != null) "§acontained" else "§enearest"
+        sb.append("§eStart poly: §f#${startPoly?.id} §7($startTag, dist=${"%.1f".format(startPoly?.centerVec()?.distanceTo(start) ?: 0.0)})").append('\n')
+        sb.append("§eGoal poly:  §f#${goalPoly?.id} §7($goalTag, dist=${"%.1f".format(goalPoly?.centerVec()?.distanceTo(goal) ?: 0.0)})").append('\n')
+        if (startPoly == null || goalPoly == null) {
+            sb.append("§cCannot identify both endpoints.").append('\n')
+            sb.append(divider)
+            modMessage(sb.toString())
+            return Command.SINGLE_SUCCESS
+        }
+        val fullComponent = floodFillFromPoly(startPoly, respectClimbLimit = false)
+        val astarComponent = floodFillFromPoly(startPoly, respectClimbLimit = true)
+        sb.append("§eReachable (any portal):    §a${fullComponent.size}§e/§a${mesh.polygons.size} §7polys").append('\n')
+        sb.append("§eReachable (A* climb ≤1.25): §a${astarComponent.size}§e/§a${mesh.polygons.size} §7polys").append('\n')
+        val inFull = goalPoly in fullComponent
+        val inAstar = goalPoly in astarComponent
+        when {
+            inAstar -> sb.append("§a✓ Goal is reachable by A* — should plan successfully.").append('\n')
+            inFull && !inAstar -> {
+                sb.append("§c✗ Goal is mesh-connected but A* can't reach it: needs a climb > 1.25 blocks.").append('\n')
+                appendClimbBarrier(sb, astarComponent)
+            }
+            else -> sb.append("§c✗ Goal is in a DIFFERENT mesh component — missing portal.").append('\n')
+        }
+        sb.append(divider)
+        modMessage(sb.toString())
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun appendClimbBarrier(sb: StringBuilder, astarComponent: Set<WalkPolygon>) {
+        val maxClimb = BlockCache.MAX_JUMP_RISE
+        val topReachable = astarComponent.maxByOrNull { it.surfaceY } ?: return
+        val topCenter = topReachable.centerVec()
+        sb.append("§eHighest A*-reachable poly: §f#${topReachable.id} y=${"%.2f".format(topReachable.surfaceY)} at §7(${topCenter.x.toInt()}, ${topCenter.z.toInt()})").append('\n')
+        val blockedUp = topReachable.portals
+            .map { it.opposite(topReachable) }
+            .filter { it.surfaceY - topReachable.surfaceY > maxClimb }
+            .sortedBy { it.surfaceY }
+            .take(5)
+        if (blockedUp.isEmpty()) {
+            sb.append("§7  (no upward-blocked portals from top poly — barrier is deeper in the mesh)").append('\n')
+            return
+        }
+        sb.append("§eBlocked upward portals from there:").append('\n')
+        for (poly in blockedUp) {
+            val delta = poly.surfaceY - topReachable.surfaceY
+            val c = poly.centerVec()
+            sb.append("§7  → poly#${poly.id} y=${"%.2f".format(poly.surfaceY)} (Δ=${"%.2f".format(delta)}) at (${c.x.toInt()}, ${c.z.toInt()})").append('\n')
+        }
+    }
+
+    private fun floodFillFromPoly(
+        start: WalkPolygon,
+        respectClimbLimit: Boolean
+    ): Set<WalkPolygon> {
+        val maxClimb = BlockCache.MAX_JUMP_RISE
+        val visited = HashSet<WalkPolygon>()
+        val queue = ArrayDeque<WalkPolygon>()
+        queue.add(start); visited.add(start)
+        while (queue.isNotEmpty()) {
+            val cur = queue.removeFirst()
+            for (portal in cur.portals) {
+                val nxt = portal.opposite(cur)
+                if (respectClimbLimit && nxt.surfaceY - cur.surfaceY > maxClimb) continue
+                if (visited.add(nxt)) queue.add(nxt)
+            }
+        }
+        return visited
+    }
+
+    private fun flyPathCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommandManager.literal("gobby")
+            .then(
+                ClientCommandManager.literal("flypath")
+                    .then(
+                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                            .then(
+                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                    .then(
+                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                            .executes { context ->
+                                                val x = IntegerArgumentType.getInteger(context, "x")
+                                                val y = IntegerArgumentType.getInteger(context, "y")
+                                                val z = IntegerArgumentType.getInteger(context, "z")
+                                                val player = mc.player ?: return@executes 0
+                                                val start = player.position()
+                                                val goal = Vec3(x + 0.5, y.toDouble(), z + 0.5)
+
+                                                modMessage("Planning flight to $x $y $z...")
+                                                PathExecutor.beginLongPath(start, goal, TravelMode.FLY)
+                                                Command.SINGLE_SUCCESS
+                                            }
+                                    )
+                            )
+                    )
             )
     }
 
@@ -251,7 +484,11 @@ object GobbyCommand {
         event.register(modIdCommand())
         event.register(helpCommand())
         event.register(pathCommand())
+        event.register(flyPathCommand())
         event.register(pathStopCommand())
+        event.register(pathDebugCommand())
+        event.register(meshDumpCommand())
+        event.register(recordCommand())
 //        event.register(updateCommand())
         event.register(hudCommand())
         event.register(lookingAtCommand())
@@ -269,7 +506,7 @@ object GobbyCommand {
     private fun copyRoomCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommandManager.literal("gobby")
             .then(ClientCommandManager.literal("copyRoom").executes {
-                gobby.utils.skyblock.dungeon.RoomCopier.copyCurrentRoom()
+                RoomCopier.copyCurrentRoom()
                 Command.SINGLE_SUCCESS
             })
     }
@@ -278,15 +515,15 @@ object GobbyCommand {
         return ClientCommandManager.literal("gobby")
             .then(ClientCommandManager.literal("copyStructure")
                 .then(ClientCommandManager.literal("1").executes {
-                    gobby.utils.StructureCopier.setPos1()
+                    StructureCopier.setPos1()
                     Command.SINGLE_SUCCESS
                 })
                 .then(ClientCommandManager.literal("2").executes {
-                    gobby.utils.StructureCopier.setPos2()
+                    StructureCopier.setPos2()
                     Command.SINGLE_SUCCESS
                 })
                 .then(ClientCommandManager.literal("stop").executes {
-                    gobby.utils.StructureCopier.stop()
+                    StructureCopier.stop()
                     Command.SINGLE_SUCCESS
                 })
             )
@@ -299,7 +536,7 @@ object GobbyCommand {
                     if (LocationUtils.onHypixel) {
                         errorMessage("Cannot paste on Hypixel. Join orange0513.com:30030 (singleplayer world) first.")
                     } else {
-                        gobby.utils.StructureCopier.pasteLatest()
+                        StructureCopier.pasteLatest()
                     }
                     Command.SINGLE_SUCCESS
                 }

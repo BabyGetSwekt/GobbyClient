@@ -20,6 +20,7 @@ import gobby.gui.click.KeybindListener
 import gobby.gui.click.Module
 import gobby.gui.hud.HudManager
 import gobby.pathfinder.PathExecutor
+import gobby.pathfinder.world.BlockCache
 import gobby.utils.*
 import gobby.utils.managers.*
 import gobby.utils.render.*
@@ -62,6 +63,7 @@ object ModuleManager {
             LocationUtils,
             DungeonListener,
             ScanUtils,
+            BlockCache,
             PathExecutor,
             RotationUtils,
 //            AutoUpdater,
@@ -69,6 +71,7 @@ object ModuleManager {
             HotbarTracker,
             DungeonMapSaver,
             StructureCopier,
+            MovementRecorder,
             EventDispatcher,
             KeybindListener,
             TitleUtils,
@@ -89,7 +92,8 @@ object ModuleManager {
             RubixTerminal,
             RedGreenTerminal,
             MelodyTerminal,
-            TerminalAura
+            TerminalAura,
+            PathRender
         ).forEach(EVENT_MANAGER::subscribe)
 
     private fun subscribeModules() = listOf<Module>(
@@ -97,6 +101,8 @@ object ModuleManager {
         RenderTurtles,
         StructureScanner,
         FullBright,
+        InventoryHud,
+        Keystrokes,
         CoordWaypoints,
         TerminatorAC,
         Trajectory,
