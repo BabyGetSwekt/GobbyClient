@@ -73,6 +73,14 @@ object RotationUtils {
         easing = true
     }
 
+    fun easeTowards(yaw: Float, pitch: Float, yawFactor: Float = 0.18f, pitchFactor: Float = 0.12f) {
+        easing = false
+        onComplete = null
+        val player = mc.player ?: return
+        player.yRot += wrapDelta(yaw - player.yRot) * yawFactor.coerceIn(0.01f, 1f)
+        player.xRot += (pitch.coerceIn(-90f, 90f) - player.xRot) * pitchFactor.coerceIn(0.01f, 1f)
+    }
+
     private fun wrapDelta(delta: Float): Float {
         var d = delta % 360f
         if (d > 180f) d -= 360f

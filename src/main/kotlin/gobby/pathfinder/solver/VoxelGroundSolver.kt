@@ -1,11 +1,14 @@
 package gobby.pathfinder.solver
 
+import gobby.pathfinder.JumpProfile
+import gobby.pathfinder.STEP_JUMP_MARGIN
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.timer.Clock
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import java.util.PriorityQueue
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -19,8 +22,10 @@ object VoxelGroundSolver {
     private const val COST_DIAGONAL = 1.414
     private const val COST_STEP_UP = 1.3
     private const val COST_DESCEND = 0.95
-    private const val COST_FALL_PER_BLOCK = 1.2
-    private const val FALL_LIMIT = 5
+    private const val COST_FALL_PER_BLOCK = 0.35
+    private const val COST_JUMP_ACTION = 6.0
+    private const val COST_JUMP_SKIP_PER_BLOCK = 1.8
+    private const val FALL_LIMIT = 64
     private const val GOAL_REACH_DIST_SQ = 1.5
     private const val WALL_PENALTY_PER_NEIGHBOR = 0.8
     private const val CLIFF_PENALTY_PER_NEIGHBOR = 1.5
@@ -51,6 +56,7 @@ object VoxelGroundSolver {
     }
 
     private fun aStar(start: Node, goal: Node): List<Vec3> {
+        val jumpProfile = JumpProfile.current()
         val open = PriorityQueue<Entry>(compareBy { it.f })
         val closed = HashMap<Long, Double>()
         val startEntry = Entry(start, 0.0, heuristic(start, goal), null)
@@ -69,7 +75,7 @@ object VoxelGroundSolver {
             if (isAtGoal(cur.node, goal)) return reconstruct(cur)
             val h = heuristic(cur.node, goal)
             if (h < bestNearH) { bestNearH = h; bestNear = cur }
-            expandNeighbors(cur, goal, open, closed)
+            expandNeighbors(cur, goal, jumpProfile, open, closed)
         }
         return reconstruct(bestNear)
     }
@@ -93,11 +99,15 @@ object VoxelGroundSolver {
     private fun expandNeighbors(
         cur: Entry,
         goal: Node,
+        jumpProfile: JumpProfile,
         open: PriorityQueue<Entry>,
         closed: HashMap<Long, Double>
     ) {
         for (dir in MOVES) {
-            tryMove(cur, dir.dx, dir.dz, dir.diag, goal, open, closed)
+            tryMove(cur, dir.dx, dir.dz, dir.diag, jumpProfile, goal, open, closed)
+        }
+        if (jumpProfile.maxSkipCells >= 2) {
+            expandJumpSkips(cur, goal, jumpProfile, open, closed)
         }
     }
 
@@ -106,6 +116,7 @@ object VoxelGroundSolver {
         dx: Int,
         dz: Int,
         diag: Boolean,
+        jumpProfile: JumpProfile,
         goal: Node,
         open: PriorityQueue<Entry>,
         closed: HashMap<Long, Double>
@@ -116,11 +127,12 @@ object VoxelGroundSolver {
 
         if (diag && !diagonalAllowed(cur.node, dx, dz)) return
 
-        for (dy in -1..1) {
+        val maxDy = ceil(jumpProfile.maxClimb).toInt().coerceAtLeast(1)
+        for (dy in -1..maxDy) {
             val ny = cur.node.y + dy
             val standable = findStandableAtVoxel(nx, ny, nz, cur.node.feetY) ?: continue
             val deltaY = standable.feetY - cur.node.feetY
-            if (deltaY > BlockCache.MAX_JUMP_RISE) continue
+            if (deltaY > jumpProfile.maxClimb) continue
             if (!headroomClear(cur.node, nx, standable.feetY, nz)) continue
             val cost = baseCost + when {
                 dy > 0 -> COST_STEP_UP - COST_CARDINAL
@@ -132,15 +144,41 @@ object VoxelGroundSolver {
         }
 
         if (!diag) {
-            for (drop in 2..FALL_LIMIT) {
-                val ny = cur.node.y - drop
-                val standable = findStandableAtVoxel(nx, ny, nz, cur.node.feetY - drop.toDouble()) ?: continue
-                if (!fallClear(cur.node, nx, standable.feetY, nz)) continue
+            val landing = findFallLandingAtVoxel(nx, nz, cur.node.feetY)
+            if (landing != null && fallClear(cur.node, nx, landing.feetY, nz)) {
+                val drop = cur.node.feetY - landing.feetY
                 val cost = baseCost + drop * COST_FALL_PER_BLOCK
-                val terrainCost = terrainPenalty(nx, nz, standable.feetY)
-                pushNeighbor(cur, Node(nx, standable.pos.y, nz, standable.feetY), cur.g + cost + terrainCost, goal, open, closed)
-                break
+                val terrainCost = terrainPenalty(nx, nz, landing.feetY)
+                pushNeighbor(cur, Node(nx, landing.pos.y, nz, landing.feetY), cur.g + cost + terrainCost, goal, open, closed)
             }
+        }
+    }
+
+    private fun expandJumpSkips(
+        cur: Entry,
+        goal: Node,
+        jumpProfile: JumpProfile,
+        open: PriorityQueue<Entry>,
+        closed: HashMap<Long, Double>
+    ) {
+        val maxSkip = jumpProfile.maxSkipCells
+        for (dx in -maxSkip..maxSkip) for (dz in -maxSkip..maxSkip) {
+            if (dx == 0 && dz == 0) continue
+            val cheb = max(abs(dx), abs(dz))
+            if (cheb <= 1) continue
+            val horizontal = sqrt((dx * dx + dz * dz).toDouble())
+            if (horizontal > jumpProfile.maxHorizontalBlocks) continue
+
+            val nx = cur.node.x + dx
+            val nz = cur.node.z + dz
+            val landing = findJumpLandingAtVoxel(nx, nz, cur.node.feetY, jumpProfile) ?: continue
+            val deltaY = landing.feetY - cur.node.feetY
+            if (deltaY <= jumpProfile.stepHeight + STEP_JUMP_MARGIN) continue
+            if (!jumpArcClear(cur.node, nx, landing.feetY, nz, jumpProfile)) continue
+
+            val cost = COST_JUMP_ACTION + horizontal * COST_JUMP_SKIP_PER_BLOCK + deltaY * COST_STEP_UP * 2.0
+            val terrainCost = terrainPenalty(nx, nz, landing.feetY)
+            pushNeighbor(cur, Node(nx, landing.pos.y, nz, landing.feetY), cur.g + cost + terrainCost, goal, open, closed)
         }
     }
 
@@ -181,20 +219,69 @@ object VoxelGroundSolver {
         return surfaces.minByOrNull { abs(it.feetY - anchorFeetY) }
     }
 
+    private fun findFallLandingAtVoxel(x: Int, z: Int, fromFeetY: Double): BlockCache.StandSurface? {
+        val minFeet = fromFeetY - FALL_LIMIT
+        val maxFeet = fromFeetY - 1.1
+        return BlockCache.getStandableSurfaces(x, z, minFeet, maxFeet).firstOrNull()
+    }
+
+    private fun findJumpLandingAtVoxel(
+        x: Int,
+        z: Int,
+        fromFeetY: Double,
+        jumpProfile: JumpProfile
+    ): BlockCache.StandSurface? {
+        val minFeet = fromFeetY + jumpProfile.stepHeight + STEP_JUMP_MARGIN
+        val maxFeet = fromFeetY + jumpProfile.maxClimb
+        return BlockCache.getStandableSurfaces(x, z, minFeet, maxFeet)
+            .minByOrNull { abs(it.feetY - maxFeet) }
+    }
+
     private fun headroomClear(from: Node, tx: Int, tFeetY: Double, tz: Int): Boolean {
         val standY = max(from.feetY, tFeetY)
         return BlockCache.isBodyClearAt(tx + 0.5, standY, tz + 0.5)
     }
 
     private fun fallClear(from: Node, tx: Int, tFeetY: Double, tz: Int): Boolean {
-        val cx = (from.x + tx) / 2.0 + 0.5
-        val cz = (from.z + tz) / 2.0 + 0.5
+        if (!BlockCache.isSweepClear(
+                from.x + 0.5,
+                from.feetY,
+                from.z + 0.5,
+                tx + 0.5,
+                from.feetY,
+                tz + 0.5,
+                2
+            ) { from.feetY }
+        ) return false
+
+        val cx = tx + 0.5
+        val cz = tz + 0.5
         var y = from.feetY
         while (y > tFeetY) {
             if (!BlockCache.isBodyClearAt(cx, y, cz)) return false
             y -= 0.5
         }
         return true
+    }
+
+    private fun jumpArcClear(from: Node, tx: Int, tFeetY: Double, tz: Int, jumpProfile: JumpProfile): Boolean {
+        val dx = tx + 0.5 - (from.x + 0.5)
+        val dz = tz + 0.5 - (from.z + 0.5)
+        val dist = sqrt(dx * dx + dz * dz)
+        val steps = max(2, ceil(dist / 0.35).toInt())
+        val baseDelta = tFeetY - from.feetY
+        val arcLift = max(0.6, minOf(jumpProfile.jumpHeight, baseDelta + 0.8))
+        return BlockCache.isSweepClear(
+            from.x + 0.5,
+            from.feetY,
+            from.z + 0.5,
+            tx + 0.5,
+            tFeetY,
+            tz + 0.5,
+            steps
+        ) { t ->
+            from.feetY + baseDelta * t + 4.0 * arcLift * t * (1.0 - t)
+        }
     }
 
     private fun pushNeighbor(
