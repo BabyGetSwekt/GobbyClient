@@ -32,6 +32,7 @@ object PathExecutor {
     private var graceTicksRemaining: Int = 0
     private var repathInFlight: Boolean = false
     private var pendingFallRepath: Boolean = false
+    private var partialReplans: Int = 0
     private var finalGoal: Vec3? = null
     private var travelMode: TravelMode = TravelMode.WALK
     private val segmentContinuation = PathSegmentContinuation()
@@ -39,6 +40,7 @@ object PathExecutor {
 
     fun beginLongPath(start: Vec3, finalGoal: Vec3, mode: TravelMode = TravelMode.WALK) {
         enableSegmented = false
+        partialReplans = 0
         planFullAsync(start, finalGoal, mode)
     }
 
@@ -62,6 +64,7 @@ object PathExecutor {
             return
         }
         plan = routePlan
+        if (routePlan is RoutePlan.Ground && routePlan.complete) partialReplans = 0
         waypointsMutable = routePlan.waypoints.toMutableList()
         cursor = 1
         steering.reset()
@@ -208,31 +211,13 @@ object PathExecutor {
         return true
     }
 
-    private fun triggerOffPathRepath(pos: Vec3) {
-        val goal = finalGoal ?: return
-        repathInFlight = true
-        recovery.reset()
-        InputManager.releaseAll()
-        modMessage("§eOff-path detected - recalculating...")
-        RouteEngine.planAsync(pos, goal, travelMode).thenAccept { newPlan ->
-            mc.execute {
-                if (newPlan is RoutePlan.Failed) {
-                    modMessage("§cReroute failed.")
-                    stop()
-                } else {
-                    begin(newPlan, goal, travelMode)
-                }
-            }
-        }
-    }
-
-    private fun triggerObstructionRepath(pos: Vec3) {
+    private fun triggerRepath(pos: Vec3, reason: String) {
         val goal = finalGoal ?: return
         if (repathInFlight) return
         repathInFlight = true
         recovery.reset()
         InputManager.releaseAll()
-        modMessage("§eRoute obstructed, recalculating...")
+        modMessage(reason)
         RouteEngine.planAsync(pos, goal, travelMode).thenAccept { newPlan ->
             mc.execute {
                 if (newPlan is RoutePlan.Failed) {
@@ -245,27 +230,16 @@ object PathExecutor {
         }
     }
 
+    private fun triggerOffPathRepath(pos: Vec3) = triggerRepath(pos, "§eOff-path detected - recalculating...")
+
+    private fun triggerObstructionRepath(pos: Vec3) = triggerRepath(pos, "§eRoute obstructed, recalculating...")
+
     private fun triggerStuckRepath(pos: Vec3) {
-        val goal = finalGoal ?: return
-        repathInFlight = true
-        recovery.reset()
-        InputManager.releaseAll()
-        modMessage("§cStuck! Blacklisting and replanning...")
         PathBlacklist.blacklistArea(pos, STUCK_BLACKLIST_RADIUS, STUCK_BLACKLIST_DURATION)
         plan.waypoints.getOrNull(cursor)?.let {
             PathBlacklist.blacklistArea(it, STUCK_BLACKLIST_WAYPOINT_RADIUS, STUCK_BLACKLIST_DURATION)
         }
-        RouteEngine.planAsync(pos, goal, travelMode).thenAccept { newPlan ->
-            mc.execute {
-                if (newPlan is RoutePlan.Failed) {
-                    modMessage("§cRepath failed.")
-                    stop()
-                } else {
-                    modMessage("§aNew route found (${newPlan.waypoints.size} waypoints).")
-                    begin(newPlan, goal, travelMode)
-                }
-            }
-        }
+        triggerRepath(pos, "§cStuck! Blacklisting and replanning...")
     }
 
     private fun tryLookAheadShortcut(waypoints: List<Vec3>, pos: Vec3, player: LocalPlayer) {
@@ -299,8 +273,13 @@ object PathExecutor {
             val dy = abs(pos.y - goal.y)
             if (planar > GOAL_ARRIVE_DIST_SQ || dy > GOAL_ARRIVE_Y_DIFF) {
                 if (!repathInFlight) {
-                    modMessage("§eReached end of partial path - replanning to reach goal...")
-                    triggerOffPathRepath(pos)
+                    partialReplans++
+                    if (partialReplans > MAX_PARTIAL_REPLANS) {
+                        modMessage("§cGoal appears unreachable after $MAX_PARTIAL_REPLANS partial paths - giving up.")
+                        stop()
+                        return
+                    }
+                    triggerRepath(pos, "§eReached end of partial path - replanning... ($partialReplans/$MAX_PARTIAL_REPLANS)")
                 }
                 return
             }

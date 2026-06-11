@@ -4,16 +4,17 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.util.ChunkScopedCache
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.chunk.PalettedContainer
+import net.minecraft.world.level.levelgen.Heightmap
+import net.minecraft.world.level.EmptyBlockGetter
+import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.phys.shapes.CollisionContext
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.shapes.VoxelShape
 import net.minecraft.world.phys.shapes.Shapes
-import net.minecraft.world.level.chunk.LevelChunk
-import net.minecraft.world.level.levelgen.Heightmap
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.floor
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 object BlockCache : ChunkScopedCache() {
@@ -22,11 +23,36 @@ object BlockCache : ChunkScopedCache() {
         val feetY: Double
     )
 
-    private val cache = ConcurrentHashMap<Long, BlockState>()
-    private val supportTopCache = ConcurrentHashMap<Long, List<Double>>()
-    private val scannedChunks = ConcurrentHashMap.newKeySet<Long>()
+    private class ChunkSnapshot(
+        val minBlockY: Int,
+        val sections: Array<PalettedContainer<BlockState>?>,
+        val surfaceHeights: IntArray
+    ) {
+        fun blockState(x: Int, y: Int, z: Int): BlockState {
+            val idx = (y - minBlockY) shr 4
+            val container = sections.getOrNull(idx) ?: return AIR
+            return container.get(x and 15, y and 15, z and 15)
+        }
+
+        fun isSectionAir(y: Int): Boolean {
+            val idx = (y - minBlockY) shr 4
+            return idx !in sections.indices || sections[idx] == null
+        }
+
+        fun sectionFloorY(y: Int): Int = minBlockY + (((y - minBlockY) shr 4) shl 4)
+
+        fun surfaceY(x: Int, z: Int): Int = surfaceHeights[((z and 15) shl 4) or (x and 15)]
+    }
+
+    private val AIR: BlockState = Blocks.AIR.defaultBlockState()
+
+    private const val MAX_SNAPSHOT_CHUNKS = 1024
+
+    private val snapshots = ConcurrentHashMap<Long, ChunkSnapshot>()
+    private val supportTopCache = ConcurrentHashMap<BlockState, List<Double>>()
+    private val shapeAabbsCache = ConcurrentHashMap<BlockState, List<AABB>>()
     private data class ColumnRangeKey(val x: Int, val z: Int, val minY: Int, val maxY: Int)
-    private val columnSurfacesCache = ConcurrentHashMap<ColumnRangeKey, List<StandSurface>>()
+    private val columnSurfacesCache = ConcurrentHashMap<Long, ConcurrentHashMap<ColumnRangeKey, List<StandSurface>>>()
 
     const val STEP_HEIGHT = 0.6
     const val MAX_JUMP_RISE = 1.25
@@ -34,36 +60,57 @@ object BlockCache : ChunkScopedCache() {
     const val PLAYER_HEIGHT = 1.8
     const val PLAYER_HALF_WIDTH = PLAYER_WIDTH / 2.0
 
-    private const val CENTER_X = 0.5
-    private const val CENTER_Z = 0.5
     private const val BODY_EPSILON = 1.0E-3
     private const val SUPPORT_EPSILON = 0.05
     private const val HORIZONTAL_MARGIN = 1.0E-3
 
-    fun getBlockState(pos: BlockPos): BlockState {
-        val key = pos.asLong()
-        cache[key]?.let { return it }
-
-        val world = mc.level ?: return Blocks.AIR.defaultBlockState()
-        if (!world.hasChunk(pos.x shr 4, pos.z shr 4)) return Blocks.AIR.defaultBlockState()
-        val state = world.getBlockState(pos)
-        cache[key] = state
-        scannedChunks.add(chunkKey(pos.x shr 4, pos.z shr 4))
-        return state
-    }
+    fun getBlockState(pos: BlockPos): BlockState =
+        snapshotFor(pos.x shr 4, pos.z shr 4)?.blockState(pos.x, pos.y, pos.z) ?: AIR
 
     private fun chunkKey(cx: Int, cz: Int): Long = (cx.toLong() shl 32) or (cz.toLong() and 0xFFFFFFFFL)
 
-    private fun columnKey(x: Int, z: Int): Long = (x.toLong() shl 32) or (z.toLong() and 0xFFFFFFFFL)
-
-    fun isChunkAvailable(x: Int, z: Int): Boolean {
-        if (isChunkLoaded(x, z)) return true
-        return scannedChunks.contains(chunkKey(x shr 4, z shr 4))
+    private fun snapshotFor(cx: Int, cz: Int): ChunkSnapshot? {
+        val key = chunkKey(cx, cz)
+        snapshots[key]?.let { return it }
+        val world = mc.level ?: return null
+        if (!world.hasChunk(cx, cz)) return null
+        val snapshot = try {
+            captureChunk(world.getChunk(cx, cz))
+        } catch (e: Exception) {
+            return null
+        }
+        if (snapshots.size >= MAX_SNAPSHOT_CHUNKS) snapshots.clear()
+        snapshots[key] = snapshot
+        return snapshot
     }
 
-    fun getCollisionShape(pos: BlockPos): VoxelShape {
-        val world = mc.level ?: return Shapes.empty()
-        return getBlockState(pos).getCollisionShape(world, pos, CollisionContext.empty())
+    private fun captureChunk(chunk: LevelChunk): ChunkSnapshot {
+        val liveSections = chunk.sections
+        val copied = arrayOfNulls<PalettedContainer<BlockState>>(liveSections.size)
+        for (i in liveSections.indices) {
+            val section = liveSections[i]
+            if (!section.hasOnlyAir()) copied[i] = section.states.copy()
+        }
+        val surface = IntArray(16 * 16)
+        for (lz in 0..15) for (lx in 0..15) {
+            surface[(lz shl 4) or lx] = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz)
+        }
+        return ChunkSnapshot(chunk.minY, copied, surface)
+    }
+
+    fun isChunkAvailable(x: Int, z: Int): Boolean =
+        isChunkLoaded(x, z) || snapshots.containsKey(chunkKey(x shr 4, z shr 4))
+
+    fun getCollisionShape(pos: BlockPos): VoxelShape =
+        getBlockState(pos).getCollisionShape(EmptyBlockGetter.INSTANCE, pos, CollisionContext.empty())
+
+    private fun getShapeAabbs(pos: BlockPos): List<AABB> {
+        val state = getBlockState(pos)
+        shapeAabbsCache[state]?.let { return it }
+        val shape = state.getCollisionShape(EmptyBlockGetter.INSTANCE, pos, CollisionContext.empty())
+        val aabbs = if (shape.isEmpty) emptyList() else shape.toAabbs()
+        shapeAabbsCache[state] = aabbs
+        return aabbs
     }
 
     fun getCollisionHeight(pos: BlockPos): Double {
@@ -72,25 +119,19 @@ object BlockCache : ChunkScopedCache() {
     }
 
     fun getSupportTopYs(pos: BlockPos): List<Double> {
-        val key = pos.asLong()
-        supportTopCache[key]?.let { localTops ->
+        val state = getBlockState(pos)
+        supportTopCache[state]?.let { localTops ->
             return localTops.map { pos.y + it }
         }
 
-        val shape = getCollisionShape(pos)
-        if (shape.isEmpty) {
-            supportTopCache[key] = emptyList()
-            return emptyList()
-        }
-
-        val localTops = shape.toAabbs()
+        val localTops = getShapeAabbs(pos)
             .asSequence()
             .map { ((it.maxY * 16.0).roundToInt()) / 16.0 }
             .distinct()
             .sortedDescending()
             .toList()
 
-        supportTopCache[key] = localTops
+        supportTopCache[state] = localTops
         return localTops.map { pos.y + it }
     }
 
@@ -114,8 +155,22 @@ object BlockCache : ChunkScopedCache() {
     }
 
     private fun hasBlockCollision(box: AABB): Boolean {
-        val world = mc.level ?: return false
-        return world.getBlockCollisions(null, box).iterator().hasNext()
+        val minX = floor(box.minX).toInt()
+        val maxX = floor(box.maxX).toInt()
+        val minY = floor(box.minY).toInt()
+        val maxY = floor(box.maxY).toInt()
+        val minZ = floor(box.minZ).toInt()
+        val maxZ = floor(box.maxZ).toInt()
+        val cursor = BlockPos.MutableBlockPos()
+        for (x in minX..maxX) for (y in minY..maxY) for (z in minZ..maxZ) {
+            for (aabb in getShapeAabbs(cursor.set(x, y, z))) {
+                if (aabb.minX + x < box.maxX && aabb.maxX + x > box.minX &&
+                    aabb.minY + y < box.maxY && aabb.maxY + y > box.minY &&
+                    aabb.minZ + z < box.maxZ && aabb.maxZ + z > box.minZ
+                ) return true
+            }
+        }
+        return false
     }
 
     fun isBodyClearAt(centerX: Double, feetY: Double, centerZ: Double): Boolean {
@@ -172,29 +227,23 @@ object BlockCache : ChunkScopedCache() {
 
     fun getStandableSurfaces(x: Int, z: Int, minFeetY: Double, maxFeetY: Double): List<StandSurface> {
         if (maxFeetY + BODY_EPSILON < minFeetY) return emptyList()
-        if (!isChunkAvailable(x, z)) return emptyList()
+        val snapshot = snapshotFor(x shr 4, z shr 4) ?: return emptyList()
 
         val minSupportY = floor(minFeetY).toInt() - 1
         var maxSupportY = floor(maxFeetY).toInt() + 1
-        val world = mc.level
-        val chunk: LevelChunk? = world?.getChunk(x shr 4, z shr 4)
-        if (chunk != null) {
-            val top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x and 15, z and 15)
-            if (top < maxSupportY) maxSupportY = top
-        }
+        val surfaceTop = snapshot.surfaceY(x, z)
+        if (surfaceTop < maxSupportY) maxSupportY = surfaceTop
         if (maxSupportY < minSupportY) return emptyList()
+        val chunkColumns = columnSurfacesCache.computeIfAbsent(chunkKey(x shr 4, z shr 4)) { ConcurrentHashMap() }
         val cacheKey = ColumnRangeKey(x, z, minSupportY, maxSupportY)
-        columnSurfacesCache[cacheKey]?.let { return it }
+        chunkColumns[cacheKey]?.let { return it }
 
         val surfaces = mutableListOf<StandSurface>()
         val seen = HashSet<Pair<Long, Int>>()
-        val sections = chunk?.sections
-        val chunkMinY = world?.minY ?: 0
         var y = maxSupportY
         while (y >= minSupportY) {
-            val sectionIdx = (y - chunkMinY) shr 4
-            if (sections != null && sectionIdx in sections.indices && sections[sectionIdx].hasOnlyAir()) {
-                y = (chunkMinY + (sectionIdx shl 4)) - 1
+            if (snapshot.isSectionAir(y)) {
+                y = snapshot.sectionFloorY(y) - 1
                 continue
             }
             val supportPos = BlockPos(x, y, z)
@@ -208,11 +257,9 @@ object BlockCache : ChunkScopedCache() {
             y--
         }
         surfaces.sortByDescending { it.feetY }
-        columnSurfacesCache[cacheKey] = surfaces
+        chunkColumns[cacheKey] = surfaces
         return surfaces
     }
-
-
 
     fun isSweepClear(
         fromX: Double,
@@ -249,23 +296,24 @@ object BlockCache : ChunkScopedCache() {
     }
 
     fun clear() {
-        cache.clear()
+        snapshots.clear()
         supportTopCache.clear()
-        scannedChunks.clear()
+        shapeAabbsCache.clear()
         columnSurfacesCache.clear()
     }
 
     fun invalidate(pos: BlockPos) {
-        cache.remove(pos.asLong())
-        supportTopCache.remove(pos.asLong())
-        columnSurfacesCache.keys.removeIf { it.x == pos.x && it.z == pos.z }
+        invalidateChunk(pos.x shr 4, pos.z shr 4)
     }
 
-    override fun onChunkEvicted(chunkX: Int, chunkZ: Int) {
-        // Intentionally a no-op because BlockCache is a long lived cache that should survive
-        // chunk unload so revisiting the same area doesn't re-fetch every BlockState.
-        // World level invalidation happens via onAllEvicted (world load) and per block
-        // changes via onPosEvicted
+    private fun invalidateChunk(cx: Int, cz: Int) {
+        val key = chunkKey(cx, cz)
+        snapshots.remove(key)
+        columnSurfacesCache.remove(key)
+    }
+
+    override fun onChunkLoaded(chunkX: Int, chunkZ: Int) {
+        invalidateChunk(chunkX, chunkZ)
     }
 
     override fun onPosEvicted(pos: BlockPos, newState: BlockState) {

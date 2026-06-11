@@ -15,15 +15,26 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 internal class PathSteering {
     private var desiredYaw: Float = Float.NaN
     private var desiredPitch: Float = Float.NaN
+    private var smoothedVelX: Double = 0.0
+    private var smoothedVelZ: Double = 0.0
 
     fun reset() {
         desiredYaw = Float.NaN
         desiredPitch = Float.NaN
+        smoothedVelX = 0.0
+        smoothedVelZ = 0.0
+    }
+
+    private fun updateSmoothedVelocity(player: LocalPlayer) {
+        val vel = player.deltaMovement
+        smoothedVelX += (vel.x - smoothedVelX) * VELOCITY_SMOOTHING
+        smoothedVelZ += (vel.z - smoothedVelZ) * VELOCITY_SMOOTHING
     }
 
     fun steerSky(target: Vec3, pos: Vec3, player: LocalPlayer) {
@@ -68,21 +79,16 @@ internal class PathSteering {
         enableSprint: Boolean
     ) {
         val target = waypoints[idx]
-        val predictedPos = PathFollowMath.predictedMovementPos(pos, player)
+        updateSmoothedVelocity(player)
+        val predictedPos = PathFollowMath.predictedMovementPos(pos, player, smoothedVelX, smoothedVelZ)
         val frame = PathFollowMath.groundSegmentFrame(waypoints, idx, predictedPos)
-        val pathLookaheadTarget = PathFollowMath.pathLookaheadTarget(waypoints, idx, predictedPos, player)
-        val lookaheadDx = pathLookaheadTarget.x - pos.x
-        val lookaheadDz = pathLookaheadTarget.z - pos.z
-        val correctedDirection = PathFollowMath.correctedDirection(frame, player)
-        val dx = if (lookaheadDx * lookaheadDx + lookaheadDz * lookaheadDz > 0.01) lookaheadDx else correctedDirection.first
-        val dz = if (lookaheadDx * lookaheadDx + lookaheadDz * lookaheadDz > 0.01) lookaheadDz else correctedDirection.second
         val targetDx = target.x - pos.x
         val targetDz = target.z - pos.z
         val targetHorizontalDist = sqrt(targetDx * targetDx + targetDz * targetDz)
 
         InputManager.releaseAll()
 
-        if (target.y < pos.y - 1.5) {
+        if (target.y < pos.y - FALL_STEER_THRESHOLD) {
             steerFall(target, pos, player, targetDx, targetDz)
             return
         }
@@ -90,8 +96,9 @@ internal class PathSteering {
         val jumpProfile = JumpProfile.current(player)
         val jumpRequiredHeight = jumpProfile.stepHeight + STEP_JUMP_MARGIN
         val waypointDy = if (idx > 0) target.y - waypoints[idx - 1].y else target.y - pos.y
-        val descendingSegment = target.y < pos.y - 0.2 || waypointDy < -0.2
-        val jumpReachDist = (1.5 + (jumpProfile.maxSkipCells - 1) * 0.85).coerceAtMost(jumpProfile.maxHorizontalBlocks + 0.4)
+        val descendingSegment = target.y < pos.y - DESCENT_EPSILON || waypointDy < -DESCENT_EPSILON
+        val jumpReachDist = (JUMP_REACH_BASE + (jumpProfile.maxSkipCells - 1) * JUMP_REACH_PER_SKIP)
+            .coerceAtMost(jumpProfile.maxHorizontalBlocks + JUMP_REACH_MARGIN)
         val needsWaypointJump = waypointDy > jumpRequiredHeight && waypointDy <= jumpProfile.maxClimb &&
             targetHorizontalDist < jumpReachDist && (target.y - pos.y) > jumpRequiredHeight
         val upcomingJumpTarget = findUpcomingJumpTarget(waypoints, idx, pos, jumpProfile)
@@ -106,6 +113,8 @@ internal class PathSteering {
             return
         }
 
+        val (dx, dz) = computeSteerDelta(waypoints, idx, pos, predictedPos, frame)
+
         val effectiveTarget = upcomingJumpTarget ?: target
         val effectiveJumping = needsWaypointJump || needsTerrainJump || upcomingJumpTarget != null
         val edx = effectiveTarget.x - pos.x
@@ -119,26 +128,67 @@ internal class PathSteering {
         val movementYaw = AngleUtils.calcAimAnglesFromDelta(dx, 0.0, dz).first
         val absYawDiff = abs(AngleUtils.wrapDegrees(movementYaw - player.yRot))
 
+        val sharpTurnAhead = PathFollowMath.upcomingTurnDegrees(waypoints, idx, pos, CORNER_BRAKE_DIST) > CORNER_BRAKE_ANGLE
+        val sprintAllowed = enableSprint && !sharpTurnAhead
+        InputManager.suppressSprint = !sprintAllowed
+
         if (enableSpeedAdaptation) {
             when {
                 absYawDiff < SPEED_SPRINT_YAW -> {
                     InputManager.press(MoveAction.FORWARD)
-                    if (enableSprint) InputManager.press(MoveAction.SPRINT)
+                    if (sprintAllowed) InputManager.press(MoveAction.SPRINT)
                 }
                 absYawDiff < SPEED_JOG_YAW -> InputManager.press(MoveAction.FORWARD)
-                absYawDiff < 115f -> InputManager.press(MoveAction.FORWARD)
+                absYawDiff < SPEED_CREEP_YAW -> InputManager.press(MoveAction.FORWARD)
             }
         } else {
-            if (absYawDiff < 125f) InputManager.press(MoveAction.FORWARD)
-            if (enableSprint && absYawDiff < 60f) InputManager.press(MoveAction.SPRINT)
+            if (absYawDiff < NO_ADAPT_FORWARD_YAW) InputManager.press(MoveAction.FORWARD)
+            if (sprintAllowed && absYawDiff < NO_ADAPT_SPRINT_YAW) InputManager.press(MoveAction.SPRINT)
         }
     }
 
-    fun applyYawEasing() {
-        if (!desiredYaw.isNaN() && !desiredPitch.isNaN()) {
-            RotationUtils.easeTowards(desiredYaw, desiredPitch, PATH_YAW_EASE, PATH_PITCH_EASE)
-        }
+    private fun computeSteerDelta(
+        waypoints: List<Vec3>,
+        idx: Int,
+        pos: Vec3,
+        predictedPos: Vec3,
+        frame: PathFollowMath.GroundSegmentFrame
+    ): Pair<Double, Double> {
+        val lookTarget = visibleLookaheadTarget(waypoints, idx, pos, predictedPos)
+        val lookaheadDx = lookTarget.x - pos.x
+        val lookaheadDz = lookTarget.z - pos.z
+        val lookaheadDistSq = lookaheadDx * lookaheadDx + lookaheadDz * lookaheadDz
+        if (lookaheadDistSq <= 0.01) return frame.dirX to frame.dirZ
+        val dist = sqrt(lookaheadDistSq)
+        val lateralVel = smoothedVelX * frame.perpX + smoothedVelZ * frame.perpZ
+        val steer = PathFollowMath.dampedSteerDirection(frame, lateralVel, lookaheadDx, lookaheadDz)
+        return steer.first * dist to steer.second * dist
     }
+
+    private fun visibleLookaheadTarget(waypoints: List<Vec3>, idx: Int, pos: Vec3, predictedPos: Vec3): Vec3 {
+        val speedPerTick = sqrt(smoothedVelX * smoothedVelX + smoothedVelZ * smoothedVelZ)
+        var lookDist = PathFollowMath.lookaheadDistanceFor(speedPerTick)
+        repeat(LOS_SHRINK_ATTEMPTS) {
+            val candidate = PathFollowMath.pathLookaheadTarget(waypoints, idx, predictedPos, lookDist)
+            if (PathCollision.quickLineOfSight(pos, candidate)) return candidate
+            lookDist *= LOS_SHRINK_FACTOR
+        }
+        return PathFollowMath.centered(waypoints[idx])
+    }
+
+    fun applyYawEasing() {
+        if (desiredYaw.isNaN() || desiredPitch.isNaN()) return
+        val frameTicks = mc.deltaTracker.realtimeDeltaTicks
+        RotationUtils.easeTowards(
+            desiredYaw,
+            desiredPitch,
+            frameEaseFactor(PATH_YAW_EASE_PER_TICK, frameTicks),
+            frameEaseFactor(PATH_PITCH_EASE_PER_TICK, frameTicks)
+        )
+    }
+
+    private fun frameEaseFactor(perTickFactor: Float, frameTicks: Float): Float =
+        1f - (1f - perTickFactor).pow(frameTicks)
 
     private fun isAheadHeadBlocked(pos: Vec3, dx: Double, dz: Double, horizontalDist: Double): Boolean {
         val headAbove = BlockPos(floor(pos.x).toInt(), floor(pos.y + BlockCache.PLAYER_HEIGHT).toInt(), floor(pos.z).toInt())
@@ -169,7 +219,7 @@ internal class PathSteering {
             val dx = wp.x - pos.x
             val dz = wp.z - pos.z
             val dist = sqrt(dx * dx + dz * dz)
-            if (dist <= max(JUMP_LOOKAHEAD_DIST, jumpProfile.maxHorizontalBlocks + 0.4)) return wp
+            if (dist <= max(JUMP_LOOKAHEAD_DIST, jumpProfile.maxHorizontalBlocks + JUMP_REACH_MARGIN)) return wp
         }
         return null
     }

@@ -1,6 +1,5 @@
 package gobby.pathfinder
 
-import gobby.pathfinder.navmesh.WalkPolygon
 import net.minecraft.world.phys.Vec3
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
@@ -14,11 +13,9 @@ object PathBlacklist {
 
     private data class Entry(val center: Vec3, val radius: Double, val expiryTick: Long) {
         fun isExpired(now: Long): Boolean = now >= expiryTick
-        fun overlaps(polyMinX: Int, polyMaxX: Int, polyMinZ: Int, polyMaxZ: Int): Boolean {
-            val clampedX = center.x.coerceIn(polyMinX.toDouble(), (polyMaxX + 1).toDouble())
-            val clampedZ = center.z.coerceIn(polyMinZ.toDouble(), (polyMaxZ + 1).toDouble())
-            val dx = clampedX - center.x
-            val dz = clampedZ - center.z
+        fun contains(x: Double, z: Double): Boolean {
+            val dx = x - center.x
+            val dz = z - center.z
             return dx * dx + dz * dz <= radius * radius
         }
     }
@@ -36,15 +33,13 @@ object PathBlacklist {
 
     fun size(): Int = entries.size
 
-    fun penaltyFor(poly: WalkPolygon): Double {
+    fun penaltyAt(x: Double, z: Double): Double {
         if (entries.isEmpty()) return 1.0
         val now = tickCounter.get()
         var multiplier = 1.0
         for (entry in entries) {
             if (entry.isExpired(now)) continue
-            if (entry.overlaps(poly.minX, poly.maxX, poly.minZ, poly.maxZ)) {
-                multiplier *= BLACKLIST_COST_MULTIPLIER
-            }
+            if (entry.contains(x, z)) multiplier *= BLACKLIST_COST_MULTIPLIER
         }
         return multiplier
     }

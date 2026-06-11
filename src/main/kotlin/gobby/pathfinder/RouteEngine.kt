@@ -1,7 +1,5 @@
 package gobby.pathfinder
 
-import gobby.pathfinder.navmesh.WalkMeshScanner
-import gobby.pathfinder.solver.GroundSolver
 import gobby.pathfinder.solver.VoxelGroundSolver
 import gobby.pathfinder.solver.SkySolver
 import gobby.pathfinder.world.BlockCache
@@ -28,7 +26,7 @@ sealed class RoutePlan {
     abstract val waypoints: List<Vec3>
     abstract val isEmpty: Boolean
 
-    data class Ground(override val waypoints: List<Vec3>) : RoutePlan() {
+    data class Ground(override val waypoints: List<Vec3>, val complete: Boolean = true) : RoutePlan() {
         override val isEmpty: Boolean get() = waypoints.size < 2
     }
 
@@ -116,15 +114,19 @@ object RouteEngine {
 
     private fun walk(start: Vec3, goal: Vec3, scanRange: Int): RoutePlan {
         val totalClock = Clock()
-        val snappedGoal = snapToWalkableSurface(goal) ?: goal
+        val goalChunkLoaded = BlockCache.isChunkLoaded(floor(goal.x).toInt(), floor(goal.z).toInt())
+        val snappedGoal = snapToWalkableSurface(goal)
+        if (snappedGoal == null && goalChunkLoaded) return RoutePlan.Failed
         val solveClock = Clock()
-        val waypoints = VoxelGroundSolver.solve(start, snappedGoal)
+        val result = VoxelGroundSolver.solve(start, snappedGoal ?: goal)
         PlanStats.lastSolveMs = solveClock.getTime()
         PlanStats.lastMeshMs = 0
         PlanStats.lastPolygonCount = 0
-        PlanStats.lastWaypointCount = waypoints.size
+        PlanStats.lastWaypointCount = result.waypoints.size
         PlanStats.lastTotalMs = totalClock.getTime()
-        return if (waypoints.size < 2) RoutePlan.Failed else RoutePlan.Ground(waypoints)
+        if (result.waypoints.size < 2) return RoutePlan.Failed
+        if (!result.complete && goalChunkLoaded && result.remainingDistance > UNREACHABLE_REMAINING_DIST) return RoutePlan.Failed
+        return RoutePlan.Ground(result.waypoints, result.complete)
     }
 
     private fun fly(start: Vec3, goal: Vec3, scanRange: Int): RoutePlan {

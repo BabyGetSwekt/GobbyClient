@@ -2,6 +2,7 @@ package gobby.mixin;
 
 import gobby.features.skyblock.FreeCam;
 import gobby.mixin.accessor.WalkAnimationStateAccessor;
+import gobby.pathfinder.movement.InputManager;
 import gobby.utils.managers.PacketOrderManager;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -9,6 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LocalPlayer.class)
 public class MixinLocalPlayer {
@@ -25,6 +27,16 @@ public class MixinLocalPlayer {
             limb.setSpeed(0f);
             limb.setLastSpeed(0f);
         }
+    }
+
+    @Inject(method = "canStartSprinting", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$suppressSprintStart(CallbackInfoReturnable<Boolean> cir) {
+        if (InputManager.suppressSprint) cir.setReturnValue(false);
+    }
+
+    @Inject(method = "shouldStopRunSprinting", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$forceStopSprint(CallbackInfoReturnable<Boolean> cir) {
+        if (InputManager.suppressSprint) cir.setReturnValue(true);
     }
 
     @Inject(method = "sendPosition", at = @At("HEAD"))

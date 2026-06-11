@@ -7,6 +7,9 @@ import com.mojang.blaze3d.platform.InputConstants
 
 object InputManager {
 
+    @JvmField
+    var suppressSprint: Boolean = false
+
     enum class MoveAction {
         FORWARD, BACKWARD, LEFT, RIGHT, JUMP, SNEAK, SPRINT
     }
@@ -34,6 +37,7 @@ object InputManager {
 
     fun releaseAll() {
         MoveAction.entries.forEach { release(it) }
+        suppressSprint = false
     }
 
     fun isPressed(action: MoveAction): Boolean = getKeyBinding(action).isDown

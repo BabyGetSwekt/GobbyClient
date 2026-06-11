@@ -1,6 +1,7 @@
 package gobby.events.util
 
 import gobby.events.BlockStateChangeEvent
+import gobby.events.ChunkLoadEvent
 import gobby.events.ChunkUnloadEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
@@ -16,6 +17,12 @@ abstract class ChunkScopedCache {
     }
 
     @SubscribeEvent
+    fun handleChunkLoad(event: ChunkLoadEvent) {
+        val pos = event.chunk.pos
+        onChunkLoaded(pos.x, pos.z)
+    }
+
+    @SubscribeEvent
     fun handleBlockStateChange(event: BlockStateChangeEvent) {
         onPosEvicted(event.blockPos, event.newState)
     }
@@ -25,7 +32,8 @@ abstract class ChunkScopedCache {
         onAllEvicted()
     }
 
-    protected abstract fun onChunkEvicted(chunkX: Int, chunkZ: Int)
+    protected open fun onChunkEvicted(chunkX: Int, chunkZ: Int) {}
+    protected open fun onChunkLoaded(chunkX: Int, chunkZ: Int) {}
     protected abstract fun onPosEvicted(pos: BlockPos, newState: BlockState)
     protected abstract fun onAllEvicted()
 }

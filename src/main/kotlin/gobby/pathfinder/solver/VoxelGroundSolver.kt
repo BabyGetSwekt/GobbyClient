@@ -1,6 +1,7 @@
 package gobby.pathfinder.solver
 
 import gobby.pathfinder.JumpProfile
+import gobby.pathfinder.PathBlacklist
 import gobby.pathfinder.STEP_JUMP_MARGIN
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.timer.Clock
@@ -11,6 +12,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 object VoxelGroundSolver {
@@ -18,6 +20,7 @@ object VoxelGroundSolver {
     private const val MAX_NODES = 100_000
     private const val MAX_PLAN_MS = 1500L
     private const val HEURISTIC_WEIGHT = 1.15
+    private const val HEURISTIC_Y_WEIGHT = 0.5
     private const val COST_CARDINAL = 1.0
     private const val COST_DIAGONAL = 1.414
     private const val COST_STEP_UP = 1.3
@@ -41,9 +44,15 @@ object VoxelGroundSolver {
 
     private class Entry(val node: Node, val g: Double, val f: Double, val parent: Entry?)
 
-    fun solve(start: Vec3, goal: Vec3): List<Vec3> {
-        val startStand = snapToGround(start) ?: return emptyList()
-        val goalStand = snapToGround(goal) ?: return emptyList()
+    data class PathResult(val waypoints: List<Vec3>, val complete: Boolean, val remainingDistance: Double) {
+        companion object {
+            val EMPTY = PathResult(emptyList(), false, Double.MAX_VALUE)
+        }
+    }
+
+    fun solve(start: Vec3, goal: Vec3): PathResult {
+        val startStand = snapToGround(start) ?: return PathResult.EMPTY
+        val goalStand = snapToGround(goal) ?: return PathResult.EMPTY
         return aStar(startStand, goalStand)
     }
 
@@ -55,7 +64,7 @@ object VoxelGroundSolver {
         return Node(bx, best.pos.y, bz, best.feetY)
     }
 
-    private fun aStar(start: Node, goal: Node): List<Vec3> {
+    private fun aStar(start: Node, goal: Node): PathResult {
         val jumpProfile = JumpProfile.current()
         val open = PriorityQueue<Entry>(compareBy { it.f })
         val closed = HashMap<Long, Double>()
@@ -72,12 +81,12 @@ object VoxelGroundSolver {
             val recorded = closed[cur.node.packKey()] ?: Double.MAX_VALUE
             if (cur.g > recorded + 1e-6) continue
             expanded++
-            if (isAtGoal(cur.node, goal)) return reconstruct(cur)
+            if (isAtGoal(cur.node, goal)) return PathResult(reconstruct(cur), complete = true, remainingDistance = 0.0)
             val h = heuristic(cur.node, goal)
             if (h < bestNearH) { bestNearH = h; bestNear = cur }
             expandNeighbors(cur, goal, jumpProfile, open, closed)
         }
-        return reconstruct(bestNear)
+        return PathResult(reconstruct(bestNear), complete = false, remainingDistance = bestNearH)
     }
 
     private fun isAtGoal(n: Node, goal: Node): Boolean {
@@ -91,9 +100,8 @@ object VoxelGroundSolver {
         val dx = abs(a.x - b.x).toDouble()
         val dy = abs(a.feetY - b.feetY)
         val dz = abs(a.z - b.z).toDouble()
-        val flat = max(dx, dz) * COST_CARDINAL + (max(dx, dz) - kotlin.math.min(dx, dz)) * 0.0 +
-            kotlin.math.min(dx, dz) * (COST_DIAGONAL - COST_CARDINAL)
-        return flat + dy * 0.5
+        val flat = max(dx, dz) * COST_CARDINAL + min(dx, dz) * (COST_DIAGONAL - COST_CARDINAL)
+        return flat + dy * HEURISTIC_Y_WEIGHT
     }
 
     private fun expandNeighbors(
@@ -193,7 +201,9 @@ object VoxelGroundSolver {
             if (!BlockCache.isBodyClearAt(ax + 0.5, midY, az + 0.5)) solidNeighbors++
             if (BlockCache.isPassable(BlockPos(ax, belowFeet, az))) cliffNeighbors++
         }
-        return solidNeighbors * WALL_PENALTY_PER_NEIGHBOR + cliffNeighbors * CLIFF_PENALTY_PER_NEIGHBOR
+        val base = solidNeighbors * WALL_PENALTY_PER_NEIGHBOR + cliffNeighbors * CLIFF_PENALTY_PER_NEIGHBOR
+        val blacklistMult = PathBlacklist.penaltyAt(x + 0.5, z + 0.5)
+        return base * blacklistMult + (blacklistMult - 1.0)
     }
 
     private val CARDINAL_DX = intArrayOf(1, -1, 0, 0)
@@ -206,10 +216,10 @@ object VoxelGroundSolver {
             BlockCache.isBodyClearAt((cur.x + dx) + 0.5, midY, cur.z + 0.5)
         val c2Clear = BlockCache.isBodyClearAt(cur.x + 0.5, cur.feetY, (cur.z + dz) + 0.5) &&
             BlockCache.isBodyClearAt(cur.x + 0.5, midY, (cur.z + dz) + 0.5)
-        if (!c1Clear && !c2Clear) return false
+        if (!c1Clear || !c2Clear) return false
         val c1Solid = BlockCache.isSolid(BlockPos(cur.x + dx, belowFeet, cur.z))
         val c2Solid = BlockCache.isSolid(BlockPos(cur.x, belowFeet, cur.z + dz))
-        return (c1Clear && c1Solid) || (c2Clear && c2Solid)
+        return c1Solid || c2Solid
     }
 
     private fun findStandableAtVoxel(x: Int, y: Int, z: Int, anchorFeetY: Double): BlockCache.StandSurface? {
