@@ -1,6 +1,6 @@
 package gobby.gui.click
 
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 
 object SearchComponent {
 

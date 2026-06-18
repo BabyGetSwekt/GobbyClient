@@ -2,7 +2,7 @@ package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.ChatUtils.getColorAsInt
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
 
 object Render2D {
@@ -47,7 +47,7 @@ object Render2D {
         y: Float,
         color: Color,
         scale: Float = 1.0f,
-        drawContext: GuiGraphics
+        drawContext: GuiGraphicsExtractor
     ) {
         val segments = parseColorCodes(text, color)
         val matrixStack = drawContext.pose()
@@ -59,7 +59,7 @@ object Render2D {
         var currentX = 0
         for (segment in segments) {
             if (segment.text.isNotEmpty()) {
-                drawContext.drawString(
+                drawContext.text(
                     mc.font,
                     segment.text,
                     currentX,

@@ -62,7 +62,10 @@ object DebuffAreaRenderer : BlockHighlighter() {
     override fun isValidPosition(pos: BlockPos): Boolean {
         val world = mc.level ?: return false
         val above = world.getBlockState(pos.above())
-        if (!above.isAir && !above.`is`(Blocks.LIGHT_GRAY_CARPET)) return false
+        //? if >26.1.2
+        if (!above.isAir && !above.`is`(Blocks.CARPET.lightGray())) return false
+        //? if <=26.1.2
+        /*if (!above.isAir && !above.`is`(Blocks.LIGHT_GRAY_CARPET)) return false*/
         return renderAreas.any { area ->
             pos.y == area.y &&
             pos.x in area.x1..area.x2 &&

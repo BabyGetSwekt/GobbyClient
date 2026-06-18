@@ -1,5 +1,5 @@
 plugins {
-	id("fabric-loom") version "1.13.6"
+	id("net.fabricmc.fabric-loom") version "1.17.10"
 	id("maven-publish")
 	id("org.jetbrains.kotlin.jvm") version "2.3.10"
 }
@@ -8,9 +8,13 @@ val mod_version: String by project
 val maven_group: String by project
 val archives_base_name: String by project
 val minecraft_version: String by project
+val minecraft_depends: String by project
 val loader_version: String by project
 val fabric_version: String by project
 val fabric_kotlin_version: String by project
+val universalcraft_artifact: String by project
+val universalcraft_version: String by project
+val universalcraft = "gg.essential:$universalcraft_artifact:$universalcraft_version"
 
 
 base.archivesName.set(archives_base_name)
@@ -39,7 +43,7 @@ fabricApi {
 
 configurations.all {
 	resolutionStrategy {
-		force("gg.essential:universalcraft-1.21.9-fabric:449")
+		force(universalcraft)
 		force("gg.essential:elementa:710")
 	}
 }
@@ -47,16 +51,15 @@ configurations.all {
 dependencies {
 	// Minecraft
 	minecraft("com.mojang:minecraft:$minecraft_version")
-	mappings(loom.officialMojangMappings())
 
 	// Fabric
-	modImplementation("net.fabricmc:fabric-loader:$loader_version")
-	modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
-	modImplementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+	implementation("net.fabricmc:fabric-loader:$loader_version")
+	implementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
+	implementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
 
 	// Essentials
-	modImplementation("gg.essential:universalcraft-1.21.9-fabric:449")
-	include("gg.essential:universalcraft-1.21.9-fabric:449")
+	implementation(universalcraft)
+	include(universalcraft)
 	implementation(("gg.essential:vigilance:312")) { // Kan !! erbij zetten, check docs
 		exclude(group = "gg.essential", module = "elementa")
 		exclude(group = "gg.essential", module = "universalcraft")
@@ -102,6 +105,7 @@ tasks.compileKotlin {
 tasks.processResources {
 	inputs.property("version", mod_version)
 	inputs.property("minecraft_version", minecraft_version)
+	inputs.property("minecraft_depends", minecraft_depends)
 	inputs.property("fabric_version", fabric_version)
 	inputs.property("loader_version", loader_version)
 	inputs.property("fabric_kotlin_version", fabric_kotlin_version)
@@ -111,6 +115,7 @@ tasks.processResources {
 			mapOf(
 				"version" to mod_version,
 				"minecraft_version" to minecraft_version,
+				"minecraft_depends" to minecraft_depends,
 				"fabric_version" to fabric_version,
 				"loader_version" to loader_version,
 			)
@@ -120,20 +125,20 @@ tasks.processResources {
 
 tasks.withType<JavaCompile>().configureEach {
 	options.encoding = "UTF-8"
-	options.release.set(21)
+	options.release.set(25)
 }
 
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 kotlin {
 	compilerOptions {
 		suppressWarnings.set(true)
-		jvmToolchain(21)
+		jvmToolchain(25)
 	}
 }
 

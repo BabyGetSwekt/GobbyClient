@@ -14,13 +14,10 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.STEP
 import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.renderer.texture.DynamicTexture
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import java.awt.Color
 
 object MapRenderer {
@@ -80,7 +77,7 @@ object MapRenderer {
     }
 
     fun drawMap(
-        ctx: GuiGraphics,
+        ctx: GuiGraphicsExtractor,
         grid: Array<MapTile>,
         checkmarks: Array<MapCheckmark>,
         renderNames: Boolean,
@@ -172,7 +169,7 @@ object MapRenderer {
         if (renderHeads) drawPlayers(ctx, headScale)
     }
 
-    private fun drawRoomName(ctx: GuiGraphics, data: RoomData, px: Int, py: Int, scalePercent: Int) {
+    private fun drawRoomName(ctx: GuiGraphicsExtractor, data: RoomData, px: Int, py: Int, scalePercent: Int) {
         val tr = mc.font
         val name = data.name
         if (name.isEmpty()) return
@@ -190,7 +187,7 @@ object MapRenderer {
         val startY = -(totalHeight / 2)
         for (i in styledLines.indices) {
             val tw = tr.width(styledLines[i])
-            ctx.drawString(tr, styledLines[i], -tw / 2, startY + i * tr.lineHeight, Color.WHITE.rgb, true)
+            ctx.text(tr, styledLines[i], -tw / 2, startY + i * tr.lineHeight, Color.WHITE.rgb, true)
         }
         ctx.pose().popMatrix()
     }
@@ -214,7 +211,7 @@ object MapRenderer {
     }
 
     /** Draws checkmark centered at the given pixel position */
-    private fun drawCheckmark(ctx: GuiGraphics, checkmark: MapCheckmark, centerX: Int, centerY: Int) {
+    private fun drawCheckmark(ctx: GuiGraphicsExtractor, checkmark: MapCheckmark, centerX: Int, centerY: Int) {
         registerCheckmarkTexture()
         val checkSize = (CELL_SIZE * 0.5f).toInt()
         val cx = centerX - checkSize / 2
@@ -245,7 +242,7 @@ object MapRenderer {
         checkmarkRegistered = true
     }
 
-    private fun drawPlayers(ctx: GuiGraphics, headScalePercent: Int) {
+    private fun drawPlayers(ctx: GuiGraphicsExtractor, headScalePercent: Int) {
         val world = mc.level ?: return
         val self = mc.player ?: return
         val teammateNames = DungeonListener.teammates.keys

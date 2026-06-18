@@ -11,6 +11,7 @@ import net.minecraft.client.Camera
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.core.BlockPos
 import com.mojang.math.Axis
+import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import kotlin.math.cos
@@ -73,14 +74,8 @@ object RenderBeacon {
     }
 
     private fun renderBeaconBeam(matrixStack: PoseStack, camera: Camera, beacon: BeaconData) {
-        val vertexConsumerProvider = mc.renderBuffers().bufferSource()
-        val layer = ItemBlockRenderTypes.ESP_QUADS
-        val buffer = vertexConsumerProvider.getBuffer(layer)
-
-        val entry = matrixStack.last()
-        val matrix4f = entry.pose()
+        val collector = RenderUtils.frameCollector ?: return
         val cameraPos = camera.cameraPos
-
 
         // Color values
         val r = beacon.color.red.toFloat() / 255f
@@ -92,61 +87,58 @@ object RenderBeacon {
         val beaconY = beacon.pos.y + 1.0 - cameraPos.y
         val beaconZ = beacon.pos.z + 0.5 - cameraPos.z
 
-        for (i in 0 until SEGMENTS) {
-            val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
-            val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
+        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_QUADS) { pose, buffer ->
+            for (i in 0 until SEGMENTS) {
+                val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
+                val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
 
-            val x1 = beaconX + cos(angle1) * BEAM_RADIUS
-            val z1 = beaconZ + sin(angle1) * BEAM_RADIUS
-            val x2 = beaconX + cos(angle2) * BEAM_RADIUS
-            val z2 = beaconZ + sin(angle2) * BEAM_RADIUS
+                val x1 = beaconX + cos(angle1) * BEAM_RADIUS
+                val z1 = beaconZ + sin(angle1) * BEAM_RADIUS
+                val x2 = beaconX + cos(angle2) * BEAM_RADIUS
+                val z2 = beaconZ + sin(angle2) * BEAM_RADIUS
 
-            // Bottom quad (beacon level)
-            buffer.addVertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a)
-            buffer.addVertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a)
-            buffer.addVertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.3f)
-            buffer.addVertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.3f)
+                // Bottom quad (beacon level)
+                buffer.addVertex(pose, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a)
+                buffer.addVertex(pose, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a)
+                buffer.addVertex(pose, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.3f)
+                buffer.addVertex(pose, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.3f)
+            }
+
+            val innerRadius = BEAM_RADIUS * 0.6f
+            for (i in 0 until SEGMENTS) {
+                val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
+                val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
+
+                val x1 = beaconX + cos(angle1) * innerRadius
+                val z1 = beaconZ + sin(angle1) * innerRadius
+                val x2 = beaconX + cos(angle2) * innerRadius
+                val z2 = beaconZ + sin(angle2) * innerRadius
+
+                // Inner beam quad
+                buffer.addVertex(pose, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.8f)
+                buffer.addVertex(pose, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.8f)
+                buffer.addVertex(pose, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.1f)
+                buffer.addVertex(pose, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.1f)
+            }
         }
 
-        val innerRadius = BEAM_RADIUS * 0.6f
-        for (i in 0 until SEGMENTS) {
-            val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
-            val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
+        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_LINES) { pose, lineBuffer ->
+            val baseSize = 0.6f
+            val baseY = beacon.pos.y + 1.0
 
-            val x1 = beaconX + cos(angle1) * innerRadius
-            val z1 = beaconZ + sin(angle1) * innerRadius
-            val x2 = beaconX + cos(angle2) * innerRadius
-            val z2 = beaconZ + sin(angle2) * innerRadius
-
-            // Inner beam quad
-            buffer.addVertex(matrix4f, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.8f)
-            buffer.addVertex(matrix4f, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.8f)
-            buffer.addVertex(matrix4f, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.1f)
-            buffer.addVertex(matrix4f, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.1f)
+            buildLine3D(pose, camera, lineBuffer,
+                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
+                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
+            buildLine3D(pose, camera, lineBuffer,
+                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
+                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
+            buildLine3D(pose, camera, lineBuffer,
+                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
+                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
+            buildLine3D(pose, camera, lineBuffer,
+                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
+                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
         }
-
-        vertexConsumerProvider.endBatch(layer)
-
-        val lineLayer = ItemBlockRenderTypes.ESP_LINES
-        val lineBuffer = vertexConsumerProvider.getBuffer(lineLayer)
-
-        val baseSize = 0.6f
-        val baseY = beacon.pos.y + 1.0
-
-        buildLine3D(matrixStack, camera, lineBuffer,
-            beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
-            beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
-        buildLine3D(matrixStack, camera, lineBuffer,
-            beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
-            beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
-        buildLine3D(matrixStack, camera, lineBuffer,
-            beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
-            beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
-        buildLine3D(matrixStack, camera, lineBuffer,
-            beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
-            beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
-
-        vertexConsumerProvider.endBatch(lineLayer)
     }
 
     private fun calculateDistance(cameraPos: Vec3, beaconPos: BlockPos): Double {
@@ -169,6 +161,8 @@ object RenderBeacon {
     }
 
     private fun renderBeaconText(matrixStack: PoseStack, camera: Camera, beacon: BeaconData) {
+        val collector = RenderUtils.frameCollector ?: return
+        val label = beacon.label ?: return
         val textRenderer = mc.font
         val cameraPos = camera.cameraPos
 
@@ -183,36 +177,27 @@ object RenderBeacon {
 
         matrixStack.translate(textX, textY, textZ)
 
-        //? if <=1.21.10 {
-        val yaw = camera.yRot
-        val pitch = camera.xRot
-        //?}
-        //? if >=1.21.11 {
-        /*val yaw = camera.yRot()
-        val pitch = camera.xRot()*/
-        //?}
+        val yaw = camera.yRot()
+        val pitch = camera.xRot()
         matrixStack.mulPose(Axis.YP.rotationDegrees(-yaw))
         matrixStack.mulPose(Axis.XP.rotationDegrees(pitch))
 
         matrixStack.scale(-scale, -scale, scale)
-        val label = beacon.label ?: return
         val textWidth = textRenderer.width(label)
 
-        val immediate = mc.renderBuffers().bufferSource()
-        textRenderer.drawInBatch(
-            label,
+        collector.submitText(
+            matrixStack,
             -textWidth / 2f,
             0f,
-            0xFFFFFFFF.toInt(),
+            Component.literal(label).visualOrderText,
             false,
-            matrixStack.last().pose(),
-            immediate,
             Font.DisplayMode.SEE_THROUGH,
+            15728880,
+            0xFFFFFFFF.toInt(),
             0x40000000,
-            15728880
+            0
         )
 
-        immediate.endBatch()
         matrixStack.popPose()
     }
 }

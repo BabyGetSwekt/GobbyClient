@@ -1,11 +1,11 @@
 package gobby.gui.click
 
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
 
 object SettingRenderer {
 
-    fun drawSettingRow(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    fun drawSettingRow(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         if (setting !is ColorSetting && setting !is DropDownSetting) {
             fill(ctx, px, y, PW, SH, cSettingBg)
         }
@@ -30,7 +30,7 @@ object SettingRenderer {
         }
     }
 
-    private fun drawKeybindSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: KeybindSetting) {
+    private fun drawKeybindSetting(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, s: KeybindSetting) {
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
@@ -54,7 +54,7 @@ object SettingRenderer {
         }
     }
 
-    private fun drawBoolSetting(ctx: GuiGraphics, px: Int, y: Int, s: BooleanSetting) {
+    private fun drawBoolSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: BooleanSetting) {
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
@@ -67,7 +67,7 @@ object SettingRenderer {
         fill(ctx, knobX, knobY, KNOB_W, KNOB_H, cKnob)
     }
 
-    private fun drawNumberSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: NumberSetting) {
+    private fun drawNumberSetting(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, s: NumberSetting) {
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         val textY = y + (SH - SLIDER_H - 2 - fh) / 2
         drawTextSmall(ctx, px + SETTING_INDENT, textY, s.name, cTextGray)
@@ -92,7 +92,7 @@ object SettingRenderer {
         fill(ctx, slX, slY, fillW, SLIDER_H, cSliderFill)
     }
 
-    private fun drawSelectorSetting(ctx: GuiGraphics, px: Int, y: Int, s: SelectorSetting) {
+    private fun drawSelectorSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: SelectorSetting) {
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
@@ -102,7 +102,7 @@ object SettingRenderer {
         drawTextSmall(ctx, px + PW - PAD - optW, y + (SH - fh) / 2, display, cAccent)
     }
 
-    private fun drawColorSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: ColorSetting) {
+    private fun drawColorSetting(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, s: ColorSetting) {
         fill(ctx, px, y, PW, SH, cSettingBg)
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
@@ -195,7 +195,7 @@ object SettingRenderer {
         }
     }
 
-    private fun drawDropDownSetting(ctx: GuiGraphics, gui: ClickGUI, px: Int, y: Int, s: DropDownSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawDropDownSetting(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, s: DropDownSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         fill(ctx, px, y, PW, SH, cSettingBg)
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
@@ -222,7 +222,7 @@ object SettingRenderer {
         }
     }
 
-    private fun drawActionSetting(ctx: GuiGraphics, px: Int, y: Int, s: ActionSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawActionSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: ActionSetting, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         val hovered = mx in px..(px + PW) && my in y.coerceAtLeast(clipTop)..(y + SH + y).coerceAtMost(clipBot)
         val nameW = textWSmall(s.name)
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
@@ -236,7 +236,7 @@ object SettingRenderer {
         }
     }
 
-    private fun drawHudButton(ctx: GuiGraphics, px: Int, y: Int, s: HudButton, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
+    private fun drawHudButton(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: HudButton, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         val fh = (tr.lineHeight * SETTING_SCALE).toInt()
         drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
 
@@ -247,10 +247,10 @@ object SettingRenderer {
         val ix = px + PW - iconSize - PAD
         val iy = y + (SH - iconSize) / 2
 
-        fill(ctx, ix, iy, iconSize, 1, col)                    // top
-        fill(ctx, ix, iy + iconSize - 1, iconSize, 1, col)     // bottom
-        fill(ctx, ix, iy, 1, iconSize, col)                    // left
-        fill(ctx, ix + iconSize - 1, iy, 1, iconSize, col)     // right
+        fill(ctx, ix, iy, iconSize, 1, col)
+        fill(ctx, ix, iy + iconSize - 1, iconSize, 1, col)
+        fill(ctx, ix, iy, 1, iconSize, col)
+        fill(ctx, ix + iconSize - 1, iy, 1, iconSize, col)
         fill(ctx, ix + 1, iy + 1, iconSize - 2, 2, col)
     }
 }

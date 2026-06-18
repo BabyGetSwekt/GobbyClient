@@ -1,6 +1,6 @@
 package gobby.gui.click
 
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.*
 import net.minecraft.network.chat.Component
@@ -106,8 +106,8 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         }
     }
 
-    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
-        super.render(context, mouseX, mouseY, delta)
+    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+        super.extractRenderState(context, mouseX, mouseY, delta)
         if (width != lastWidth || height != lastHeight) {
             recomputeScale()
             lastWidth = width
@@ -144,7 +144,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     private var lastWidth = -1
     private var lastHeight = -1
 
-    private fun drawChrome(ctx: GuiGraphics) {
+    private fun drawChrome(ctx: GuiGraphicsExtractor) {
         val target = if (sidebarExpanded) 1f else 0f
         sidebarExpand += (target - sidebarExpand) * 0.25f
         sidebarExpand = sidebarExpand.coerceIn(0f, 1f)
@@ -161,7 +161,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         fill(ctx, headerX + 4, y + HEADER_H, headerW - 8, 1, cBorderLight)
     }
 
-    private fun drawContentDim(ctx: GuiGraphics) {
+    private fun drawContentDim(ctx: GuiGraphicsExtractor) {
         if (sidebarExpand <= 0.01f) return
         val alpha = (sidebarExpand * 0.55f * 255f).toInt().coerceIn(0, 255)
         fill(ctx, panelX + SIDEBAR_W_COLLAPSED, panelY + 1, PANEL_W - SIDEBAR_W_COLLAPSED - 1, PANEL_H - 2, alpha shl 24)

@@ -5,13 +5,10 @@ import gobby.events.render.Render2DEvent
 import gobby.utils.render.Render2D
 import gobby.utils.timer.Clock
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.renderer.texture.DynamicTexture
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import java.awt.Color
 
 abstract class GuiElement {

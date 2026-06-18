@@ -29,7 +29,10 @@ object WardrobeSwapper : Module(
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
         if (!LocationUtils.onSkyblock) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
         val key = event.key
         if (key == 0) return
 

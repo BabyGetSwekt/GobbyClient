@@ -7,11 +7,12 @@ import gobby.features.floor7.terminals.AutoTerminals
 import gobby.features.floor7.terminals.TerminalClick
 import gobby.utils.timer.Clock
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.core.component.DataComponentMap
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.ItemStack
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 
 object TerminalUtils {
 
@@ -101,21 +102,21 @@ object TerminalUtils {
     }
 
     fun clickSlot(syncId: Int, slotId: Int, button: Int = 2) {
-        val action = if (button == 2) ClickType.CLONE else ClickType.PICKUP
+        val action = if (button == 2) ContainerInput.CLONE else ContainerInput.PICKUP
         val player = mc.player ?: return
-        mc.gameMode?.handleInventoryMouseClick(syncId, slotId, button, action, player)
+        mc.gameMode?.handleContainerInput(syncId, slotId, button, action, player)
         clickClock.update()
         isFirstClick = false
     }
 
     fun clickSlotDirect(syncId: Int, slotId: Int) {
         val player = mc.player ?: return
-        mc.gameMode?.handleInventoryMouseClick(syncId, slotId, 2, ClickType.CLONE, player)
+        mc.gameMode?.handleContainerInput(syncId, slotId, 2, ContainerInput.CLONE, player)
     }
 
     fun isItemDone(slot: Int, stack: ItemStack): Boolean =
         slot in clickedSlots || isTerminalItemDone(stack)
 
     fun isTerminalItemDone(stack: ItemStack): Boolean =
-        stack.componentsPatch.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)?.isPresent == true
+        stack.componentsPatch.get(DataComponentMap.EMPTY, DataComponents.ENCHANTMENT_GLINT_OVERRIDE) != null
 }

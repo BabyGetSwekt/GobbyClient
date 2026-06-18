@@ -23,9 +23,8 @@ public class MixinLocalPlayer {
         Vec3 vel = self.getDeltaMovement();
         double horizontalSpeed = vel.x * vel.x + vel.z * vel.z;
         if (horizontalSpeed < 0.0001) {
-            WalkAnimationStateAccessor limb = (WalkAnimationStateAccessor) self.walkAnimation;
-            limb.setSpeed(0f);
-            limb.setLastSpeed(0f);
+            self.walkAnimation.setSpeed(0f);
+            ((WalkAnimationStateAccessor) self.walkAnimation).setLastSpeed(0f);
         }
     }
 

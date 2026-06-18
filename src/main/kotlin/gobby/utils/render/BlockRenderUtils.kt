@@ -1,13 +1,11 @@
 package gobby.utils.render
 
-import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils.cameraPos
 import net.minecraft.client.Camera
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
-import org.joml.Matrix4f
 import java.awt.Color
 import kotlin.math.PI
 import kotlin.math.cos
@@ -31,75 +29,67 @@ object BlockRenderUtils {
         filled: Boolean = true,
         depthTest: Boolean = false
     ) {
-        if (matrixStack == null) return
+        val collector = RenderUtils.frameCollector ?: return
         val newBox = box.move(camera.cameraPos.scale(-1.0))
-
-        val entry = matrixStack.last()
-        val matrix4f: Matrix4f = entry.pose()
 
         val r = color.red.toFloat() / 255f
         val g = color.green.toFloat() / 255f
         val b = color.blue.toFloat() / 255f
         val a = color.alpha.toFloat() / 255f
 
-        val vertexConsumerProvider = mc.renderBuffers().bufferSource()
         val quadsLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
         val linesLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
 
         // Draw if filled
         if (filled) {
-            val bufferBuilder = vertexConsumerProvider.getBuffer(quadsLayer)
+            collector.submitCustomGeometry(matrixStack, quadsLayer) { pose, bufferBuilder ->
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
 
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
 
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
 
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
 
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
 
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.maxX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
-            bufferBuilder.addVertex(matrix4f, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
-
-            vertexConsumerProvider.endBatch(quadsLayer)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.minY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.maxZ.toFloat()).setColor(r, g, b, a)
+                bufferBuilder.addVertex(pose, newBox.minX.toFloat(), newBox.maxY.toFloat(), newBox.minZ.toFloat()).setColor(r, g, b, a)
+            }
         }
 
         // AABB outline
-        val bufferBuilder = vertexConsumerProvider.getBuffer(linesLayer)
-
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.minY, box.maxZ, box.minX, box.minY, box.minZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.minY, box.minZ, box.minX, box.maxY, box.minZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.maxY, box.minZ, box.maxX, box.maxY, box.minZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
-        buildLine3D(matrixStack, camera, bufferBuilder, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color)
-
-        vertexConsumerProvider.endBatch(linesLayer)
+        collector.submitCustomGeometry(matrixStack, linesLayer) { pose, bufferBuilder ->
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.minY, box.maxZ, box.minX, box.minY, box.minZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.minY, box.minZ, box.minX, box.maxY, box.minZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.maxY, box.minZ, box.maxX, box.maxY, box.minZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
+            buildLine3D(pose, camera, bufferBuilder, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color)
+        }
     }
 
     fun drawNode(
@@ -150,23 +140,21 @@ object BlockRenderUtils {
         color: Color,
         depthTest: Boolean = false
     ) {
-        val vertexConsumers = mc.renderBuffers().bufferSource()
+        val collector = RenderUtils.frameCollector ?: return
         val layer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
-        val buffer = vertexConsumers.getBuffer(layer)
-        buildLine3D(matrixStack, camera, buffer, x1, y1, z1, x2, y2, z2, color)
-        vertexConsumers.endBatch(layer)
+        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+            buildLine3D(pose, camera, buffer, x1, y1, z1, x2, y2, z2, color)
+        }
     }
 
     fun buildLine3D(
-        matrixStack: PoseStack,
+        pose: PoseStack.Pose,
         camera: Camera,
         buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double,
         x2: Double, y2: Double, z2: Double,
         color: Color
     ) {
-        val entry = matrixStack.last()
-        val matrix4f = entry.pose()
         val cameraPos = camera.cameraPos
 
         val dir = Vec3(x2 - x1, y2 - y1, z2 - z1).normalize()
@@ -176,20 +164,11 @@ object BlockRenderUtils {
         val b = color.blue.toFloat() / 255f
         val a = color.alpha.toFloat() / 255f
 
-        //? if <=1.21.10 {
-        buffer.addVertex(matrix4f, (x1 - cameraPos.x).toFloat(), (y1 - cameraPos.y).toFloat(), (z1 - cameraPos.z).toFloat())
-            .setColor(r, g, b, a).setNormal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
+        buffer.addVertex(pose, (x1 - cameraPos.x).toFloat(), (y1 - cameraPos.y).toFloat(), (z1 - cameraPos.z).toFloat())
+            .setColor(r, g, b, a).setLineWidth(2f).setNormal(pose, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
 
-        buffer.addVertex(matrix4f, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
-            .setColor(r, g, b, a).setNormal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
-        //?}
-        //? if >=1.21.11 {
-        /*buffer.addVertex(matrix4f, (x1 - cameraPos.x).toFloat(), (y1 - cameraPos.y).toFloat(), (z1 - cameraPos.z).toFloat())
-            .setColor(r, g, b, a).setLineWidth(2f).setNormal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
-
-        buffer.addVertex(matrix4f, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
-            .setColor(r, g, b, a).setLineWidth(2f).setNormal(entry, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())*/
-        //?}
+        buffer.addVertex(pose, (x2 - cameraPos.x).toFloat(), (y2 - cameraPos.y).toFloat(), (z2 - cameraPos.z).toFloat())
+            .setColor(r, g, b, a).setLineWidth(2f).setNormal(pose, dir.x.toFloat(), dir.y.toFloat(), dir.z.toFloat())
     }
 
     fun drawCylinder(
@@ -203,10 +182,8 @@ object BlockRenderUtils {
         segments: Int = 64,
         depthTest: Boolean = false
     ) {
+        val collector = RenderUtils.frameCollector ?: return
         val cameraPos = camera.cameraPos
-        val entry = matrixStack.last()
-        val matrix4f = entry.pose()
-        val vertexConsumerProvider = mc.renderBuffers().bufferSource()
 
         val r = color.red.toFloat() / 255f
         val g = color.green.toFloat() / 255f
@@ -225,37 +202,33 @@ object BlockRenderUtils {
 
         if (filled) {
             val quadsLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
-            val buf = vertexConsumerProvider.getBuffer(quadsLayer)
+            collector.submitCustomGeometry(matrixStack, quadsLayer) { pose, buf ->
+                for (i in 0 until segments) {
+                    val x1 = (cx + cosValues[i] * radiusX).toFloat()
+                    val z1 = (cz + sinValues[i] * radiusZ).toFloat()
+                    val x2 = (cx + cosValues[i + 1] * radiusX).toFloat()
+                    val z2 = (cz + sinValues[i + 1] * radiusZ).toFloat()
 
-            for (i in 0 until segments) {
-                val x1 = (cx + cosValues[i] * radiusX).toFloat()
-                val z1 = (cz + sinValues[i] * radiusZ).toFloat()
-                val x2 = (cx + cosValues[i + 1] * radiusX).toFloat()
-                val z2 = (cz + sinValues[i + 1] * radiusZ).toFloat()
-
-                buf.addVertex(matrix4f, x1, yBottom, z1).setColor(r, g, b, a)
-                buf.addVertex(matrix4f, x2, yBottom, z2).setColor(r, g, b, a)
-                buf.addVertex(matrix4f, x2, yTop, z2).setColor(r, g, b, a)
-                buf.addVertex(matrix4f, x1, yTop, z1).setColor(r, g, b, a)
+                    buf.addVertex(pose, x1, yBottom, z1).setColor(r, g, b, a)
+                    buf.addVertex(pose, x2, yBottom, z2).setColor(r, g, b, a)
+                    buf.addVertex(pose, x2, yTop, z2).setColor(r, g, b, a)
+                    buf.addVertex(pose, x1, yTop, z1).setColor(r, g, b, a)
+                }
             }
-
-            vertexConsumerProvider.endBatch(quadsLayer)
         }
 
         val linesLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
-        val lineBuf = vertexConsumerProvider.getBuffer(linesLayer)
+        collector.submitCustomGeometry(matrixStack, linesLayer) { pose, lineBuf ->
+            for (i in 0 until segments) {
+                val wx1 = cx + cosValues[i] * radiusX
+                val wz1 = cz + sinValues[i] * radiusZ
+                val wx2 = cx + cosValues[i + 1] * radiusX
+                val wz2 = cz + sinValues[i + 1] * radiusZ
 
-        for (i in 0 until segments) {
-            val wx1 = cx + cosValues[i] * radiusX
-            val wz1 = cz + sinValues[i] * radiusZ
-            val wx2 = cx + cosValues[i + 1] * radiusX
-            val wz2 = cz + sinValues[i + 1] * radiusZ
-
-            buildLineRaw(entry, lineBuf, wx1, yBottom.toDouble(), wz1, wx2, yBottom.toDouble(), wz2, r, g, b, a)
-            buildLineRaw(entry, lineBuf, wx1, yTop.toDouble(), wz1, wx2, yTop.toDouble(), wz2, r, g, b, a)
+                buildLineRaw(pose, lineBuf, wx1, yBottom.toDouble(), wz1, wx2, yBottom.toDouble(), wz2, r, g, b, a)
+                buildLineRaw(pose, lineBuf, wx1, yTop.toDouble(), wz1, wx2, yTop.toDouble(), wz2, r, g, b, a)
+            }
         }
-
-        vertexConsumerProvider.endBatch(linesLayer)
     }
 
     fun drawRing(
@@ -286,19 +259,9 @@ object BlockRenderUtils {
         val ny = if (len > 0) dy / len else 1f
         val nz = if (len > 0) dz / len else 0f
 
-        //? if <=1.21.10 {
-        buffer.addVertex(entry.pose(), x1.toFloat(), y1.toFloat(), z1.toFloat())
-            .setColor(r, g, b, a).setNormal(entry, nx, ny, nz)
-        buffer.addVertex(entry.pose(), x2.toFloat(), y2.toFloat(), z2.toFloat())
-            .setColor(r, g, b, a).setNormal(entry, nx, ny, nz)
-        //?}
-        //? if >=1.21.11 {
-        /*buffer.addVertex(entry.pose(), x1.toFloat(), y1.toFloat(), z1.toFloat())
+        buffer.addVertex(entry, x1.toFloat(), y1.toFloat(), z1.toFloat())
             .setColor(r, g, b, a).setLineWidth(2f).setNormal(entry, nx, ny, nz)
-        buffer.addVertex(entry.pose(), x2.toFloat(), y2.toFloat(), z2.toFloat())
-            .setColor(r, g, b, a).setLineWidth(2f).setNormal(entry, nx, ny, nz)*/
-        //?}
+        buffer.addVertex(entry, x2.toFloat(), y2.toFloat(), z2.toFloat())
+            .setColor(r, g, b, a).setLineWidth(2f).setNormal(entry, nx, ny, nz)
     }
 }
-
-

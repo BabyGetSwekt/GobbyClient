@@ -30,7 +30,10 @@ object Structures {
             displayName = "§6King",
             color = Color(255, 170, 0),
             column = listOf(
-                col(Blocks.WHITE_WOOL),
+                //? if >26.1.2
+                col(Blocks.WOOL.white()),
+                //? if <=26.1.2
+                /*col(Blocks.WHITE_WOOL),*/
                 col(Blocks.DARK_OAK_STAIRS),
                 col(Blocks.DARK_OAK_STAIRS),
                 col(Blocks.DARK_OAK_STAIRS)
@@ -76,8 +79,14 @@ object Structures {
                 col(Blocks.BEDROCK),
                 col(Blocks.CLAY),
                 col(Blocks.CLAY),
-                col(Blocks.WHITE_TERRACOTTA),
+                //? if >26.1.2 {
+                col(Blocks.DYED_TERRACOTTA.white()),
+                col(Blocks.WOOL.white()),
+                //?}
+                //? if <=26.1.2 {
+                /*col(Blocks.WHITE_TERRACOTTA),
                 col(Blocks.WHITE_WOOL),
+                *///?}
                 col(Blocks.OAK_LEAVES),
                 col(Blocks.OAK_LEAVES)
             ),
@@ -88,7 +97,10 @@ object Structures {
             id = "fairy_grotto",
             displayName = "§dFairy Grotto",
             color = Color(255, 85, 255),
-            column = listOf(col(Blocks.MAGENTA_STAINED_GLASS)),
+            //? if >26.1.2
+            column = listOf(col(Blocks.STAINED_GLASS.magenta())),
+            //? if <=26.1.2
+            /*column = listOf(col(Blocks.MAGENTA_STAINED_GLASS)),*/
             yRange = CRYSTAL_HOLLOWS_Y,
             unique = false,
             dedupRadius = 5

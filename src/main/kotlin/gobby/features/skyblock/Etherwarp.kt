@@ -60,7 +60,10 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
     private var currentHighestY: Int? = null
     private var isInEntrance = false
 
-    override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && mc.screen == null
+    //? if >26.1.2
+    override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && mc.gui.screen() == null
+    //? if <=26.1.2
+    /*override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && mc.screen == null*/
 
     override fun isValidBlock(pos: BlockPos): Boolean =
         mc.level?.getBlockState(pos)?.block in TARGET_BLOCKS
@@ -115,7 +118,10 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
-        if (!enabled || !preventDeath || mc.screen != null) return
+        //? if >26.1.2
+        if (!enabled || !preventDeath || mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (!enabled || !preventDeath || mc.screen != null) return*/
         if (event.packet !is ServerboundUseItemPacket && event.packet !is ServerboundUseItemOnPacket) return
         if (isInEntrance) return
         val player = mc.player ?: return

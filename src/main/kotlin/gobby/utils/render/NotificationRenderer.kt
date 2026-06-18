@@ -5,7 +5,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.events.render.Render2DEvent
 import gobby.gui.click.styledText
 import gobby.utils.timer.Clock
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
 
 object NotificationRenderer {
@@ -57,7 +57,7 @@ object NotificationRenderer {
         }
     }
 
-    private fun drawNotification(ctx: GuiGraphics, notif: Notification, x: Int, y: Int, elapsed: Long, alpha: Float) {
+    private fun drawNotification(ctx: GuiGraphicsExtractor, notif: Notification, x: Int, y: Int, elapsed: Long, alpha: Float) {
         val tr = mc.font
         val alphaInt = (alpha * 255).toInt().coerceIn(0, 255)
 
@@ -77,8 +77,8 @@ object NotificationRenderer {
         ctx.pose().pushMatrix()
         ctx.pose().translate(x + 4f, textY.toFloat())
         ctx.pose().scale(scale, scale)
-        ctx.drawString(tr, nameText, 0, 0, Color(220, 220, 225, alphaInt).rgb, false)
-        ctx.drawString(tr, stateText, nameWidth + 4, 0, barColor.rgb, false)
+        ctx.text(tr, nameText, 0, 0, Color(220, 220, 225, alphaInt).rgb, false)
+        ctx.text(tr, stateText, nameWidth + 4, 0, barColor.rgb, false)
         ctx.pose().popMatrix()
     }
 }

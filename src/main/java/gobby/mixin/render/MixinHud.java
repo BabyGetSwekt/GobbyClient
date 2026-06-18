@@ -3,21 +3,27 @@ package gobby.mixin.render;
 import gobby.Gobbyclient;
 import gobby.events.render.Render2DEvent;
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+//? if >26.1.2
+import net.minecraft.client.gui.Hud;
+//? if <=26.1.2
+/*import net.minecraft.client.gui.Gui;*/
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Gui.class)
-public class MixinGui {
+//? if >26.1.2
+@Mixin(Hud.class)
+//? if <=26.1.2
+/*@Mixin(Gui.class)*/
+public class MixinHud {
 
     /**
      * Used for rendering 2D elements on the player screen.
      */
-    @Inject(method = "renderTabList(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V", at = @At("TAIL"))
-    private void gobbyclient$onRenderPlayerList(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+    @Inject(method = "extractTabList(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V", at = @At("TAIL"))
+    private void gobbyclient$onRenderPlayerList(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
         Render2DEvent event = new Render2DEvent(context, tickCounter);
         Gobbyclient.EVENT_MANAGER.publish(event);
     }

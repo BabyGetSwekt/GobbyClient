@@ -26,10 +26,7 @@ import net.minecraft.world.level.block.state.properties.Half
 import net.minecraft.world.level.block.state.properties.SlabType
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.registries.BuiltInRegistries
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.core.BlockPos
@@ -239,7 +236,7 @@ object Brush {
                 val oldState = world.getBlockState(pos)
                 saveOriginalState(pos, world)
                 world.setBlock(pos, state, 3)
-                mc.levelRenderer.blockChanged(world, pos, oldState, state, 3)
+                world.sendBlockUpdated(pos, oldState, state, 3)
                 if (block is StairBlock) stairPositions.add(pos)
             }
         }
@@ -254,7 +251,7 @@ object Brush {
             val current = world.getBlockState(pos)
             if (state != current) {
                 world.setBlock(pos, state, 3)
-                mc.levelRenderer.blockChanged(world, pos, current, state, 3)
+                world.sendBlockUpdated(pos, current, state, 3)
             }
         }
     }
@@ -264,7 +261,10 @@ object Brush {
         if (!mc.options.keyUse.isDown) rightClickUsed = false
         if (!mc.options.keyAttack.isDown) leftClickUsed = false
 
-        val inGui = mc.screen != null
+        //? if >26.1.2
+        val inGui = mc.gui.screen() != null
+        //? if <=26.1.2
+        /*val inGui = mc.screen != null*/
         if (wasInGui && !inGui) {
             rightClickUsed = mc.options.keyUse.isDown
             leftClickUsed = mc.options.keyAttack.isDown
@@ -292,7 +292,10 @@ object Brush {
     fun onRightClick(event: RightClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (rightClickUsed) return
@@ -319,7 +322,10 @@ object Brush {
     fun onLeftClick(event: LeftClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (leftClickUsed) return
@@ -337,7 +343,7 @@ object Brush {
             ctx.blocks.getOrPut("minecraft:air") { mutableListOf() }.add(ctx.coord)
             saveOriginalState(pos, world)
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3)
-            mc.levelRenderer.blockChanged(world, pos, currentState, Blocks.AIR.defaultBlockState(), 3)
+            world.sendBlockUpdated(pos, currentState, Blocks.AIR.defaultBlockState(), 3)
         }
         ctx.save()
 

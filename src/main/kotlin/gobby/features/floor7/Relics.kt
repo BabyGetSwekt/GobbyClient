@@ -47,7 +47,10 @@ object Relics : Module(
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
         if (!enabled || !relicTriggerbot || mc.player == null || mc.level == null) return
-        if (DungeonUtils.getPhase() != 5 || mc.screen != null) return
+        //? if >26.1.2
+        if (DungeonUtils.getPhase() != 5 || mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (DungeonUtils.getPhase() != 5 || mc.screen != null) return*/
         if (!clock.hasTimePassed(100)) return
 
         if (clickedBlocks.isNotEmpty()) clickedBlocks.entries.removeIf { it.value.hasTimePassed(5000) }

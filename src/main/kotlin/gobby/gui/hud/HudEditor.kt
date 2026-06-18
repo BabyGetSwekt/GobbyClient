@@ -3,7 +3,7 @@ package gobby.gui.hud
 import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.ConfigManager
 import gobby.gui.click.Module
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
@@ -23,8 +23,8 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Component.lit
         }
     }
 
-    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
-        super.render(context, mouseX, mouseY, delta)
+    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+        super.extractRenderState(context, mouseX, mouseY, delta)
 
         for (hud in visibleHuds()) {
             hud.renderHud(context, true)
@@ -40,7 +40,7 @@ class HudEditor(private val filterModule: Module? = null) : Screen(Component.lit
             context.fill(x - 1, y, x, y + h, borderColor)
             context.fill(x + w, y, x + w + 1, y + h, borderColor)
 
-            context.drawString(mc.font, hud.name, x, y - 10, Color(200, 200, 210).rgb, true)
+            context.text(mc.font, hud.name, x, y - 10, Color(200, 200, 210).rgb, true)
         }
     }
 

@@ -11,10 +11,7 @@ import gobby.utils.managers.InvincibilityManager
 import net.minecraft.client.renderer.RenderPipelines
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.renderer.texture.DynamicTexture
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 
 object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns on a movable HUD", Category.SKYBLOCK) {
 
@@ -90,7 +87,7 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
         if (showText || !ready) {
             val text = if (ready) "§a${mask.label}: §fReady" else "§f${mask.label}: ${formatSeconds(seconds)}"
             val textY = rowTop + (ICON_SIZE - tr.lineHeight) / 2
-            ctx.drawString(tr, text, x, textY, -1, true)
+            ctx.text(tr, text, x, textY, -1, true)
             x += tr.width(text)
         }
 

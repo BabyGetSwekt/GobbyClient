@@ -32,7 +32,10 @@ object ArmorStandSaver : Module(
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
         if (saveKey == 0 || event.key != saveKey) return
         saveNearbyArmorStands()
     }

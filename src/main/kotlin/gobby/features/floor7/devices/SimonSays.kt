@@ -39,7 +39,7 @@ object SimonSays : Module(
     private val autoSSDropdown = DropDownSetting("Auto SS", desc = "Automatically solves the Simon Says device").also { settings.add(it) }
     private val autoSSEnabled by BooleanSetting("Enabled", false, desc = "Toggle Auto SS on/off")
         .childOf(autoSSDropdown)
-    private val clickDelay by NumberSetting("MouseButtonInfo Delay", 200, 50, 500, 10, desc = "Delay between clicks in ms")
+    private val clickDelay by NumberSetting("Click Delay", 200, 50, 500, 10, desc = "Delay between clicks in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val rotationDelay by NumberSetting("Rotation Delay", 150, 0, 1000, 50, desc = "Time to ease rotation to buttons in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
@@ -146,7 +146,10 @@ object SimonSays : Module(
             reset()
             start()
         }
-        if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.screen == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")
+        //? if >26.1.2
+        if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.gui.screen() == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")
+        //? if <=26.1.2
+        /*if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.screen == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")*/
     }
 
     @SubscribeEvent

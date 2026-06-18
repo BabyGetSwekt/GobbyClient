@@ -47,10 +47,10 @@ object AuraManager {
             val target = entityPos.add(0.0, entity.bbHeight.toDouble() / 2.0, 0.0)
             val hitVec = expanded.clip(player.eyePosition, target).orElse(null)?.subtract(entityPos) ?: return
 
-            mc.connection?.send(ServerboundInteractPacket.createInteractionPacket(entity, sneaking, InteractionHand.MAIN_HAND, hitVec))
+            mc.connection?.send(ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, hitVec, sneaking))
         }
 
-        mc.connection?.send(ServerboundInteractPacket.createInteractionPacket(entity, sneaking, InteractionHand.MAIN_HAND))
+        mc.connection?.send(ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3.ZERO, sneaking))
         mc.connection?.send(ServerboundSwingPacket(InteractionHand.MAIN_HAND))
     }
 

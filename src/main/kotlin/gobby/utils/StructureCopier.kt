@@ -13,8 +13,11 @@ import gobby.utils.copy.BlockPaster
 import gobby.utils.copy.BlockStateCodec
 import gobby.utils.copy.RegionBlockCopier
 import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntityProcessor
 import net.minecraft.world.entity.EntitySpawnReason
+//? if >26.1.2
+import net.minecraft.world.entity.EntitySpawnRequest
+import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.TagParser
@@ -186,7 +189,10 @@ object StructureCopier : RegionBlockCopier() {
             data.armorStands?.forEach { stand ->
                 try {
                     val nbt = TagParser.parseCompoundFully(stand.nbt)
-                    val entity = EntityType.loadEntityRecursive(nbt, serverWorld, EntitySpawnReason.LOAD) { it }
+                    //? if >26.1.2
+                    val entity = EntityType.loadEntityRecursive(nbt, serverWorld, EntitySpawnRequest(EntitySpawnReason.LOAD, false), EntityProcessor.NOP)
+                    //? if <=26.1.2
+                    /*val entity = EntityType.loadEntityRecursive(nbt, serverWorld, EntitySpawnReason.LOAD, EntityProcessor.NOP)*/
                     if (entity is ArmorStand) serverWorld.addFreshEntity(entity)
                 } catch (_: Exception) {}
             }

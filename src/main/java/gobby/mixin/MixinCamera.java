@@ -2,10 +2,7 @@ package gobby.mixin;
 
 import gobby.features.skyblock.FreeCam;
 import net.minecraft.client.Camera;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.BlockGetter;
-//? if >=1.21.11
-/*import net.minecraft.world.level.Level;*/
+import net.minecraft.client.DeltaTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,18 +20,10 @@ public abstract class MixinCamera {
     @Shadow
     protected abstract void setRotation(float yaw, float pitch);
 
-    //? if <=1.21.10 {
-    @Inject(method = "setup", at = @At("TAIL"))
-    private void gobbyclient$onCameraUpdate(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+    @Inject(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V", shift = At.Shift.AFTER))
+    private void gobbyclient$onCameraUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
         gobbyclient$applyFreeCam();
     }
-    //?}
-    //? if >=1.21.11 {
-    /*@Inject(method = "setup", at = @At("TAIL"))
-    private void gobbyclient$onCameraUpdate(Level area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
-        gobbyclient$applyFreeCam();
-    }*/
-    //?}
 
     @Unique
     private void gobbyclient$applyFreeCam() {

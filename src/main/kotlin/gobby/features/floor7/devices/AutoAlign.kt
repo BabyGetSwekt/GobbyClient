@@ -142,10 +142,10 @@ object AutoAlign : Module(
         repeat(clicks) {
             frameData.rotation = (frameData.rotation + 1) % 8
             networkHandler.send(
-                ServerboundInteractPacket.createInteractionPacket(entity, false, InteractionHand.MAIN_HAND, Vec3(0.03125, 0.0, 0.0))
+                ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3(0.03125, 0.0, 0.0), false)
             )
             networkHandler.send(
-                ServerboundInteractPacket.createInteractionPacket(entity, false, InteractionHand.MAIN_HAND)
+                ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3.ZERO, false)
             )
         }
     }

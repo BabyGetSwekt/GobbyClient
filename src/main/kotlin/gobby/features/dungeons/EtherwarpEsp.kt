@@ -9,10 +9,7 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.core.registries.BuiltInRegistries
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import net.minecraft.core.BlockPos
 import java.awt.Color
 

@@ -35,7 +35,7 @@ import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
@@ -53,17 +53,20 @@ import kotlin.math.abs
 object GobbyCommand {
 
     private fun openConfig(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
-                mc.executeLater { mc.setScreen(ClickGUI()) }
+                //? if >26.1.2
+                mc.executeLater { mc.gui.setScreen(ClickGUI()) }
+                //? if <=26.1.2
+                /*mc.executeLater { mc.setScreen(ClickGUI()) }*/
                 Command.SINGLE_SUCCESS
             }
     }
 
     private fun sendCoordsCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("sendcoords")
+                ClientCommands.literal("sendcoords")
                     .executes { context ->
                         val player = mc.player ?: return@executes 0
                         val x = player.x.toInt()
@@ -76,9 +79,9 @@ object GobbyCommand {
     }
 
     private fun blockSelectorCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("blockselector")
+                ClientCommands.literal("blockselector")
                     .executes {
                         mc.executeLater { BlockSelector.open() }
                         Command.SINGLE_SUCCESS
@@ -87,9 +90,9 @@ object GobbyCommand {
     }
 
     private fun helpCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("help")
+                ClientCommands.literal("help")
                     .executes {
                         modMessage("§b§m                              ")
                         modMessage("§e/gobby §7- Opens the settings menu")
@@ -109,9 +112,9 @@ object GobbyCommand {
     }
 
     private fun modIdCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("modid")
+                ClientCommands.literal("modid")
                     .executes {
                         mc.executeLater { ModIdHiderScreen.open() }
                         Command.SINGLE_SUCCESS
@@ -120,15 +123,15 @@ object GobbyCommand {
     }
 
     private fun pathCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("path")
+                ClientCommands.literal("path")
                     .then(
-                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                        ClientCommands.argument("x", IntegerArgumentType.integer())
                             .then(
-                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                ClientCommands.argument("y", IntegerArgumentType.integer())
                                     .then(
-                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                        ClientCommands.argument("z", IntegerArgumentType.integer())
                                             .executes { context ->
                                                 val x = IntegerArgumentType.getInteger(context, "x")
                                                 val y = IntegerArgumentType.getInteger(context, "y")
@@ -148,9 +151,9 @@ object GobbyCommand {
     }
 
     private fun pathStopCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("pathstop")
+                ClientCommands.literal("pathstop")
                     .executes {
                         PathExecutor.stop()
                         modMessage("§cPath following stopped.")
@@ -160,17 +163,17 @@ object GobbyCommand {
     }
 
     private fun recordCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("record")
-                    .then(ClientCommandManager.literal("start")
+                ClientCommands.literal("record")
+                    .then(ClientCommands.literal("start")
                         .executes {
                             MovementRecorder.start()
                             Command.SINGLE_SUCCESS
                         }
-                        .then(ClientCommandManager.argument("x", IntegerArgumentType.integer())
-                            .then(ClientCommandManager.argument("y", IntegerArgumentType.integer())
-                                .then(ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                        .then(ClientCommands.argument("x", IntegerArgumentType.integer())
+                            .then(ClientCommands.argument("y", IntegerArgumentType.integer())
+                                .then(ClientCommands.argument("z", IntegerArgumentType.integer())
                                     .executes { ctx ->
                                         val tx = IntegerArgumentType.getInteger(ctx, "x")
                                         val ty = IntegerArgumentType.getInteger(ctx, "y")
@@ -179,7 +182,7 @@ object GobbyCommand {
                                         Command.SINGLE_SUCCESS
                                     })))
                     )
-                    .then(ClientCommandManager.literal("stop").executes {
+                    .then(ClientCommands.literal("stop").executes {
                         MovementRecorder.stop()
                         Command.SINGLE_SUCCESS
                     })
@@ -187,15 +190,15 @@ object GobbyCommand {
     }
 
     private fun meshDumpCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("meshdump")
+                ClientCommands.literal("meshdump")
                     .then(
-                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                        ClientCommands.argument("x", IntegerArgumentType.integer())
                             .then(
-                                ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                ClientCommands.argument("z", IntegerArgumentType.integer())
                                     .then(
-                                        ClientCommandManager.argument("radius", IntegerArgumentType.integer(1, 256))
+                                        ClientCommands.argument("radius", IntegerArgumentType.integer(1, 256))
                                             .executes { context -> runMeshDump(context) }
                                     )
                             )
@@ -248,15 +251,15 @@ object GobbyCommand {
     }
 
     private fun pathDebugCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("pathdebug")
+                ClientCommands.literal("pathdebug")
                     .then(
-                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                        ClientCommands.argument("x", IntegerArgumentType.integer())
                             .then(
-                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                ClientCommands.argument("y", IntegerArgumentType.integer())
                                     .then(
-                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                        ClientCommands.argument("z", IntegerArgumentType.integer())
                                             .executes { context -> runPathDebug(context) }
                                     )
                             )
@@ -375,15 +378,15 @@ object GobbyCommand {
     }
 
     private fun flyPathCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("flypath")
+                ClientCommands.literal("flypath")
                     .then(
-                        ClientCommandManager.argument("x", IntegerArgumentType.integer())
+                        ClientCommands.argument("x", IntegerArgumentType.integer())
                             .then(
-                                ClientCommandManager.argument("y", IntegerArgumentType.integer())
+                                ClientCommands.argument("y", IntegerArgumentType.integer())
                                     .then(
-                                        ClientCommandManager.argument("z", IntegerArgumentType.integer())
+                                        ClientCommands.argument("z", IntegerArgumentType.integer())
                                             .executes { context ->
                                                 val x = IntegerArgumentType.getInteger(context, "x")
                                                 val y = IntegerArgumentType.getInteger(context, "y")
@@ -403,9 +406,9 @@ object GobbyCommand {
     }
 
 //    private fun updateCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-//        return ClientCommandManager.literal("gobby")
+//        return ClientCommands.literal("gobby")
 //            .then(
-//                ClientCommandManager.literal("update")
+//                ClientCommands.literal("update")
 //                    .executes {
 //                        AutoUpdater.forceCheck()
 //                        Command.SINGLE_SUCCESS
@@ -414,9 +417,9 @@ object GobbyCommand {
 //    }
 
     private fun lookingAtCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("lookingAt")
+                ClientCommands.literal("lookingAt")
                     .executes {
                         val hit = mc.hitResult
                         if (hit is BlockHitResult && hit.type == HitResult.Type.BLOCK) {
@@ -451,9 +454,9 @@ object GobbyCommand {
     }
 
     private fun mapCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("map")
+                ClientCommands.literal("map")
                     .executes {
                         DungeonMap.printGrid()
                         Command.SINGLE_SUCCESS
@@ -462,9 +465,9 @@ object GobbyCommand {
     }
 
     private fun getCoreCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("getcore")
+                ClientCommands.literal("getcore")
                     .executes {
                         val player = mc.player ?: return@executes 0
                         val center = ScanUtils.getRoomCenter(player.blockPosition().x, player.blockPosition().z)
@@ -484,11 +487,14 @@ object GobbyCommand {
 
 
     private fun hudCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("hud")
+                ClientCommands.literal("hud")
                     .executes {
-                        mc.executeLater { mc.setScreen(HudEditor()) }
+                        //? if >26.1.2
+                        mc.executeLater { mc.gui.setScreen(HudEditor()) }
+                        //? if <=26.1.2
+                        /*mc.executeLater { mc.setScreen(HudEditor()) }*/
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -523,25 +529,25 @@ object GobbyCommand {
     }
 
     private fun copyRoomCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("copyRoom").executes {
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("copyRoom").executes {
                 RoomCopier.copyCurrentRoom()
                 Command.SINGLE_SUCCESS
             })
     }
 
     private fun copyStructureCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("copyStructure")
-                .then(ClientCommandManager.literal("1").executes {
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("copyStructure")
+                .then(ClientCommands.literal("1").executes {
                     StructureCopier.setPos1()
                     Command.SINGLE_SUCCESS
                 })
-                .then(ClientCommandManager.literal("2").executes {
+                .then(ClientCommands.literal("2").executes {
                     StructureCopier.setPos2()
                     Command.SINGLE_SUCCESS
                 })
-                .then(ClientCommandManager.literal("stop").executes {
+                .then(ClientCommands.literal("stop").executes {
                     StructureCopier.stop()
                     Command.SINGLE_SUCCESS
                 })
@@ -549,8 +555,8 @@ object GobbyCommand {
     }
 
     private fun pasteStructureCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("pasteStructure")
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("pasteStructure")
                 .executes {
                     if (LocationUtils.onHypixel) {
                         errorMessage("Cannot paste on Hypixel. Join orange0513.com:30030 (singleplayer world) first.")
@@ -563,8 +569,8 @@ object GobbyCommand {
     }
 
     private fun saveMapCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("saveMap")
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("saveMap")
                 .executes {
                     if (!LocationUtils.inDungeons) {
                         errorMessage("Must be in a dungeon")
@@ -579,10 +585,10 @@ object GobbyCommand {
     }
 
     private fun copyMapCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("copyMap")
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("copyMap")
                 .executes {
-                    if (!mc.isSingleplayer) {
+                    if (!mc.hasSingleplayerServer()) {
                         errorMessage("This command can only be used in singleplayer")
                     } else {
                         DungeonMapSaver.copyMap()
@@ -593,9 +599,9 @@ object GobbyCommand {
     }
 
     private fun printSlotCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("printSlot")
-                .then(ClientCommandManager.argument("slot", IntegerArgumentType.integer())
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("printSlot")
+                .then(ClientCommands.argument("slot", IntegerArgumentType.integer())
                     .executes { ctx ->
                         val slot = IntegerArgumentType.getInteger(ctx, "slot")
                         val id = mc.player?.inventoryMenu?.slots?.getOrNull(slot)?.item?.skyblockID ?: "none"
@@ -607,8 +613,8 @@ object GobbyCommand {
     }
 
     private fun getItemIDCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
-            .then(ClientCommandManager.literal("getItemID")
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("getItemID")
                 .executes {
                     val player = mc.player ?: return@executes 0
                     val stack = player.mainHandItem

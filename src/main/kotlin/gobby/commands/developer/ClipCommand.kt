@@ -10,7 +10,7 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.Island
 import gobby.utils.LocationUtils
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import kotlin.math.cos
 import kotlin.math.sin
@@ -18,11 +18,11 @@ import kotlin.math.sin
 object ClipCommand {
 
     private fun clipCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("clip")
+                ClientCommands.literal("clip")
                     .then(
-                        ClientCommandManager.argument("blocks", DoubleArgumentType.doubleArg())
+                        ClientCommands.argument("blocks", DoubleArgumentType.doubleArg())
                             .executes { context ->
                                 val player = mc.player ?: return@executes Command.SINGLE_SUCCESS
                                 if (!LocationUtils.isIn(Island.SINGLEPLAYER)) {

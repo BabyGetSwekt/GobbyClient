@@ -4,10 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.decoration.ArmorStand
-//? if <=1.21.10
-import net.minecraft.world.entity.projectile.AbstractArrow
-//? if >=1.21.11
-/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow*/
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3

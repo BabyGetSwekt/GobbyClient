@@ -12,7 +12,7 @@ import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.network.HashedStack
 
 object WardrobeManager {
@@ -65,7 +65,7 @@ object WardrobeManager {
                 val slot = packet.slot
                 if (slot == targetSlot) {
                     mc.connection?.send(
-                        ServerboundContainerClickPacket(syncId, 0, slot.toShort(), 0.toByte(), ClickType.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
+                        ServerboundContainerClickPacket(syncId, 0, slot.toShort(), 0.toByte(), ContainerInput.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
                     )
                     mc.connection?.send(ServerboundContainerClosePacket(syncId))
                     reset()

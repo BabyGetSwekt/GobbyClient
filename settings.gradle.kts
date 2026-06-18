@@ -15,7 +15,7 @@ pluginManagement {
         id("io.github.juuxel.loom-quiltflower") version "1.7.3"
         id("dev.architectury.architectury-pack200") version "0.1.3"
         id("com.github.johnrengelman.shadow") version "7.1.2"
-        id("dev.kikugie.stonecutter") version "0.9.1"
+        id("dev.kikugie.stonecutter") version "0.9.5"
     }
 }
 
@@ -29,7 +29,7 @@ rootProject.buildFileName = "stonecutter.gradle.kts"
 stonecutter {
     kotlinController = true
     create(rootProject) {
-        listOf("1.21.10", "1.21.11").forEach { version(it, it) }
-        vcsVersion = "1.21.10"
+        listOf("26.1.2", "26.2-rc-1").forEach { version(it, it) }
+        vcsVersion = "26.2-rc-1"
     }
 }

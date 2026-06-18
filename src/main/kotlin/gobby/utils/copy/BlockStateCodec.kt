@@ -3,23 +3,15 @@ package gobby.utils.copy
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.level.block.state.properties.Property
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 
 object BlockStateCodec {
 
     fun encode(state: BlockState): String {
         val blockId = BuiltInRegistries.BLOCK.getKey(state.block).toString()
-        val props = state.values.entries
+        val props = state.values.toList()
         if (props.isEmpty()) return blockId
-        val propStr = props.joinToString(",") { (k, v) ->
-            @Suppress("UNCHECKED_CAST")
-            val prop = k as Property<Comparable<Any>>
-            @Suppress("UNCHECKED_CAST")
-            "${prop.name}=${prop.getName(v as Comparable<Any>)}"
-        }
+        val propStr = props.joinToString(",") { "${it.property().name}=${it.valueName()}" }
         return "$blockId[$propStr]"
     }
 

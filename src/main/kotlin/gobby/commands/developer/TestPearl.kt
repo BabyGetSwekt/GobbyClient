@@ -9,7 +9,7 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.PacketUtils.getSequence
 import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.timer.Executor
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
 import net.minecraft.world.InteractionHand
@@ -17,7 +17,7 @@ import net.minecraft.world.InteractionHand
 object TestPearl {
 
     private fun throwPearl(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
 
                 val yaw = 38f
@@ -33,7 +33,7 @@ object TestPearl {
     }
 
     private fun rightClick(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
                 val task = Executor.schedule(60) {
                     modMessage("Right Clicking ")

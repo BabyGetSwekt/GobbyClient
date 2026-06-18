@@ -5,8 +5,10 @@ import com.mojang.math.Axis
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.render.NewRender3DEvent
 import gobby.utils.Utils.cameraPos
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.Camera
 import net.minecraft.client.model.EntityModel
+import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 import net.minecraft.core.Direction
@@ -25,6 +27,12 @@ import kotlin.math.cos
  * License: https://github.com/coltonk9043/Aoba-Client/blob/master/LICENSE
  */
 object Render3D {
+
+    private var submitNodeCollector: SubmitNodeCollector? = null
+
+    init {
+        LevelRenderEvents.COLLECT_SUBMITS.register { context -> submitNodeCollector = context.submitNodeCollector() }
+    }
 
     fun NewRender3DEvent.drawEntityModel(
         matrixStack: PoseStack,
@@ -94,11 +102,7 @@ object Render3D {
         matrixStack.scale(-1.0f, -1.0f, 1.0f)
         matrixStack.translate(0.0f, -1.501f, 0.0f)
 
-        val vertexConsumerProvider = mc.renderBuffers().bufferSource()
-        val layer = ItemBlockRenderTypes.ESP_QUADS
-        val buffer = vertexConsumerProvider.getBuffer(layer)
-        model.renderToBuffer(matrixStack, buffer, 0, 0, color.rgb)
-        vertexConsumerProvider.endBatch(layer)
+        submitNodeCollector?.submitModel(model, renderState, matrixStack, ItemBlockRenderTypes.ESP_QUADS, 0, 0, color.rgb, null)
         matrixStack.popPose()
     }
 

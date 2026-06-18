@@ -1,9 +1,9 @@
 plugins {
     id("dev.kikugie.stonecutter")
-    id("fabric-loom") version "1.13.6" apply false
+    id("net.fabricmc.fabric-loom") version "1.17.10" apply false
 }
 
-stonecutter active "1.21.10"
+stonecutter active "26.2-rc-1"
 
 tasks.register("buildAll") {
     group = "build"

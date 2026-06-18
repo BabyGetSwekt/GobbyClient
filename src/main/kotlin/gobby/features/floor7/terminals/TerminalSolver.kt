@@ -22,7 +22,10 @@ abstract class TerminalSolver {
     protected fun tickScreen(): ContainerScreen? {
         if (TerminalUtils.isGuardFailed() || !isEnabled) return null
 
-        val screen = (mc.screen as? ContainerScreen)
+        //? if >26.1.2
+        val screen = (mc.gui.screen() as? ContainerScreen)
+        //? if <=26.1.2
+        /*val screen = (mc.screen as? ContainerScreen)*/
             ?.takeIf { matchesTitle(it.title.string) }
 
         if (screen == null) {

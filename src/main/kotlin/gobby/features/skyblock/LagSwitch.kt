@@ -27,7 +27,10 @@ object LagSwitch : Module("Lag Switch", "Freezes outgoing packets", Category.SKY
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        if (!enabled || mc.screen != null) return
+        //? if >26.1.2
+        if (!enabled || mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (!enabled || mc.screen != null) return*/
         if (toggleKey == 0 || event.key != toggleKey) return
         if (choking) stop() else start()
     }

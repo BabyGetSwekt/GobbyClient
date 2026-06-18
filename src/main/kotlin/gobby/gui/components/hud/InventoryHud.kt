@@ -3,7 +3,7 @@ package gobby.gui.components.hud
 import gobby.Gobbyclient.Companion.mc
 import gobby.mixin.accessor.LocalPlayerAccessor
 import gobby.mixin.accessor.WalkAnimationStateAccessor
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.entity.EquipmentSlot
@@ -40,7 +40,7 @@ object InventoryHud {
     data class Size(val width: Int, val height: Int)
 
     fun renderInventory(
-        ctx: GuiGraphics,
+        ctx: GuiGraphicsExtractor,
         player: LocalPlayer?,
         hudX: Float,
         hudY: Float,
@@ -92,11 +92,11 @@ object InventoryHud {
         return Layout(middleWidth, middleHeight, contentHeight, totalWidth, totalHeight)
     }
 
-    private fun drawBackground(ctx: GuiGraphics, layout: Layout) {
+    private fun drawBackground(ctx: GuiGraphicsExtractor, layout: Layout) {
         HudDrawing.drawPanelBackground(ctx, layout.totalWidth, layout.totalHeight)
     }
 
-    private fun drawArmorColumn(ctx: GuiGraphics, x: Int, y: Int, player: LocalPlayer?, exampleMode: Boolean) {
+    private fun drawArmorColumn(ctx: GuiGraphicsExtractor, x: Int, y: Int, player: LocalPlayer?, exampleMode: Boolean) {
         for ((index, armorSlot) in ARMOR_SLOTS_TOP_TO_BOTTOM.withIndex()) {
             val slotY = y + index * SLOT_STRIDE
             drawSlotBackground(ctx, x, slotY)
@@ -105,7 +105,7 @@ object InventoryHud {
         }
     }
 
-    private fun drawInventory(ctx: GuiGraphics, originX: Int, originY: Int, player: LocalPlayer?, exampleMode: Boolean, highlightSelected: Boolean) {
+    private fun drawInventory(ctx: GuiGraphicsExtractor, originX: Int, originY: Int, player: LocalPlayer?, exampleMode: Boolean, highlightSelected: Boolean) {
         drawMainInventoryRows(ctx, originX, originY, player, exampleMode)
 
         val hotbarY = originY + INVENTORY_ROWS * SLOT_STRIDE + HOTBAR_GAP
@@ -117,7 +117,7 @@ object InventoryHud {
         drawHotbarRow(ctx, originX, hotbarY, selectedHotbarSlot, player, exampleMode)
     }
 
-    private fun drawMainInventoryRows(ctx: GuiGraphics, originX: Int, originY: Int, player: LocalPlayer?, exampleMode: Boolean) {
+    private fun drawMainInventoryRows(ctx: GuiGraphicsExtractor, originX: Int, originY: Int, player: LocalPlayer?, exampleMode: Boolean) {
         for (row in 0 until INVENTORY_ROWS) {
             for (col in 0 until INVENTORY_COLUMNS) {
                 val slotX = originX + col * SLOT_STRIDE
@@ -128,7 +128,7 @@ object InventoryHud {
         }
     }
 
-    private fun drawHotbarRow(ctx: GuiGraphics, originX: Int, hotbarY: Int, selectedSlot: Int, player: LocalPlayer?, exampleMode: Boolean) {
+    private fun drawHotbarRow(ctx: GuiGraphicsExtractor, originX: Int, hotbarY: Int, selectedSlot: Int, player: LocalPlayer?, exampleMode: Boolean) {
         for (col in 0 until INVENTORY_COLUMNS) {
             val slotX = originX + col * SLOT_STRIDE
             val slotIndex = HOTBAR_FIRST_SLOT + col
@@ -136,7 +136,7 @@ object InventoryHud {
         }
     }
 
-    private fun drawInventorySlot(ctx: GuiGraphics, slotX: Int, slotY: Int, slotIndex: Int, isSelected: Boolean, player: LocalPlayer?, exampleMode: Boolean) {
+    private fun drawInventorySlot(ctx: GuiGraphicsExtractor, slotX: Int, slotY: Int, slotIndex: Int, isSelected: Boolean, player: LocalPlayer?, exampleMode: Boolean) {
         drawSlotBackground(ctx, slotX, slotY)
         if (isSelected) drawSelectedSlotOutline(ctx, slotX, slotY)
         val stack = resolveInventoryStack(player, slotIndex, exampleMode)
@@ -144,7 +144,7 @@ object InventoryHud {
     }
 
     private fun drawPlayerModel(
-        ctx: GuiGraphics,
+        ctx: GuiGraphicsExtractor,
         x: Int,
         y: Int,
         height: Int,
@@ -172,7 +172,7 @@ object InventoryHud {
         ctx.pose().identity()
         suppressNameTag = true
         try {
-            InventoryScreen.renderEntityInInventoryFollowsMouse(
+            InventoryScreen.extractEntityInInventoryFollowsMouse(
                 ctx,
                 (absX + pad).toInt(),
                 (absY + pad).toInt(),
@@ -205,14 +205,15 @@ object InventoryHud {
     )
 
     private fun capturePlayerState(player: LocalPlayer): PlayerFreezeState {
-        val walk = player.walkAnimation as WalkAnimationStateAccessor
+        val walk = player.walkAnimation
+        val walkAccessor = walk as WalkAnimationStateAccessor
         return PlayerFreezeState(
             player.yRot, player.xRot,
             player.yBodyRot, player.yBodyRotO,
             player.yHeadRot, player.yHeadRotO,
             player.pose,
             (player as LocalPlayerAccessor).crouching,
-            walk.speed, walk.lastSpeed, walk.position,
+            walk.speed(), walkAccessor.lastSpeed, walk.position(),
             player.swingTime, player.attackAnim, player.oAttackAnim,
             player.swinging,
             player.deltaMovement
@@ -228,10 +229,10 @@ object InventoryHud {
         player.yHeadRotO = 0f
         player.pose = Pose.STANDING
         (player as LocalPlayerAccessor).crouching = false
-        val walk = player.walkAnimation as WalkAnimationStateAccessor
+        val walk = player.walkAnimation
         walk.setSpeed(0f)
-        walk.setLastSpeed(0f)
-        walk.setPosition(0f)
+        (walk as WalkAnimationStateAccessor).setLastSpeed(0f)
+        walk.setWalkPosition(0f)
         player.swingTime = 0
         player.attackAnim = 0f
         player.oAttackAnim = 0f
@@ -248,10 +249,10 @@ object InventoryHud {
         player.yHeadRotO = saved.yHeadRotO
         player.pose = saved.pose
         (player as LocalPlayerAccessor).crouching = saved.crouching
-        val walk = player.walkAnimation as WalkAnimationStateAccessor
+        val walk = player.walkAnimation
         walk.setSpeed(saved.walkSpeed)
-        walk.setLastSpeed(saved.walkSpeedOld)
-        walk.setPosition(saved.walkPosition)
+        (walk as WalkAnimationStateAccessor).setLastSpeed(saved.walkSpeedOld)
+        walk.setWalkPosition(saved.walkPosition)
         player.swingTime = saved.swingTime
         player.attackAnim = saved.attackAnim
         player.oAttackAnim = saved.oAttackAnim
@@ -270,16 +271,16 @@ object InventoryHud {
         return inventory.getItem(slotIndex)
     }
 
-    private fun drawSlotBackground(ctx: GuiGraphics, x: Int, y: Int) {
+    private fun drawSlotBackground(ctx: GuiGraphicsExtractor, x: Int, y: Int) {
         HudDrawing.drawBoxWithBorder(ctx, x, y, SLOT_SIZE, SLOT_SIZE)
     }
 
-    private fun drawSelectedSlotOutline(ctx: GuiGraphics, x: Int, y: Int) {
+    private fun drawSelectedSlotOutline(ctx: GuiGraphicsExtractor, x: Int, y: Int) {
         HudDrawing.drawOutline(ctx, x, y, SLOT_SIZE, SLOT_SIZE, HudDrawing.ACCENT_GREEN)
     }
 
-    private fun drawItemAtSlot(ctx: GuiGraphics, stack: ItemStack, x: Int, y: Int) {
-        ctx.renderItem(stack, x, y)
-        ctx.renderItemDecorations(mc.font, stack, x, y)
+    private fun drawItemAtSlot(ctx: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+        ctx.item(stack, x, y)
+        ctx.itemDecorations(mc.font, stack, x, y)
     }
 }

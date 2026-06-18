@@ -5,8 +5,9 @@ import gobby.events.ChunkLoadEvent
 import gobby.events.ChunkUnloadEvent
 import gobby.events.Events
 import gobby.events.render.Render3DEvent
+import gobby.utils.render.RenderUtils
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
@@ -99,12 +100,13 @@ class EventManager {
     }
 
     fun initEvents() {
-        WorldRenderEvents.BEFORE_ENTITIES.register { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+            RenderUtils.frameCollector = context.submitNodeCollector()
             val event = Render3DEvent(context, Render3DEvent.Type.BeforeEntity)
             Gobbyclient.EVENT_MANAGER.publish(event)
         }
 
-        WorldRenderEvents.AFTER_ENTITIES.register { context ->
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register { context ->
             val event = Render3DEvent(context, Render3DEvent.Type.AfterEntity)
             Gobbyclient.EVENT_MANAGER.publish(event)
         }

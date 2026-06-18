@@ -18,7 +18,7 @@ import gobby.gui.components.BlockItemComponent
 import gobby.gui.components.GobbyScrollPanel
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.world.level.block.Block
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.core.registries.BuiltInRegistries
@@ -222,7 +222,7 @@ class BlockSelector private constructor (
                 else -> BlockItemComponent.BG_COLOR
             }
             context.fill(left, top, right, bottom, bg)
-            context.renderItem(entry.stack, left + 2, top + 2)
+            context.item(entry.stack, left + 2, top + 2)
 
             if (entry.block in Etherwarp.TARGET_BLOCKS) {
                 val c = BlockItemComponent.ETHERWARP_COLOR
@@ -233,7 +233,7 @@ class BlockSelector private constructor (
             }
 
             if (Brush.isFavorite(entry.id)) {
-                context.drawString(mc.font, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
+                context.text(mc.font, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
             }
         }
         context.disableScissor()

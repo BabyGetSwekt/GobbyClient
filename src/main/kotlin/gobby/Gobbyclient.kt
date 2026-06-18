@@ -19,10 +19,7 @@ import net.fabricmc.fabric.api.resource.ResourcePackActivationType
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandBuildContext
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -51,19 +48,10 @@ class Gobbyclient : ClientModInitializer {
 	}
 
 	private fun initEvents() {
-		//? if <=1.21.10 {
-		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource?>?, _: CommandBuildContext? ->
-			dispatcher?.let {
-				EVENT_MANAGER.publish(CommandRegisterEvent(it))
-			}
-		})
-		//?}
-		//? if >=1.21.11 {
-		/*ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandBuildContext ->
+		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandBuildContext ->
 			@Suppress("UNCHECKED_CAST")
 			EVENT_MANAGER.publish(CommandRegisterEvent(dispatcher as CommandDispatcher<FabricClientCommandSource?>))
-		})*/
-		//?}
+		})
 
 	}
 

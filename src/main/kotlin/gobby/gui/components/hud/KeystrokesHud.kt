@@ -1,7 +1,7 @@
 package gobby.gui.components.hud
 
 import net.minecraft.client.KeyMapping
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object KeystrokesHud {
 
@@ -20,7 +20,7 @@ object KeystrokesHud {
         val right: KeyMapping
     )
 
-    fun renderKeystrokes(ctx: GuiGraphics, bindings: KeyBindings, exampleMode: Boolean): Size {
+    fun renderKeystrokes(ctx: GuiGraphicsExtractor, bindings: KeyBindings, exampleMode: Boolean): Size {
         val pad = HudDrawing.PANEL_PADDING
         val bottomRowWidth = KEY_STRIDE * 3 - KEY_GAP
         val topKeyWidth = KEY_SIZE
@@ -44,7 +44,7 @@ object KeystrokesHud {
         return Size(totalWidth, totalHeight)
     }
 
-    private fun drawClusterBackground(ctx: GuiGraphics, x: Int, y: Int, width: Int, height: Int, painted: MutableList<IntArray>) {
+    private fun drawClusterBackground(ctx: GuiGraphicsExtractor, x: Int, y: Int, width: Int, height: Int, painted: MutableList<IntArray>) {
         var pieces = listOf(intArrayOf(x, y, x + width, y + height))
         for (p in painted) pieces = pieces.flatMap { subtractRect(it, p) }
         for (piece in pieces) {
@@ -69,7 +69,7 @@ object KeystrokesHud {
         return out
     }
 
-    private fun drawKeyAt(ctx: GuiGraphics, x: Int, y: Int, key: KeyMapping, exampleMode: Boolean) {
+    private fun drawKeyAt(ctx: GuiGraphicsExtractor, x: Int, y: Int, key: KeyMapping, exampleMode: Boolean) {
         val pressed = !exampleMode && key.isDown
         HudDrawing.drawBoxWithBorder(ctx, x, y, KEY_SIZE, KEY_SIZE)
         if (pressed) HudDrawing.drawOutline(ctx, x, y, KEY_SIZE, KEY_SIZE, HudDrawing.ACCENT_GREEN)

@@ -41,16 +41,13 @@ object Interpolate {
     }
 
     fun interpolatedLookVec(distance: Double = 4.0): Vec3 {
-        val camera = mc.gameRenderer.mainCamera
+        //? if >26.1.2
+        val camera = mc.gameRenderer.mainCamera()
+        //? if <=26.1.2
+        /*val camera = mc.gameRenderer.mainCamera*/
 
-        //? if <=1.21.10 {
-        val yaw = camera.yRot
-        val pitch = camera.xRot
-        //?}
-        //? if >=1.21.11 {
-        /*val yaw = camera.yRot()
-        val pitch = camera.xRot()*/
-        //?}
+        val yaw = camera.yRot()
+        val pitch = camera.xRot()
         val yawRad = Math.toRadians(yaw.toDouble())
         val pitchRad = Math.toRadians(pitch.toDouble())
 
@@ -135,11 +132,20 @@ object Interpolate {
     }
 
     val renderPosX: Double
-        get() = mc.gameRenderer.mainCamera.cameraPos.x
+        //? if >26.1.2
+        get() = mc.gameRenderer.mainCamera().cameraPos.x
+        //? if <=26.1.2
+        /*get() = mc.gameRenderer.mainCamera.cameraPos.x*/
 
     val renderPosY: Double
-        get() = mc.gameRenderer.mainCamera.cameraPos.y
+        //? if >26.1.2
+        get() = mc.gameRenderer.mainCamera().cameraPos.y
+        //? if <=26.1.2
+        /*get() = mc.gameRenderer.mainCamera.cameraPos.y*/
 
     val renderPosZ: Double
-        get() = mc.gameRenderer.mainCamera.cameraPos.z
+        //? if >26.1.2
+        get() = mc.gameRenderer.mainCamera().cameraPos.z
+        //? if <=26.1.2
+        /*get() = mc.gameRenderer.mainCamera.cameraPos.z*/
 }

@@ -1,9 +1,6 @@
 package gobby.gui.click
 
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 
 enum class Category(val displayName: String, iconName: String) {
     DUNGEONS("Dungeons", "dungeons"),

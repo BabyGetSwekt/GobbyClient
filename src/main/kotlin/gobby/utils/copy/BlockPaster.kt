@@ -9,10 +9,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.level.storage.TagValueInput
 import net.minecraft.util.ProblemReporter
 import net.minecraft.core.BlockPos
-//? if <=1.21.10
-import net.minecraft.world.level.GameRules
-//? if >=1.21.11
-/*import net.minecraft.world.level.gamerules.GameRules*/
+import net.minecraft.world.level.gamerules.GameRules
 import net.minecraft.world.level.Level
 import org.slf4j.Logger
 
@@ -29,15 +26,9 @@ object BlockPaster {
     }
 
     fun freezeWorld(server: MinecraftServer) {
-        //? if <=1.21.10 {
-        server.gameRules.getRule(GameRules.RULE_RANDOMTICKING).set(0, server)
-        server.gameRules.getRule(GameRules.RULE_DOFIRETICK).set(false, server)
-        server.gameRules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false, server)
-        //?}
-        //? if >=1.21.11
-        /*server.overworld().gameRules.set(GameRules.RANDOM_TICK_SPEED, 0, server)
+        server.overworld().gameRules.set(GameRules.RANDOM_TICK_SPEED, 0, server)
         server.overworld().gameRules.set(GameRules.TNT_EXPLODES, false, server)
-        server.overworld().gameRules.set(GameRules.SPAWN_MOBS, false, server)*/
+        server.overworld().gameRules.set(GameRules.SPAWN_MOBS, false, server)
     }
 
     fun decodeAndSort(blocks: Map<String, List<IntArray>>): List<Pair<BlockPos, BlockState>> {
@@ -90,6 +81,9 @@ object BlockPaster {
     }
 
     fun reloadClientChunks() {
-        mc.execute { mc.levelRenderer.allChanged() }
+        //? if >26.1.2
+        mc.execute { mc.levelExtractor.allChanged() }
+        //? if <=26.1.2
+        /*mc.execute { mc.levelRenderer.allChanged() }*/
     }
 }

@@ -47,7 +47,19 @@ object LividHelper : EntityHighlighter(
         val displayColor: Color,
         val glass: Block
     ) {
-        ARCADE("Arcade", Color(255, 255, 85), Blocks.YELLOW_STAINED_GLASS),
+        //? if >26.1.2 {
+        ARCADE("Arcade", Color(255, 255, 85), Blocks.STAINED_GLASS.yellow()),
+        CROSSED("Crossed", Color(255, 85, 255), Blocks.STAINED_GLASS.magenta()),
+        DOCTOR("Doctor", Color(170, 170, 170), Blocks.STAINED_GLASS.gray()),
+        FROG("Frog", Color(0, 170, 0), Blocks.STAINED_GLASS.green()),
+        HOCKEY("Hockey", Color(255, 85, 85), Blocks.STAINED_GLASS.red()),
+        PURPLE("Purple", Color(170, 0, 170), Blocks.STAINED_GLASS.purple()),
+        SCREAM("Scream", Color(85, 85, 255), Blocks.STAINED_GLASS.blue()),
+        SMILE("Smile", Color(85, 255, 85), Blocks.STAINED_GLASS.lime()),
+        VENDETTA("Vendetta", Color(255, 255, 255), Blocks.STAINED_GLASS.white());
+        //?}
+        //? if <=26.1.2 {
+        /*ARCADE("Arcade", Color(255, 255, 85), Blocks.YELLOW_STAINED_GLASS),
         CROSSED("Crossed", Color(255, 85, 255), Blocks.MAGENTA_STAINED_GLASS),
         DOCTOR("Doctor", Color(170, 170, 170), Blocks.GRAY_STAINED_GLASS),
         FROG("Frog", Color(0, 170, 0), Blocks.GREEN_STAINED_GLASS),
@@ -56,6 +68,7 @@ object LividHelper : EntityHighlighter(
         SCREAM("Scream", Color(85, 85, 255), Blocks.BLUE_STAINED_GLASS),
         SMILE("Smile", Color(85, 255, 85), Blocks.LIME_STAINED_GLASS),
         VENDETTA("Vendetta", Color(255, 255, 255), Blocks.WHITE_STAINED_GLASS);
+        *///?}
 
         companion object {
             fun fromGlass(block: Block): Livid? =
@@ -117,7 +130,10 @@ object LividHelper : EntityHighlighter(
             if (!alive) {
                 RotationUtils.stopAimLock()
                 aimLocking = false
-            } else if (mc.screen != null) {
+            //? if >26.1.2
+            } else if (mc.gui.screen() != null) {
+            //? if <=26.1.2
+            /*} else if (mc.screen != null) {*/
                 RotationUtils.stopAimLock()
             } else if (!RotationUtils.isAimLocked && !RotationUtils.isEasing) {
                 lividEntity?.let { RotationUtils.startAimLock(it) }

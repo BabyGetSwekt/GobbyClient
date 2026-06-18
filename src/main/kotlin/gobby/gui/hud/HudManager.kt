@@ -16,7 +16,10 @@ object HudManager {
 
     @SubscribeEvent
     fun onRender2D(event: Render2DEvent) {
-        if (mc.screen is HudEditor) return
+        //? if >26.1.2
+        if (mc.gui.screen() is HudEditor) return
+        //? if <=26.1.2
+        /*if (mc.screen is HudEditor) return*/
         val ctx = event.matrices
         for (hud in huds) {
             hud.renderHud(ctx, false)

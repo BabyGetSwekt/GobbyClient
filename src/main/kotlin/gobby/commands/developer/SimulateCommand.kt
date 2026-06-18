@@ -6,21 +6,24 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.network.chat.Component
 
 object SimulateCommand {
 
     private fun simulateCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal("gobby")
+        return ClientCommands.literal("gobby")
             .then(
-                ClientCommandManager.literal("simulate")
+                ClientCommands.literal("simulate")
                     .then(
-                        ClientCommandManager.argument("message", StringArgumentType.greedyString())
+                        ClientCommands.argument("message", StringArgumentType.greedyString())
                             .executes { context ->
                                 val message = StringArgumentType.getString(context, "message")
-                                mc.gui.chat.addMessage(Component.literal(message))
+                                //? if >26.1.2
+                                mc.gui.hud.chat.addClientSystemMessage(Component.literal(message))
+                                //? if <=26.1.2
+                                /*mc.gui.chat.addClientSystemMessage(Component.literal(message))*/
                                 Command.SINGLE_SUCCESS
                             }
                     )

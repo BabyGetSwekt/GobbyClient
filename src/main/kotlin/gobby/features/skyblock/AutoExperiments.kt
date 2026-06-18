@@ -18,7 +18,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.world.inventory.ChestMenu
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 
 object AutoExperiments : Module("Auto Experiments", "Automatically does experiments", Category.SKYBLOCK) {
 
@@ -65,7 +65,10 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
     fun onTick(event: ClientTickEvent.Pre) {
         val current = mode ?: return
         if (!enabled) return reset()
-        val screen = mc.screen as? ContainerScreen ?: return reset()
+        //? if >26.1.2
+        val screen = mc.gui.screen() as? ContainerScreen ?: return reset()
+        //? if <=26.1.2
+        /*val screen = mc.screen as? ContainerScreen ?: return reset()*/
         when (current) {
             Mode.CHRONO -> stepChronomatron(screen.menu)
             Mode.ULTRA -> stepUltrasequencer(screen.menu)
@@ -123,7 +126,7 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
         val slotIdx = sequence[sentCount]
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
             val player = mc.player ?: return@register
-            mc.gameMode?.handleInventoryMouseClick(h.containerId, slotIdx, 2, ClickType.CLONE, player)
+            mc.gameMode?.handleContainerInput(h.containerId, slotIdx, 2, ContainerInput.CLONE, player)
         }
         packetClock.update()
         sentCount++

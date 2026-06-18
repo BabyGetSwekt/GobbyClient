@@ -4,13 +4,10 @@ import com.mojang.blaze3d.platform.NativeImage
 import gobby.BuildConfig
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils.openUrl
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.texture.DynamicTexture
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 
 object SidebarComponent {
 

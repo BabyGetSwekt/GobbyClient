@@ -18,7 +18,7 @@ object MelodyTerminal : TerminalSolver() {
     private const val LAST_ROW = 4
 
     override val isEnabled get() = true
-    override fun matchesTitle(title: String) = title.contains("MouseButtonInfo the button on time!")
+    override fun matchesTitle(title: String) = title.contains("Click the button on time!")
 
     private var lastClickedRow = -1
     private val skipQueue = mutableListOf<Int>()
@@ -42,11 +42,17 @@ object MelodyTerminal : TerminalSolver() {
         val handler = screen.menu
 
         val targetCol = (0 until ROW_WIDTH).firstOrNull {
-            handler.slots[it].item.item == Items.MAGENTA_STAINED_GLASS_PANE
+            //? if >26.1.2
+            handler.slots[it].item.item == Items.STAINED_GLASS_PANE.magenta()
+            //? if <=26.1.2
+            /*handler.slots[it].item.item == Items.MAGENTA_STAINED_GLASS_PANE*/
         } ?: return
 
         for (slot in FIRST_CONTENT_SLOT until handler.slots.size) {
-            if (handler.slots[slot].item.item != Items.LIME_STAINED_GLASS_PANE) continue
+            //? if >26.1.2
+            if (handler.slots[slot].item.item != Items.STAINED_GLASS_PANE.lime()) continue
+            //? if <=26.1.2
+            /*if (handler.slots[slot].item.item != Items.LIME_STAINED_GLASS_PANE) continue*/
             if (slot % ROW_WIDTH != targetCol) continue
 
             val row = slot / ROW_WIDTH

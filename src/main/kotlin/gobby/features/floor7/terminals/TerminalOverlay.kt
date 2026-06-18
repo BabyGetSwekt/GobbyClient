@@ -7,10 +7,10 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.skyblock.dungeon.TerminalUtils
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.item.Items
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.ChatFormatting
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
@@ -109,7 +109,10 @@ object TerminalOverlay : Module(
 
     fun isOverlayActive(): Boolean {
         if (!enabled) return false
-        val screen = mc.screen as? ContainerScreen ?: return false
+        //? if >26.1.2
+        val screen = mc.gui.screen() as? ContainerScreen ?: return false
+        //? if <=26.1.2
+        /*val screen = mc.screen as? ContainerScreen ?: return false*/
         return detect(screen.title.string) != null
     }
 
@@ -119,12 +122,12 @@ object TerminalOverlay : Module(
     private val STARTS_WITH_REGEX = Regex("What starts with: \\W\\w\\W")
 
     private fun detect(title: String): Terminal? = when {
-        title.contains("MouseButtonInfo in order!") -> Terminal.NUMBERS
+        title.contains("Click in order!") -> Terminal.NUMBERS
         COLORS_REGEX.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "") -> Terminal.COLORS
         STARTS_WITH_REGEX.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "") -> Terminal.STARTS_WITH
         title.contains("Correct all the panes!") -> Terminal.RED_GREEN
         title.contains("Change all to same color!") -> Terminal.RUBIX
-        title.contains("MouseButtonInfo the button on time!") -> Terminal.MELODY
+        title.contains("Click the button on time!") -> Terminal.MELODY
         else -> null
     }
 
@@ -216,13 +219,13 @@ object TerminalOverlay : Module(
                         }
                         if (button >= 0) {
                             val player = mc.player ?: return
-                            mc.gameMode?.handleInventoryMouseClick(syncId, slot, button, ClickType.PICKUP, player)
+                            mc.gameMode?.handleContainerInput(syncId, slot, button, ContainerInput.PICKUP, player)
                         }
                     }
                 }
             } else {
                 val player = mc.player ?: return
-                mc.gameMode?.handleInventoryMouseClick(syncId, slot, 2, ClickType.CLONE, player)
+                mc.gameMode?.handleContainerInput(syncId, slot, 2, ContainerInput.CLONE, player)
             }
         }
 
@@ -230,13 +233,16 @@ object TerminalOverlay : Module(
         rightMouseWasDown = rightDown
     }
 
-    private fun drawNumbers(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawNumbers(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         val slots = TerminalUtils.NUMBERS_SLOTS
 
         val solution = slots.filter { s ->
             val st = handler.slots[s].item
-            !st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.RED_STAINED_GLASS_PANE
+            //? if >26.1.2
+            !st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.STAINED_GLASS_PANE.red()
+            //? if <=26.1.2
+            /*!st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.RED_STAINED_GLASS_PANE*/
         }.sortedBy { handler.slots[it].item.count }
 
         val colors = intArrayOf(cNum1, cNum2, cNum3)
@@ -255,11 +261,11 @@ object TerminalOverlay : Module(
             val (x, y) = compactPos(cx, cy)
             val num = "${stack.count}"
             val tw = mc.font.width(num)
-            ctx.drawString(mc.font, num, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
+            ctx.text(mc.font, num, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
         }
     }
 
-    private fun drawColors(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawColors(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         val stripped = ChatFormatting.stripFormatting(screen.title.string) ?: return
         val color = Regex("Select all the ([\\w ]+) items!").find(stripped)
@@ -276,7 +282,7 @@ object TerminalOverlay : Module(
         }
     }
 
-    private fun drawStartsWith(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawStartsWith(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         val stripped = ChatFormatting.stripFormatting(screen.title.string) ?: return
         val letter = Regex("What starts with: \\W(\\w)\\W").find(stripped)
@@ -293,17 +299,20 @@ object TerminalOverlay : Module(
         }
     }
 
-    private fun drawRedGreen(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawRedGreen(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         for (slot in TerminalUtils.RED_GREEN_SLOTS) {
-            if (handler.slots[slot].item.item != Items.RED_STAINED_GLASS_PANE) continue
+            //? if >26.1.2
+            if (handler.slots[slot].item.item != Items.STAINED_GLASS_PANE.red()) continue
+            //? if <=26.1.2
+            /*if (handler.slots[slot].item.item != Items.RED_STAINED_GLASS_PANE) continue*/
             val (cx, cy) = slotToCompact(Terminal.RED_GREEN, slot) ?: continue
             val (x, y) = compactPos(cx, cy)
             ctx.fill(x, y, x + CELL, y + CELL, cSolution)
         }
     }
 
-    private fun drawRubix(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawRubix(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val solution = RubixTerminal.getFullSolution(screen) ?: return
 
         for ((idx, slot) in TerminalUtils.RUBIX_SLOTS.withIndex()) {
@@ -314,16 +323,19 @@ object TerminalOverlay : Module(
             ctx.fill(x, y, x + CELL, y + CELL, if (clicks > 0) cRubixL else cRubixR)
             val text = "$clicks"
             val tw = mc.font.width(text)
-            ctx.drawString(mc.font, text, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
+            ctx.text(mc.font, text, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
         }
     }
 
-    private fun drawMelody(ctx: GuiGraphics, screen: ContainerScreen) {
+    private fun drawMelody(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         val containerSlots = handler.slots.size - PLAYER_INV_SLOTS
 
         val targetChestCol = (MELODY_LANE_START..MELODY_LANE_END).firstOrNull {
-            handler.slots[it].item.item == Items.MAGENTA_STAINED_GLASS_PANE
+            //? if >26.1.2
+            handler.slots[it].item.item == Items.STAINED_GLASS_PANE.magenta()
+            //? if <=26.1.2
+            /*handler.slots[it].item.item == Items.MAGENTA_STAINED_GLASS_PANE*/
         } ?: -1
         val targetCompact = if (targetChestCol in MELODY_LANE_START..MELODY_LANE_END) targetChestCol - MELODY_LANE_START else -1
 
@@ -332,7 +344,10 @@ object TerminalOverlay : Module(
 
         if (targetChestCol >= 0) {
             for (slot in CHEST_ROW_WIDTH until containerSlots) {
-                if (handler.slots[slot].item.item == Items.LIME_STAINED_GLASS_PANE) {
+                //? if >26.1.2
+                if (handler.slots[slot].item.item == Items.STAINED_GLASS_PANE.lime()) {
+                //? if <=26.1.2
+                /*if (handler.slots[slot].item.item == Items.LIME_STAINED_GLASS_PANE) {*/
                     val col = slot % CHEST_ROW_WIDTH
                     if (col == targetChestCol) {
                         correctBtnRow = slot / CHEST_ROW_WIDTH

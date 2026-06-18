@@ -44,13 +44,16 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
         val tc = if (example) 47 else queue.size
         val text = "§bVelo: §f$vc §8| §7Total: §f$tc"
         val tr = mc.font
-        ctx.drawString(tr, text, 0, 0, Color.WHITE.rgb, true)
+        ctx.text(tr, text, 0, 0, Color.WHITE.rgb, true)
         setSize(tr.width(text), tr.lineHeight)
     }
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        if (!enabled || mc.screen != null) return
+        //? if >26.1.2
+        if (!enabled || mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (!enabled || mc.screen != null) return*/
         if (toggleKey == 0 || event.key != toggleKey) return
         if (active) stop() else start()
     }
@@ -116,12 +119,10 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
 
         val packet = event.packet
 
-        // Always let these through
         if (packet is ClientboundKeepAlivePacket || packet is ClientboundDisconnectPacket) return
 
         event.cancel()
 
-        // Track velocity count
         if (packet is ClientboundSetEntityMotionPacket && packet.id == (mc.player?.id ?: -1)) {
             val vel = packet.movement
             modMessage("§d[Velocity captured] §f(${f(vel.x)}, ${f(vel.y)}, ${f(vel.z)})")

@@ -11,12 +11,12 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.item.ItemStack
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.network.HashedStack
 import net.minecraft.ChatFormatting
 import java.awt.Color
@@ -85,7 +85,10 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
     fun isOverlayActive(): Boolean {
         if (!enabled || !inDungeons) return false
-        val screen = mc.screen as? ContainerScreen ?: return false
+        //? if >26.1.2
+        val screen = mc.gui.screen() as? ContainerScreen ?: return false
+        //? if <=26.1.2
+        /*val screen = mc.screen as? ContainerScreen ?: return false*/
         return screen.title.string.contains("Spirit Leap")
     }
 
@@ -96,7 +99,10 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             return
         }
 
-        val screen = mc.screen as? ContainerScreen
+        //? if >26.1.2
+        val screen = mc.gui.screen() as? ContainerScreen
+        //? if <=26.1.2
+        /*val screen = mc.screen as? ContainerScreen*/
         if (screen == null || !screen.title.string.contains("Spirit Leap")) {
             if (isActive) deactivate()
             return
@@ -168,17 +174,17 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         return true
     }
 
-    private fun drawDarkOverlay(context: GuiGraphics, width: Int, height: Int) {
+    private fun drawDarkOverlay(context: GuiGraphicsExtractor, width: Int, height: Int) {
         context.fill(0, 0, width, height, Color(0, 0, 0, 160).rgb)
     }
 
-    private fun applyScaleAroundCenter(context: GuiGraphics, centerX: Float, centerY: Float, scale: Float) {
+    private fun applyScaleAroundCenter(context: GuiGraphicsExtractor, centerX: Float, centerY: Float, scale: Float) {
         context.pose().translate(centerX, centerY)
         context.pose().scale(scale, scale)
         context.pose().translate(-centerX, -centerY)
     }
 
-    private fun drawGrid(context: GuiGraphics, screenWidth: Int, screenHeight: Int, mouseX: Int, mouseY: Int) {
+    private fun drawGrid(context: GuiGraphicsExtractor, screenWidth: Int, screenHeight: Int, mouseX: Int, mouseY: Int) {
         val rows = (buttons.size + COLS - 1) / COLS
         val gridWidth = COLS * CARD_WIDTH + (COLS - 1) * GRID_GAP
         val gridHeight = rows * CARD_HEIGHT + (rows - 1) * GRID_GAP
@@ -205,7 +211,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         }
     }
 
-    private fun drawCard(context: GuiGraphics, button: LeapButton, x: Int, y: Int, hovered: Boolean) {
+    private fun drawCard(context: GuiGraphicsExtractor, button: LeapButton, x: Int, y: Int, hovered: Boolean) {
         val dungeonClass = button.teammate.dungeonClass
         val bgColor = (if (hovered) CLASS_HOVER_COLORS else CLASS_BG_COLORS)[dungeonClass] ?: Color.DARK_GRAY
         val accentColor = CLASS_COLORS[dungeonClass] ?: Color.WHITE
@@ -223,16 +229,16 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
         drawScaledHead(context, button.headStack, x + 8, y + (CARD_HEIGHT - HEAD_RENDER_SIZE) / 2)
 
         val textX = x + 46
-        context.drawString(mc.font, button.teammate.name, textX, y + 14, accentColor.rgb, true)
+        context.text(mc.font, button.teammate.name, textX, y + 14, accentColor.rgb, true)
         val classText = "${dungeonClass.name} ${button.teammate.classLevel}"
-        context.drawString(mc.font, classText, textX, y + 28, Color(150, 150, 160).rgb, true)
+        context.text(mc.font, classText, textX, y + 28, Color(150, 150, 160).rgb, true)
     }
 
-    private fun drawScaledHead(context: GuiGraphics, stack: ItemStack, x: Int, y: Int) {
+    private fun drawScaledHead(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
         context.pose().pushMatrix()
         context.pose().translate(x.toFloat(), y.toFloat())
         context.pose().scale(HEAD_SCALE, HEAD_SCALE)
-        context.renderItem(stack, 0, 0)
+        context.item(stack, 0, 0)
         context.pose().popMatrix()
     }
 
@@ -241,7 +247,10 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             it.width > 0 && it.height > 0 &&
                 mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        val screen = mc.screen as? ContainerScreen ?: return
+        //? if >26.1.2
+        val screen = mc.gui.screen() as? ContainerScreen ?: return
+        //? if <=26.1.2
+        /*val screen = mc.screen as? ContainerScreen ?: return*/
         val handler = screen.menu
         val player = mc.player ?: return
         val connection = mc.connection ?: return
@@ -261,7 +270,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
         val slots = handler.slots
         val before = slots.map { it.item.copy() }
-        handler.clicked(slotId, 0, ClickType.CLONE, player)
+        handler.clicked(slotId, 0, ContainerInput.CLONE, player)
 
         val changed = Int2ObjectOpenHashMap<HashedStack>()
         for (i in before.indices) {
@@ -276,7 +285,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
                 handler.stateId,
                 slotId.toShort(),
                 0.toByte(),
-                ClickType.CLONE,
+                ContainerInput.CLONE,
                 changed,
                 HashedStack.create(handler.carried, connection.decoratedHashOpsGenenerator())
             )

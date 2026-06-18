@@ -36,7 +36,10 @@ object LastBreathHelper {
         if (dungeonFloor != 7 || !inBoss) return
         if (!P5DebuffHelper.enabled || !P5DebuffHelper.lastBreathHelper || getMaxTicks() == 0) return
         if (event.button != MouseButtonEvent.RIGHT_BUTTON) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
 
         rcButtonState = event.action == MouseButtonEvent.PRESS
     }

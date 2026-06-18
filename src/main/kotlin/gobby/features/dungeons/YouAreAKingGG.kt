@@ -7,11 +7,8 @@ import gobby.gui.GuiElementManager
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.managers.SoundManager
-import net.minecraft.client.gui.GuiGraphics
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.resources.Identifier as ResourceLocation
 
 object YouAreAKingGG : GuiElement() {
 
@@ -31,7 +28,7 @@ object YouAreAKingGG : GuiElement() {
         SoundManager.play("assets/gobbyclient/sounds/victory_royale_sound.ogg")
     }
 
-    override fun render(drawContext: GuiGraphics, screenWidth: Int, screenHeight: Int, alpha: Float) {
+    override fun render(drawContext: GuiGraphicsExtractor, screenWidth: Int, screenHeight: Int, alpha: Float) {
         val width = (screenWidth * 0.6f).toInt()
         val height = (width / ASPECT_RATIO).toInt()
         val x = (screenWidth - width) / 2

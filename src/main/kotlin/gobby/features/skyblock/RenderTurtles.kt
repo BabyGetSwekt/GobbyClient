@@ -7,10 +7,7 @@ import gobby.gui.click.ColorSetting
 import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
 import net.minecraft.world.entity.Entity
-//? if <=1.21.10
-import net.minecraft.world.entity.animal.Turtle
-//? if >=1.21.11
-/*import net.minecraft.world.entity.animal.turtle.Turtle*/
+import net.minecraft.world.entity.animal.turtle.Turtle
 import java.awt.Color
 
 object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used for shards", Category.SKYBLOCK) {

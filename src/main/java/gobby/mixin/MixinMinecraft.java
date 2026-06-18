@@ -2,11 +2,13 @@ package gobby.mixin;
 
 import gobby.Gobbyclient;
 import gobby.events.*;
-import gobby.events.gui.GuiOpenEvent;
 import gobby.features.skyblock.FreeCam;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -47,35 +49,17 @@ public abstract class MixinMinecraft {
         }
     }
 
-    //? if <=1.21.10 {
-    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;Z)V", at = @At("HEAD"))
-    private void gobbyclient$onDisconnect(Screen screen, boolean transferring, CallbackInfo info) {
-        if (level != null) {
-            Gobbyclient.EVENT_MANAGER.publish(new DisconnectEvent());
-        }
-    }
-    //?}
-    //? if >=1.21.11 {
-    /*@Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V", at = @At("HEAD"))
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V", at = @At("HEAD"))
     private void gobbyclient$onDisconnect(Screen screen, boolean transferring, boolean savingWorld, CallbackInfo info) {
         if (level != null) {
             Gobbyclient.EVENT_MANAGER.publish(new DisconnectEvent());
         }
-    }*/
-    //?}
+    }
 
-    //? if <=1.21.10 {
-    @Inject(method = "updateLevelInEngines", at = @At("HEAD"))
+    @Inject(method = "setLevel", at = @At("HEAD"))
     private void gobbyclient$onWorldLoad(ClientLevel world, CallbackInfo info) {
         gobbyclient$handleWorldLoad(world);
     }
-    //?}
-    //? if >=1.21.11 {
-    /*@Inject(method = "setLevel", at = @At("HEAD"))
-    private void gobbyclient$onWorldLoad(ClientLevel world, CallbackInfo info) {
-        gobbyclient$handleWorldLoad(world);
-    }*/
-    //?}
 
     @Unique
     private void gobbyclient$handleWorldLoad(ClientLevel world) {
@@ -89,10 +73,39 @@ public abstract class MixinMinecraft {
         }
     }
 
-    @Inject(method = "setScreen(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("TAIL"))
-    private void gobbyclient$onSetScreen(Screen screen, CallbackInfo info) {
-        if (screen == null) return;
-        Gobbyclient.EVENT_MANAGER.publish(new GuiOpenEvent(screen));
+    @Inject(method = "pick(F)V", at = @At("RETURN"))
+    private void gobbyclient$freeCamCrosshair(float tickDelta, CallbackInfo ci) {
+        if (!FreeCam.INSTANCE.getEnabled()) return;
+        Minecraft client = (Minecraft) (Object) this;
+        if (client.level == null || client.player == null) return;
+
+        double reach = client.player.blockInteractionRange();
+
+        Vec3 start = new Vec3(
+                FreeCam.INSTANCE.getCamX(),
+                FreeCam.INSTANCE.getCamY(),
+                FreeCam.INSTANCE.getCamZ()
+        );
+
+        float yaw = FreeCam.INSTANCE.getCamYaw();
+        float pitch = FreeCam.INSTANCE.getCamPitch();
+        double yawRad = Math.toRadians(yaw);
+        double pitchRad = Math.toRadians(pitch);
+
+        double lookX = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double lookY = -Math.sin(pitchRad);
+        double lookZ = Math.cos(yawRad) * Math.cos(pitchRad);
+
+        Vec3 end = start.add(lookX * reach, lookY * reach, lookZ * reach);
+
+        BlockHitResult blockHit = client.level.clip(new ClipContext(
+                start, end,
+                ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE,
+                client.player
+        ));
+
+        client.hitResult = blockHit;
     }
 
     @Inject(method = "startAttack()Z", at = @At("HEAD"), cancellable = true)

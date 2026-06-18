@@ -10,13 +10,13 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils
 import gobby.utils.skyblockID
 import gobby.utils.timer.Executor
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 
 object DevTestCommand {
 
     private fun setTask(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
                 val task = Executor.schedule(60) {
                     modMessage("Printing this shit after 3 seconds")
@@ -26,7 +26,7 @@ object DevTestCommand {
     }
 
     private fun getItemID(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
                 modMessage(mc?.player?.mainHandItem?.skyblockID ?: "No item or no skyblock ID")
                 Command.SINGLE_SUCCESS
@@ -34,7 +34,7 @@ object DevTestCommand {
     }
 
     private fun getMessage(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
             .executes {
                 coloredModMessage("Heya")
                 //updateTablist()

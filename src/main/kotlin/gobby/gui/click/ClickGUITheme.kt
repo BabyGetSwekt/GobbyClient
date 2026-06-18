@@ -1,14 +1,11 @@
 package gobby.gui.click
 
 import gobby.Gobbyclient.Companion.mc
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+import net.minecraft.resources.Identifier as ResourceLocation
 import java.awt.Color
 
 internal data class Rect(val x: Int, val y: Int, val w: Int, val h: Int) {
@@ -93,34 +90,34 @@ fun textWSmall(s: String): Int = (tr.width(styledText(s)) * SETTING_SCALE).toInt
 
 fun textWScaled(s: String, scale: Float): Int = (tr.width(styledText(s)) * scale).toInt()
 
-fun drawText(ctx: GuiGraphics, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
-    ctx.drawString(tr, styledText(s), x, y, color, shadow)
+fun drawText(ctx: GuiGraphicsExtractor, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
+    ctx.text(tr, styledText(s), x, y, color, shadow)
 }
 
-fun drawTextSmall(ctx: GuiGraphics, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
+fun drawTextSmall(ctx: GuiGraphicsExtractor, x: Int, y: Int, s: String, color: Int, shadow: Boolean = true) {
     drawTextScaled(ctx, x, y, s, SETTING_SCALE, color, shadow)
 }
 
-fun drawTextScaled(ctx: GuiGraphics, x: Int, y: Int, s: String, scale: Float, color: Int, shadow: Boolean = true) {
+fun drawTextScaled(ctx: GuiGraphicsExtractor, x: Int, y: Int, s: String, scale: Float, color: Int, shadow: Boolean = true) {
     ctx.pose().pushMatrix()
     ctx.pose().translate(x.toFloat(), y.toFloat())
     ctx.pose().scale(scale, scale)
-    ctx.drawString(tr, styledText(s), 0, 0, color, shadow)
+    ctx.text(tr, styledText(s), 0, 0, color, shadow)
     ctx.pose().popMatrix()
 }
 
-fun fill(ctx: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
+fun fill(ctx: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
     ctx.fill(x, y, x + w, y + h, color)
 }
 
-fun drawBorder(ctx: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
+fun drawBorder(ctx: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
     fill(ctx, x, y, w, 1, color)
     fill(ctx, x, y + h - 1, w, 1, color)
     fill(ctx, x, y + 1, 1, h - 2, color)
     fill(ctx, x + w - 1, y + 1, 1, h - 2, color)
 }
 
-fun roundedFill(ctx: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
+fun roundedFill(ctx: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
     fill(ctx, x + 1, y, w - 2, h, color)
     fill(ctx, x, y + 1, 1, h - 2, color)
     fill(ctx, x + w - 1, y + 1, 1, h - 2, color)

@@ -69,7 +69,7 @@ object LocationUtils {
 
     fun update() {
         val client = Minecraft.getInstance() ?: return
-        if (client.isSingleplayer) {
+        if (client.hasSingleplayerServer()) {
             location = Island.SINGLEPLAYER.location
             area = Island.SINGLEPLAYER.location
             return

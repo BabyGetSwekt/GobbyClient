@@ -19,7 +19,7 @@ import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.world.inventory.AbstractContainerMenu
-import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.network.HashedStack
 import net.minecraft.ChatFormatting
 
@@ -142,7 +142,7 @@ object LeapManager {
         val slots = handler.slots
         val before = slots.map { it.item.copy() }
 
-        handler.clicked(slotNumber, 0, ClickType.CLONE, player)
+        handler.clicked(slotNumber, 0, ContainerInput.CLONE, player)
 
         val changed = Int2ObjectOpenHashMap<HashedStack>()
         for (i in before.indices) {
@@ -158,7 +158,7 @@ object LeapManager {
                 handler.stateId,
                 slotNumber.toShort(),
                 0.toByte(),
-                ClickType.CLONE,
+                ContainerInput.CLONE,
                 changed,
                 cursorHash
             )

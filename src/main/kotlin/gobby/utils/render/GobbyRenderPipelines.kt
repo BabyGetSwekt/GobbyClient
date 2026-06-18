@@ -1,42 +1,58 @@
 package gobby.utils.render
 
+//? if >26.1.2
+import com.mojang.blaze3d.PrimitiveTopology
 import com.mojang.blaze3d.pipeline.BlendFunction
+import com.mojang.blaze3d.pipeline.ColorTargetState
+import com.mojang.blaze3d.pipeline.DepthStencilState
 import com.mojang.blaze3d.pipeline.RenderPipeline
-import com.mojang.blaze3d.platform.DepthTestFunction
-import com.mojang.blaze3d.shaders.UniformType
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.blaze3d.vertex.VertexFormat
+//? if <=26.1.2
+/*import com.mojang.blaze3d.vertex.VertexFormat*/
 import gobby.mixin.accessor.RenderPipelinesAccessor
-//? if <=1.21.10
-import net.minecraft.resources.ResourceLocation
-//? if >=1.21.11
-/*import net.minecraft.resources.Identifier as ResourceLocation*/
+//? if >26.1.2
+import net.minecraft.client.renderer.BindGroupLayouts
+import net.minecraft.resources.Identifier as ResourceLocation
+import java.util.Optional
 
 object GobbyRenderPipelines {
 
     private fun base(builder: RenderPipeline.Builder): RenderPipeline.Builder = builder
-        .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-        .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-        .withUniform("Fog", UniformType.UNIFORM_BUFFER)
-        .withBlend(BlendFunction.TRANSLUCENT)
+        //? if >26.1.2 {
+        .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+        .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+        //?}
+        .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
         .withCull(false)
 
     val ESP_QUADS: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
         base(RenderPipeline.builder())
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            //? if >26.1.2 {
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            //?}
+            //? if <=26.1.2
+            /*.withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)*/
+            .withDepthStencilState(Optional.empty())
             .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/esp_quads"))
             .build()
     )
 
     val ESP_LINES: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
         base(RenderPipeline.builder())
+            //? if >26.1.2
+            .withBindGroupLayout(BindGroupLayouts.FOG)
             .withVertexShader("core/rendertype_lines")
             .withFragmentShader("core/rendertype_lines")
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            //? if >26.1.2 {
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
+            //?}
+            //? if <=26.1.2
+            /*.withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)*/
+            .withDepthStencilState(Optional.empty())
             .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/esp_lines"))
             .build()
     )
@@ -45,18 +61,30 @@ object GobbyRenderPipelines {
         base(RenderPipeline.builder())
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            //? if >26.1.2 {
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            //?}
+            //? if <=26.1.2
+            /*.withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)*/
+            .withDepthStencilState(DepthStencilState.DEFAULT)
             .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/depth_quads"))
             .build()
     )
 
     val DEPTH_LINES: RenderPipeline = RenderPipelinesAccessor.invokeRegister(
         base(RenderPipeline.builder())
+            //? if >26.1.2
+            .withBindGroupLayout(BindGroupLayouts.FOG)
             .withVertexShader("core/rendertype_lines")
             .withFragmentShader("core/rendertype_lines")
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            //? if >26.1.2 {
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
+            //?}
+            //? if <=26.1.2
+            /*.withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)*/
+            .withDepthStencilState(DepthStencilState.DEFAULT)
             .withLocation(ResourceLocation.fromNamespaceAndPath("gobbyclient", "pipeline/depth_lines"))
             .build()
     )

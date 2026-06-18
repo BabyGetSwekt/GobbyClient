@@ -6,7 +6,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.gui.GuiElement
 import gobby.gui.GuiElementManager
 import gobby.gui.click.styledText
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import java.awt.Color
 
@@ -80,7 +80,7 @@ object TitleUtils : GuiElement() {
         serverTicksRemaining = 0
     }
 
-    override fun render(drawContext: GuiGraphics, screenWidth: Int, screenHeight: Int, alpha: Float) {
+    override fun render(drawContext: GuiGraphicsExtractor, screenWidth: Int, screenHeight: Int, alpha: Float) {
         val rt = richText
         if (rt == null && title.isEmpty()) return
 
@@ -93,7 +93,7 @@ object TitleUtils : GuiElement() {
             drawContext.pose().pushMatrix()
             drawContext.pose().translate(x, y)
             drawContext.pose().scale(scale, scale)
-            drawContext.drawString(tr, rt, 0, 0, 0xFFFFFFFF.toInt(), true)
+            drawContext.text(tr, rt, 0, 0, 0xFFFFFFFF.toInt(), true)
             drawContext.pose().popMatrix()
             return
         }
@@ -109,7 +109,7 @@ object TitleUtils : GuiElement() {
             drawContext.pose().pushMatrix()
             drawContext.pose().translate(x, y)
             drawContext.pose().scale(scale, scale)
-            drawContext.drawString(tr, styledText, 0, 0, argb, true)
+            drawContext.text(tr, styledText, 0, 0, argb, true)
             drawContext.pose().popMatrix()
         } else {
             val textWidth = tr.width(title) * scale

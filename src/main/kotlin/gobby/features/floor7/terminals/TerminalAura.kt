@@ -16,7 +16,10 @@ object TerminalAura {
     fun onTick(event: ClientTickEvent.Post) {
         if (TerminalUtils.isGuardFailed()) return
         if (!AutoTerminals.auraEnabled) return
-        if (mc.screen != null) return
+        //? if >26.1.2
+        if (mc.gui.screen() != null) return
+        //? if <=26.1.2
+        /*if (mc.screen != null) return*/
         if (!clock.hasTimePassed(AutoTerminals.auraDelay.toLong())) return
 
         val player = mc.player ?: return

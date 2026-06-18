@@ -82,13 +82,13 @@ object ScanUtils {
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (mc.level == null || mc.player == null) return
-        if ((!inDungeons && !mc.isSingleplayer) || inBoss) {
+        if ((!inDungeons && !mc.hasSingleplayerServer()) || inBoss) {
             currentRoom?.let { Gobbyclient.EVENT_MANAGER.publish(RoomEnterEvent(null)) }
             return
         } // We want the current room to register as null if we are not in a dungeon
 
         val roomCenter = getRoomCenter(posX.toInt(), posZ.toInt())
-        if (roomCenter == lastRoomPos && mc.isSingleplayer) return
+        if (roomCenter == lastRoomPos && mc.hasSingleplayerServer()) return
         lastRoomPos = roomCenter
 
         passedRooms.find { room -> room.roomComponents.any { it.vec2 == roomCenter } }?.let { cached ->
@@ -111,14 +111,20 @@ object ScanUtils {
         room.rotation = Rotations.entries.dropLast(1).find { rotation ->
             room.roomComponents.any { component ->
                 BlockPos(component.x + rotation.x, roomHeight, component.z + rotation.z).let { blockPos ->
-                    world.getBlockState(blockPos)?.block == Blocks.BLUE_TERRACOTTA && (room.roomComponents.size == 1 || horizontals.all { facing ->
+                    //? if >26.1.2
+                    world.getBlockState(blockPos)?.block == Blocks.DYED_TERRACOTTA.blue() && (room.roomComponents.size == 1 || horizontals.all { facing ->
+                    //? if <=26.1.2
+                    /*world.getBlockState(blockPos)?.block == Blocks.BLUE_TERRACOTTA && (room.roomComponents.size == 1 || horizontals.all { facing ->*/
                         world.getBlockState(
                             blockPos.offset(
                                 (if (facing.axis == Direction.Axis.X) facing.stepX else 0),
                                 0,
                                 (if (facing.axis == Direction.Axis.Z) facing.stepZ else 0)
                             )
-                        )?.block?.equalsOneOf(Blocks.AIR, Blocks.BLUE_TERRACOTTA) == true
+                        //? if >26.1.2
+                        )?.block?.equalsOneOf(Blocks.AIR, Blocks.DYED_TERRACOTTA.blue()) == true
+                        //? if <=26.1.2
+                        /*)?.block?.equalsOneOf(Blocks.AIR, Blocks.BLUE_TERRACOTTA) == true*/
                     }).also { isCorrectClay -> if (isCorrectClay) room.clayPos = blockPos }
                 }
             }

@@ -6,7 +6,7 @@ import gobby.events.gui.ScreenRenderEvent;
 import gobby.features.dungeons.LeapOverlay;
 import gobby.features.floor7.terminals.TerminalOverlay;
 import gobby.gui.brush.BlockSelector;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,8 +26,8 @@ public class MixinScreen {
 		}
 	}
 
-	@Inject(method = "renderWithTooltipAndSubtitles", at = @At("HEAD"), cancellable = true)
-	private void gobbyclient$captureDrawContext(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+	@Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("HEAD"), cancellable = true)
+	private void gobbyclient$captureDrawContext(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		BlockSelector.Companion.setCurrentDrawContext(context);
 		if (LeapOverlay.INSTANCE.isOverlayActive() || TerminalOverlay.INSTANCE.isOverlayActive()) {
 			Gobbyclient.EVENT_MANAGER.publish(new ScreenRenderEvent((Screen)(Object)this, context, mouseX, mouseY, delta));
@@ -36,14 +36,14 @@ public class MixinScreen {
 		}
 	}
 
-	@Inject(method = "renderWithTooltipAndSubtitles", at = @At("RETURN"))
-	private void gobbyclient$drawItemsAndReleaseContext(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+	@Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("RETURN"))
+	private void gobbyclient$drawItemsAndReleaseContext(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		BlockSelector.drawBlockItemsIfActive(context);
 		BlockSelector.Companion.setCurrentDrawContext(null);
 	}
 
-	@Inject(method = "renderWithTooltipAndSubtitles", at = @At("RETURN"))
-	private void gobbyclient$onScreenRender(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+	@Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("RETURN"))
+	private void gobbyclient$onScreenRender(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		Gobbyclient.EVENT_MANAGER.publish(new ScreenRenderEvent((Screen)(Object)this, context, mouseX, mouseY, delta));
 	}
 }

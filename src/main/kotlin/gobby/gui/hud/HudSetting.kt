@@ -4,7 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.FONT_STYLE
 import gobby.gui.click.HudButton
 import gobby.gui.click.Module
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import java.awt.Color
 import kotlin.reflect.KProperty
@@ -23,14 +23,17 @@ class HudSetting(
 
     private var lastWidth = 0
     private var lastHeight = 0
-    var drawContext: GuiGraphics? = null
+    var drawContext: GuiGraphicsExtractor? = null
         private set
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): HudSetting {
         module = thisRef
         HudManager.register(this)
         thisRef.settings.add(HudButton(name, desc) {
-            mc.execute { mc.setScreen(HudEditor(thisRef)) }
+            //? if >26.1.2
+            mc.execute { mc.gui.setScreen(HudEditor(thisRef)) }
+            //? if <=26.1.2
+            /*mc.execute { mc.setScreen(HudEditor(thisRef)) }*/
         })
         return this
     }
@@ -45,7 +48,7 @@ class HudSetting(
         lastHeight = maxOf(lastHeight, height)
     }
 
-    fun renderHud(ctx: GuiGraphics, example: Boolean) {
+    fun renderHud(ctx: GuiGraphicsExtractor, example: Boolean) {
         val mod = module ?: return
         if (!example && (!mod.enabled || !visible())) return
 
@@ -67,7 +70,7 @@ class HudSetting(
         val tr = mc.font
         val styled = styledColored(text, color)
         val width = tr.width(styled)
-        ctx.drawString(tr, styled, 0, lastHeight, -1, true)
+        ctx.text(tr, styled, 0, lastHeight, -1, true)
         lastWidth = maxOf(lastWidth, width)
         lastHeight += tr.lineHeight
     }
@@ -76,7 +79,7 @@ class HudSetting(
         val ctx = drawContext ?: return
         val tr = mc.font
         val width = tr.width(text)
-        ctx.drawString(tr, text, 0, lastHeight, -1, true)
+        ctx.text(tr, text, 0, lastHeight, -1, true)
         lastWidth = maxOf(lastWidth, width)
         lastHeight += tr.lineHeight
     }
