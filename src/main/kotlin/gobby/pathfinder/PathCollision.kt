@@ -120,11 +120,12 @@ internal object PathProgress {
             val dy = pos.y - target.y
             sqrt(planarDist * planarDist + dy * dy) < WAYPOINT_REACH
         } else {
-            planarDist < WAYPOINT_REACH && abs(pos.y - target.y) < yReach
+            planarDist < WAYPOINT_REACH && target.y - pos.y < WAYPOINT_CLIMB_TOLERANCE && pos.y - target.y < yReach
         }
     }
 
     private fun crossedSegmentPlane(waypoints: List<Vec3>, index: Int, target: Vec3, pos: Vec3): Boolean {
+        if (target.y - pos.y >= WAYPOINT_CLIMB_TOLERANCE) return false
         val direction = segmentDirection(waypoints, index, target) ?: return false
         val segmentLen = sqrt(direction.x * direction.x + direction.z * direction.z)
         if (segmentLen == 0.0) return false

@@ -24,14 +24,18 @@ object VoxelGroundSolver {
     private const val COST_CARDINAL = 1.0
     private const val COST_DIAGONAL = 1.414
     private const val COST_STEP_UP = 1.3
+    private const val COST_JUMP_RISE = 2.8
     private const val COST_DESCEND = 0.95
     private const val COST_FALL_PER_BLOCK = 0.35
     private const val COST_JUMP_ACTION = 6.0
     private const val COST_JUMP_SKIP_PER_BLOCK = 1.8
+    private const val TURN_PENALTY = 0.05
     private const val FALL_LIMIT = 64
     private const val GOAL_REACH_DIST_SQ = 1.5
     private const val WALL_PENALTY_PER_NEIGHBOR = 0.8
     private const val CLIFF_PENALTY_PER_NEIGHBOR = 1.5
+    private const val NEIGHBOR_DROP_LIMIT = 2.0
+    private const val SNAP_SPIRAL_RADIUS = 2
 
     private data class Node(val x: Int, val y: Int, val z: Int, val feetY: Double) {
         fun packKey(): Long {
@@ -44,24 +48,50 @@ object VoxelGroundSolver {
 
     private class Entry(val node: Node, val g: Double, val f: Double, val parent: Entry?)
 
-    data class PathResult(val waypoints: List<Vec3>, val complete: Boolean, val remainingDistance: Double) {
+    data class PathResult(
+        val waypoints: List<Vec3>,
+        val complete: Boolean,
+        val remainingDistance: Double,
+        val exhausted: Boolean,
+        val frontierUnknown: Boolean
+    ) {
         companion object {
-            val EMPTY = PathResult(emptyList(), false, Double.MAX_VALUE)
+            val EMPTY = PathResult(emptyList(), false, Double.MAX_VALUE, exhausted = false, frontierUnknown = false)
         }
     }
 
+    private var frontierTouchedUnknown = false
+
     fun solve(start: Vec3, goal: Vec3): PathResult {
+        frontierTouchedUnknown = false
         val startStand = snapToGround(start) ?: return PathResult.EMPTY
         val goalStand = snapToGround(goal) ?: return PathResult.EMPTY
         return aStar(startStand, goalStand)
     }
 
     private fun snapToGround(pos: Vec3): Node? {
-        val bx = floor(pos.x).toInt()
-        val bz = floor(pos.z).toInt()
-        val surfaces = BlockCache.getStandableSurfaces(bx, bz, pos.y - 2.5, pos.y + 1.5)
-        val best = surfaces.minByOrNull { abs(it.feetY - pos.y) } ?: return null
-        return Node(bx, best.pos.y, bz, best.feetY)
+        val centerX = floor(pos.x).toInt()
+        val centerZ = floor(pos.z).toInt()
+        var fallback: BlockCache.StandSurface? = null
+        for (radius in 0..SNAP_SPIRAL_RADIUS) {
+            var best: BlockCache.StandSurface? = null
+            for (dx in -radius..radius) for (dz in -radius..radius) {
+                if (max(abs(dx), abs(dz)) != radius) continue
+                val surfaces = BlockCache.getStandableSurfaces(centerX + dx, centerZ + dz, pos.y - 2.5, pos.y + 1.5)
+                val candidate = surfaces.minByOrNull { abs(it.feetY - pos.y) } ?: continue
+                if (fallback == null) fallback = candidate
+                if (radius > 0 && !snapReachable(pos, candidate)) continue
+                if (best == null || abs(candidate.feetY - pos.y) < abs(best.feetY - pos.y)) best = candidate
+            }
+            best?.let { return Node(it.pos.x, it.pos.y, it.pos.z, it.feetY) }
+        }
+        return fallback?.let { Node(it.pos.x, it.pos.y, it.pos.z, it.feetY) }
+    }
+
+    private fun snapReachable(from: Vec3, surface: BlockCache.StandSurface): Boolean {
+        val passY = max(from.y, surface.feetY)
+        val steps = max(2, (max(abs(surface.pos.x + 0.5 - from.x), abs(surface.pos.z + 0.5 - from.z)) * 2).toInt())
+        return BlockCache.isSweepClear(from.x, passY, from.z, surface.pos.x + 0.5, passY, surface.pos.z + 0.5, steps) { passY }
     }
 
     private fun aStar(start: Node, goal: Node): PathResult {
@@ -81,12 +111,27 @@ object VoxelGroundSolver {
             val recorded = closed[cur.node.packKey()] ?: Double.MAX_VALUE
             if (cur.g > recorded + 1e-6) continue
             expanded++
-            if (isAtGoal(cur.node, goal)) return PathResult(reconstruct(cur), complete = true, remainingDistance = 0.0)
+            if (isAtGoal(cur.node, goal)) {
+                return PathResult(reconstruct(cur), complete = true, remainingDistance = 0.0, exhausted = false, frontierUnknown = frontierTouchedUnknown)
+            }
             val h = heuristic(cur.node, goal)
             if (h < bestNearH) { bestNearH = h; bestNear = cur }
             expandNeighbors(cur, goal, jumpProfile, open, closed)
         }
-        return PathResult(reconstruct(bestNear), complete = false, remainingDistance = bestNearH)
+        return PathResult(
+            reconstruct(bestNear),
+            complete = false,
+            remainingDistance = euclidean(bestNear.node, goal),
+            exhausted = open.isEmpty(),
+            frontierUnknown = frontierTouchedUnknown
+        )
+    }
+
+    private fun euclidean(a: Node, b: Node): Double {
+        val dx = (a.x - b.x).toDouble()
+        val dy = a.feetY - b.feetY
+        val dz = (a.z - b.z).toDouble()
+        return sqrt(dx * dx + dy * dy + dz * dz)
     }
 
     private fun isAtGoal(n: Node, goal: Node): Boolean {
@@ -132,8 +177,11 @@ object VoxelGroundSolver {
         val baseCost = if (diag) COST_DIAGONAL else COST_CARDINAL
         val nx = cur.node.x + dx
         val nz = cur.node.z + dz
-
-        if (diag && !diagonalAllowed(cur.node, dx, dz)) return
+        if (!BlockCache.isChunkAvailable(nx, nz)) {
+            frontierTouchedUnknown = true
+            return
+        }
+        val turnCost = turnPenalty(cur, dx, dz)
 
         val maxDy = ceil(jumpProfile.maxClimb).toInt().coerceAtLeast(1)
         for (dy in -1..maxDy) {
@@ -142,24 +190,36 @@ object VoxelGroundSolver {
             val deltaY = standable.feetY - cur.node.feetY
             if (deltaY > jumpProfile.maxClimb) continue
             if (!headroomClear(cur.node, nx, standable.feetY, nz)) continue
-            val cost = baseCost + when {
+            if (diag && !diagonalAllowed(cur.node, dx, dz, standable.feetY)) continue
+            val cost = baseCost + turnCost + when {
+                deltaY > jumpProfile.stepHeight + STEP_JUMP_MARGIN -> COST_JUMP_RISE - COST_CARDINAL
                 dy > 0 -> COST_STEP_UP - COST_CARDINAL
                 dy < 0 -> -(COST_CARDINAL - COST_DESCEND)
                 else -> 0.0
             }
-            val terrainCost = terrainPenalty(nx, nz, standable.feetY)
-            pushNeighbor(cur, Node(nx, standable.pos.y, nz, standable.feetY), cur.g + cost + terrainCost, goal, open, closed)
+            val node = Node(nx, standable.pos.y, nz, standable.feetY)
+            if (dominated(node, cur.g + cost, closed)) continue
+            pushNeighbor(cur, node, cur.g + cost + terrainPenalty(nx, nz, standable.feetY), goal, open, closed)
         }
 
         if (!diag) {
             val landing = findFallLandingAtVoxel(nx, nz, cur.node.feetY)
             if (landing != null && fallClear(cur.node, nx, landing.feetY, nz)) {
                 val drop = cur.node.feetY - landing.feetY
-                val cost = baseCost + drop * COST_FALL_PER_BLOCK
-                val terrainCost = terrainPenalty(nx, nz, landing.feetY)
-                pushNeighbor(cur, Node(nx, landing.pos.y, nz, landing.feetY), cur.g + cost + terrainCost, goal, open, closed)
+                val cost = baseCost + turnCost + drop * COST_FALL_PER_BLOCK
+                val node = Node(nx, landing.pos.y, nz, landing.feetY)
+                if (dominated(node, cur.g + cost, closed)) return
+                pushNeighbor(cur, node, cur.g + cost + terrainPenalty(nx, nz, landing.feetY), goal, open, closed)
             }
         }
+    }
+
+    private fun turnPenalty(cur: Entry, dx: Int, dz: Int): Double {
+        val parent = cur.parent ?: return 0.0
+        val prevDx = Integer.signum(cur.node.x - parent.node.x)
+        val prevDz = Integer.signum(cur.node.z - parent.node.z)
+        if (prevDx == 0 && prevDz == 0) return 0.0
+        return if (prevDx != dx || prevDz != dz) TURN_PENALTY else 0.0
     }
 
     private fun expandJumpSkips(
@@ -179,48 +239,63 @@ object VoxelGroundSolver {
 
             val nx = cur.node.x + dx
             val nz = cur.node.z + dz
+            if (!BlockCache.isChunkAvailable(nx, nz)) {
+                frontierTouchedUnknown = true
+                continue
+            }
             val landing = findJumpLandingAtVoxel(nx, nz, cur.node.feetY, jumpProfile) ?: continue
             val deltaY = landing.feetY - cur.node.feetY
             if (deltaY <= jumpProfile.stepHeight + STEP_JUMP_MARGIN) continue
-            if (!jumpArcClear(cur.node, nx, landing.feetY, nz, jumpProfile)) continue
 
             val cost = COST_JUMP_ACTION + horizontal * COST_JUMP_SKIP_PER_BLOCK + deltaY * COST_STEP_UP * 2.0
-            val terrainCost = terrainPenalty(nx, nz, landing.feetY)
-            pushNeighbor(cur, Node(nx, landing.pos.y, nz, landing.feetY), cur.g + cost + terrainCost, goal, open, closed)
+            val node = Node(nx, landing.pos.y, nz, landing.feetY)
+            if (dominated(node, cur.g + cost, closed)) continue
+            if (!jumpArcClear(cur.node, nx, landing.feetY, nz, jumpProfile)) continue
+            pushNeighbor(cur, node, cur.g + cost + terrainPenalty(nx, nz, landing.feetY), goal, open, closed)
         }
     }
 
     private fun terrainPenalty(x: Int, z: Int, feetY: Double): Double {
-        var solidNeighbors = 0
+        var wallNeighbors = 0
         var cliffNeighbors = 0
         val midY = feetY + BlockCache.PLAYER_HEIGHT * 0.5
-        val belowFeet = floor(feetY - 0.05).toInt()
         for (i in CARDINAL_DX.indices) {
             val ax = x + CARDINAL_DX[i]
             val az = z + CARDINAL_DZ[i]
-            if (!BlockCache.isBodyClearAt(ax + 0.5, midY, az + 0.5)) solidNeighbors++
-            if (BlockCache.isPassable(BlockPos(ax, belowFeet, az))) cliffNeighbors++
+            if (!BlockCache.isChunkAvailable(ax, az)) continue
+            val reachableSurfaces = BlockCache.getStandableSurfaces(
+                ax, az,
+                feetY - NEIGHBOR_DROP_LIMIT,
+                feetY + BlockCache.MAX_JUMP_RISE
+            )
+            if (reachableSurfaces.isNotEmpty()) continue
+            if (!BlockCache.isBodyClearAt(ax + 0.5, midY, az + 0.5)) wallNeighbors++ else cliffNeighbors++
         }
-        val base = solidNeighbors * WALL_PENALTY_PER_NEIGHBOR + cliffNeighbors * CLIFF_PENALTY_PER_NEIGHBOR
+        val base = wallNeighbors * WALL_PENALTY_PER_NEIGHBOR + cliffNeighbors * CLIFF_PENALTY_PER_NEIGHBOR
         val blacklistMult = PathBlacklist.penaltyAt(x + 0.5, z + 0.5)
         return base * blacklistMult + (blacklistMult - 1.0)
+    }
+
+    private fun dominated(node: Node, gWithoutTerrain: Double, closed: HashMap<Long, Double>): Boolean {
+        val prev = closed[node.packKey()]
+        return prev != null && prev <= gWithoutTerrain
     }
 
     private val CARDINAL_DX = intArrayOf(1, -1, 0, 0)
     private val CARDINAL_DZ = intArrayOf(0, 0, 1, -1)
 
-    private fun diagonalAllowed(cur: Node, dx: Int, dz: Int): Boolean {
-        val midY = cur.feetY + BlockCache.PLAYER_HEIGHT * 0.5
-        val belowFeet = floor(cur.feetY - 0.05).toInt()
-        val c1Clear = BlockCache.isBodyClearAt((cur.x + dx) + 0.5, cur.feetY, cur.z + 0.5) &&
-            BlockCache.isBodyClearAt((cur.x + dx) + 0.5, midY, cur.z + 0.5)
-        val c2Clear = BlockCache.isBodyClearAt(cur.x + 0.5, cur.feetY, (cur.z + dz) + 0.5) &&
-            BlockCache.isBodyClearAt(cur.x + 0.5, midY, (cur.z + dz) + 0.5)
-        if (!c1Clear || !c2Clear) return false
-        val c1Solid = BlockCache.isSolid(BlockPos(cur.x + dx, belowFeet, cur.z))
-        val c2Solid = BlockCache.isSolid(BlockPos(cur.x, belowFeet, cur.z + dz))
-        return c1Solid || c2Solid
+    private fun diagonalAllowed(cur: Node, dx: Int, dz: Int, targetFeetY: Double): Boolean {
+        val passFeetY = max(cur.feetY, targetFeetY)
+        if (!BlockCache.isBodyClearAt((cur.x + dx) + 0.5, passFeetY, cur.z + 0.5)) return false
+        if (!BlockCache.isBodyClearAt(cur.x + 0.5, passFeetY, (cur.z + dz) + 0.5)) return false
+        val belowFeet = floor(passFeetY - 0.05).toInt()
+        val c1Supported = cornerSupported(cur.x + dx, belowFeet, cur.z)
+        val c2Supported = cornerSupported(cur.x, belowFeet, cur.z + dz)
+        return c1Supported || c2Supported
     }
+
+    private fun cornerSupported(x: Int, belowFeet: Int, z: Int): Boolean =
+        BlockCache.isSolid(BlockPos(x, belowFeet, z)) || BlockCache.isSolid(BlockPos(x, belowFeet - 1, z))
 
     private fun findStandableAtVoxel(x: Int, y: Int, z: Int, anchorFeetY: Double): BlockCache.StandSurface? {
         val minFeet = y.toDouble() - 0.1

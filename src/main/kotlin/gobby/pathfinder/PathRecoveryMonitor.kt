@@ -3,9 +3,12 @@ package gobby.pathfinder
 import gobby.Gobbyclient.Companion.mc
 import gobby.pathfinder.movement.InputManager
 import gobby.pathfinder.movement.InputManager.MoveAction
+import gobby.pathfinder.prediction.JumpTracker
+import gobby.pathfinder.prediction.PredictionLogger
 import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.random.Random
 
 internal class PathRecoveryMonitor {
     private var lastCursor: Int = 0
@@ -42,13 +45,7 @@ internal class PathRecoveryMonitor {
     }
 
     fun tick(pos: Vec3, isSky: Boolean, cursor: Int, waypoints: List<Vec3>, repathInFlight: Boolean): Decision {
-        if (!isSky && mc.player?.onGround() == false) {
-            noProgressTicks = 0
-            positionStuckTicks = 0
-            lastPosForStuck = pos
-            clearRecoveryInputs()
-            return Decision.None
-        }
+        val airborne = !isSky && mc.player?.onGround() == false
 
         if (!repathInFlight) {
             val offPath = isOffPath(pos, cursor, waypoints)
@@ -63,10 +60,12 @@ internal class PathRecoveryMonitor {
                     offPathTicks = 0
                     return Decision.OffPath
                 }
-            } else {
+            } else if (!airborne) {
                 offPathTicks = 0
             }
         }
+
+        if (airborne) return Decision.None
 
         if (cursor != lastCursor) {
             lastCursor = cursor
@@ -94,7 +93,7 @@ internal class PathRecoveryMonitor {
         if (stuck && !inRecovery) {
             inRecovery = true
             recoveryTicks = 0
-            recoveryStrafeRight = kotlin.random.Random.nextBoolean()
+            recoveryStrafeRight = Random.nextBoolean()
         }
         return Decision.None
     }
@@ -103,13 +102,23 @@ internal class PathRecoveryMonitor {
         if (!inRecovery) return false
         InputManager.releaseAll()
         recoveryTicks++
-        if (recoveryTicks <= STRAFE_BACKWARD_TICKS) {
-            InputManager.press(MoveAction.BACKWARD)
-        } else {
-            val phase = recoveryTicks - STRAFE_BACKWARD_TICKS
-            if (phase % STRAFE_WIGGLE_PERIOD == 0) recoveryStrafeRight = !recoveryStrafeRight
-            if (recoveryStrafeRight) InputManager.press(MoveAction.RIGHT) else InputManager.press(MoveAction.LEFT)
-            InputManager.press(MoveAction.FORWARD)
+        when {
+            recoveryTicks <= RECOVERY_JUMP_TICKS -> {
+                if (recoveryTicks == 1) mc.player?.let {
+                    PredictionLogger.log("[t=${it.tickCount}] RECOVERY_JUMP at ${PredictionLogger.fmt(it.position())}")
+                    JumpTracker.register(it, null, it.position())
+                }
+                InputManager.press(MoveAction.FORWARD)
+                InputManager.press(MoveAction.JUMP)
+            }
+            recoveryTicks <= RECOVERY_JUMP_TICKS + RECOVERY_BACKSTEP_TICKS -> InputManager.press(MoveAction.BACKWARD)
+            else -> {
+                val phase = recoveryTicks - RECOVERY_JUMP_TICKS - RECOVERY_BACKSTEP_TICKS
+                if (phase % STRAFE_WIGGLE_PERIOD == 0) recoveryStrafeRight = !recoveryStrafeRight
+                if (recoveryStrafeRight) InputManager.press(MoveAction.RIGHT) else InputManager.press(MoveAction.LEFT)
+                InputManager.press(MoveAction.FORWARD)
+                InputManager.press(MoveAction.JUMP)
+            }
         }
         return true
     }
@@ -132,8 +141,8 @@ internal class PathRecoveryMonitor {
             val wp = waypoints[i]
             val dx = pos.x - wp.x
             val dz = pos.z - wp.z
-            val dy = abs(pos.y - wp.y)
-            if (dy > OFF_PATH_Y_DIFF) continue
+            if (wp.y - pos.y > WAYPOINT_CLIMB_TOLERANCE) continue
+            if (pos.y - wp.y > OFF_PATH_Y_DIFF) continue
             val d = dx * dx + dz * dz
             if (d < bestDistSq) {
                 bestDistSq = d
@@ -144,7 +153,7 @@ internal class PathRecoveryMonitor {
     }
 
     private fun isOffPath(pos: Vec3, cursor: Int, waypoints: List<Vec3>): Boolean {
-        if (mc.player?.onGround() == false || cursor >= waypoints.size) return false
+        if (cursor >= waypoints.size) return false
         val deviation = PathFollowMath.routeDeviation(
             waypoints,
             cursor,

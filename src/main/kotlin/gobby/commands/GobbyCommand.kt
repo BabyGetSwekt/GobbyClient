@@ -17,9 +17,11 @@ import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.pathfinder.PathExecutor
+import gobby.pathfinder.PlanStats
 import gobby.pathfinder.RouteEngine
 import gobby.pathfinder.RoutePlan
 import gobby.pathfinder.TravelMode
+import gobby.utils.timer.Clock
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.Utils.executeLater
 import gobby.utils.ChatUtils.modMessage
@@ -311,7 +313,24 @@ object GobbyCommand {
         }
         sb.append(divider)
         modMessage(sb.toString())
+        diagnoseVoxelSolverAsync(start, goal)
         return Command.SINGLE_SUCCESS
+    }
+
+    private fun diagnoseVoxelSolverAsync(start: Vec3, goal: Vec3) {
+        val clock = Clock()
+        RouteEngine.planAsync(start, goal, TravelMode.WALK).thenAccept { plan ->
+            val ms = clock.getTime()
+            mc.execute {
+                val verdict = when {
+                    plan is RoutePlan.Failed -> "§c✗ VoxelGroundSolver: FAILED in ${ms}ms (solve ${PlanStats.lastSolveMs}ms, ${PlanStats.lastWaypointCount} wps)"
+                    plan is RoutePlan.Ground && plan.complete -> "§a✓ VoxelGroundSolver: COMPLETE path, ${plan.waypoints.size} waypoints in ${ms}ms"
+                    plan is RoutePlan.Ground -> "§e◐ VoxelGroundSolver: PARTIAL path, ${plan.waypoints.size} waypoints in ${ms}ms (will replan at end)"
+                    else -> "§7VoxelGroundSolver: ${plan::class.simpleName}, ${plan.waypoints.size} wps in ${ms}ms"
+                }
+                modMessage(verdict)
+            }
+        }
     }
 
     private fun appendClimbBarrier(sb: StringBuilder, astarComponent: Set<WalkPolygon>) {

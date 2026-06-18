@@ -3,12 +3,18 @@ package gobby.pathfinder
 import gobby.Gobbyclient.Companion.mc
 import gobby.pathfinder.movement.InputManager
 import gobby.pathfinder.movement.InputManager.MoveAction
+import gobby.pathfinder.prediction.JumpDecision
+import gobby.pathfinder.prediction.JumpPlanner
+import gobby.pathfinder.prediction.JumpTracker
+import gobby.pathfinder.prediction.PredictionLogger
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.rotation.AngleUtils
 import gobby.utils.rotation.RotationUtils
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+import net.minecraft.world.level.block.StairBlock
+import net.minecraft.world.level.block.state.properties.Half
 import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -23,12 +29,14 @@ internal class PathSteering {
     private var desiredPitch: Float = Float.NaN
     private var smoothedVelX: Double = 0.0
     private var smoothedVelZ: Double = 0.0
+    private var jumpStallTicks: Int = 0
 
     fun reset() {
         desiredYaw = Float.NaN
         desiredPitch = Float.NaN
         smoothedVelX = 0.0
         smoothedVelZ = 0.0
+        jumpStallTicks = 0
     }
 
     private fun updateSmoothedVelocity(player: LocalPlayer) {
@@ -101,19 +109,51 @@ internal class PathSteering {
             .coerceAtMost(jumpProfile.maxHorizontalBlocks + JUMP_REACH_MARGIN)
         val needsWaypointJump = waypointDy > jumpRequiredHeight && waypointDy <= jumpProfile.maxClimb &&
             targetHorizontalDist < jumpReachDist && (target.y - pos.y) > jumpRequiredHeight
-        val upcomingJumpTarget = findUpcomingJumpTarget(waypoints, idx, pos, jumpProfile)
-        val plannedJump = needsWaypointJump || upcomingJumpTarget != null
-        val needsTerrainJump = !descendingSegment && plannedJump &&
+        val upcomingJump = findUpcomingJump(waypoints, idx, pos, jumpProfile)
+        val upcomingJumpTarget = upcomingJump?.target
+        val climbAheadOfPlayer = target.y - pos.y > jumpRequiredHeight || upcomingJumpTarget != null
+        val needsTerrainJump = !descendingSegment && climbAheadOfPlayer &&
             (terrainNeedsPrejump(player, frame.dirX, frame.dirZ, 1.0, jumpProfile) ||
                 ledgeNeedsBridge(player, frame.dirX, frame.dirZ, 1.0, jumpProfile))
-        if ((needsWaypointJump || needsTerrainJump) && player.onGround()) InputManager.press(MoveAction.JUMP)
+
+        val (dx, dz) = computeSteerDelta(waypoints, idx, pos, predictedPos, frame)
+
+        var brakeForJump = false
+        val plannedJumpTarget = upcomingJumpTarget ?: target.takeIf { needsWaypointJump }
+        if (player.onGround()) {
+            when {
+                plannedJumpTarget != null -> {
+                    val strict = upcomingJump?.isGap == true
+                    val plan = JumpPlanner.decide(player, plannedJumpTarget, jumpProfile, strict)
+                    JumpTracker.updatePreview(plan.simulation)
+                    when (plan.decision) {
+                        JumpDecision.JUMP -> {
+                            jumpStallTicks = 0
+                            InputManager.press(MoveAction.JUMP)
+                            JumpTracker.register(player, plan.simulation, plannedJumpTarget)
+                        }
+                        JumpDecision.BRAKE -> {
+                            brakeForJump = true
+                            logJumpStall(player, plannedJumpTarget, jumpProfile, strict, plan.decision)
+                        }
+                        JumpDecision.WAIT -> logJumpStall(player, plannedJumpTarget, jumpProfile, strict, plan.decision)
+                    }
+                }
+                else -> {
+                    jumpStallTicks = 0
+                    JumpTracker.updatePreview(null)
+                    if (needsTerrainJump) {
+                        InputManager.press(MoveAction.JUMP)
+                        JumpTracker.register(player, null, target)
+                    }
+                }
+            }
+        }
 
         if (targetHorizontalDist < ANTI_SPIN_DIST) {
             InputManager.press(MoveAction.FORWARD)
             return
         }
-
-        val (dx, dz) = computeSteerDelta(waypoints, idx, pos, predictedPos, frame)
 
         val effectiveTarget = upcomingJumpTarget ?: target
         val effectiveJumping = needsWaypointJump || needsTerrainJump || upcomingJumpTarget != null
@@ -129,7 +169,7 @@ internal class PathSteering {
         val absYawDiff = abs(AngleUtils.wrapDegrees(movementYaw - player.yRot))
 
         val sharpTurnAhead = PathFollowMath.upcomingTurnDegrees(waypoints, idx, pos, CORNER_BRAKE_DIST) > CORNER_BRAKE_ANGLE
-        val sprintAllowed = enableSprint && !sharpTurnAhead
+        val sprintAllowed = enableSprint && !sharpTurnAhead && !brakeForJump
         InputManager.suppressSprint = !sprintAllowed
 
         if (enableSpeedAdaptation) {
@@ -209,19 +249,49 @@ internal class PathSteering {
         desiredPitch = pitch
     }
 
-    private fun findUpcomingJumpTarget(waypoints: List<Vec3>, idx: Int, pos: Vec3, jumpProfile: JumpProfile): Vec3? {
+    private fun logJumpStall(player: LocalPlayer, target: Vec3, jumpProfile: JumpProfile, strict: Boolean, decision: JumpDecision) {
+        jumpStallTicks++
+        if (jumpStallTicks % JUMP_STALL_LOG_INTERVAL != 0) return
+        PredictionLogger.log(
+            "[t=${player.tickCount}] JUMP_STALL ${jumpStallTicks}t decision=$decision target=${PredictionLogger.fmt(target)} ${JumpPlanner.diagnostics(player, target, jumpProfile, strict)}"
+        )
+    }
+
+    private data class UpcomingJump(val target: Vec3, val isGap: Boolean)
+
+    private fun findUpcomingJump(waypoints: List<Vec3>, idx: Int, pos: Vec3, jumpProfile: JumpProfile): UpcomingJump? {
+        val jumpThreshold = jumpProfile.stepHeight + STEP_JUMP_MARGIN
         val ceiling = min(idx + max(JUMP_LOOKAHEAD_WAYPOINTS, jumpProfile.maxSkipCells), waypoints.lastIndex)
         for (i in idx..ceiling) {
             val wp = waypoints[i]
             val prev = if (i > 0) waypoints[i - 1] else pos
             val dy = wp.y - prev.y
-            if (dy <= jumpProfile.stepHeight + STEP_JUMP_MARGIN || dy > jumpProfile.maxClimb) continue
+            if (dy <= jumpThreshold || dy > jumpProfile.maxClimb) continue
+            if (wp.y - pos.y <= jumpThreshold) continue
+            if (stepReachable(floor(wp.x).toInt(), floor(wp.z).toInt(), prev.y, wp.y, wp.x - prev.x, wp.z - prev.z, jumpProfile)) continue
             val dx = wp.x - pos.x
             val dz = wp.z - pos.z
             val dist = sqrt(dx * dx + dz * dz)
-            if (dist <= max(JUMP_LOOKAHEAD_DIST, jumpProfile.maxHorizontalBlocks + JUMP_REACH_MARGIN)) return wp
+            if (dist <= max(JUMP_LOOKAHEAD_DIST, jumpProfile.maxHorizontalBlocks + JUMP_REACH_MARGIN)) {
+                val pairDx = wp.x - prev.x
+                val pairDz = wp.z - prev.z
+                val isGap = sqrt(pairDx * pairDx + pairDz * pairDz) > ADJACENT_CELL_DIST
+                return UpcomingJump(wp, isGap)
+            }
         }
         return null
+    }
+
+    private fun stepReachable(x: Int, z: Int, fromFeetY: Double, toFeetY: Double, dirX: Double, dirZ: Double, jumpProfile: JumpProfile): Boolean {
+        val state = BlockCache.getBlockState(BlockPos(x, floor(fromFeetY + GROUND_TOLERANCE).toInt(), z))
+        if (state.block is StairBlock) {
+            if (state.getValue(StairBlock.HALF) != Half.BOTTOM) return false
+            val facing = state.getValue(StairBlock.FACING)
+            return facing.stepX * dirX + facing.stepZ * dirZ > 0.0
+        }
+        val surfaces = BlockCache.getStandableSurfaces(x, z, fromFeetY + GROUND_TOLERANCE, toFeetY + GROUND_TOLERANCE)
+        val lowest = surfaces.minByOrNull { it.feetY } ?: return false
+        return lowest.feetY - fromFeetY <= jumpProfile.stepHeight + STEP_JUMP_MARGIN
     }
 
     private fun steerFall(target: Vec3, pos: Vec3, player: LocalPlayer, dx: Double, dz: Double) {
@@ -283,10 +353,12 @@ internal class PathSteering {
                 val top = by + shape.max(Direction.Axis.Y)
                 val bottom = by + shape.min(Direction.Axis.Y)
                 val stepHeight = top - feetY
-                if (stepHeight > jumpProfile.stepHeight + STEP_JUMP_MARGIN && stepHeight <= jumpProfile.maxClimb && top > feetY + GROUND_TOLERANCE) return true
+                val landable = top <= feetY + jumpProfile.maxClimb && BlockCache.isBodyClearAt(px, top, pz)
+                if (stepHeight > jumpProfile.stepHeight + STEP_JUMP_MARGIN && landable && top > feetY + GROUND_TOLERANCE) return true
                 if (bottom > feetY + GROUND_TOLERANCE &&
                     bottom < feetY + BlockCache.PLAYER_HEIGHT &&
-                    top > feetY + jumpProfile.stepHeight + STEP_JUMP_MARGIN
+                    top > feetY + jumpProfile.stepHeight + STEP_JUMP_MARGIN &&
+                    landable
                 ) return true
             }
         }
@@ -304,8 +376,11 @@ internal class PathSteering {
         val nx = dx / horizontalDist
         val nz = dz / horizontalDist
         val feetY = player.y
-        val farTop = surfaceTopNear(player.x + nx * LEDGE_PROBE_FAR, player.z + nz * LEDGE_PROBE_FAR, feetY, true, jumpProfile) ?: return false
+        val farX = player.x + nx * LEDGE_PROBE_FAR
+        val farZ = player.z + nz * LEDGE_PROBE_FAR
+        val farTop = surfaceTopNear(farX, farZ, feetY, true, jumpProfile) ?: return false
         if (farTop <= feetY + jumpProfile.stepHeight + STEP_JUMP_MARGIN || farTop > feetY + jumpProfile.maxClimb) return false
+        if (!BlockCache.isBodyClearAt(farX, farTop, farZ)) return false
         val midTop = surfaceTopNear(player.x + nx * LEDGE_PROBE_NEAR, player.z + nz * LEDGE_PROBE_NEAR, feetY, false, jumpProfile)
         return midTop == null || midTop < feetY - GROUND_TOLERANCE
     }

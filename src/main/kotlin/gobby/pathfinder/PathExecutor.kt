@@ -6,20 +6,21 @@ import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
 import gobby.pathfinder.movement.InputManager
+import gobby.pathfinder.prediction.JumpTracker
+import gobby.pathfinder.prediction.PredictionLogger
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.PlayerUtils
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.sqrt
 
 object PathExecutor {
 
     var enableMicroPauses: Boolean = true
     var enableSpeedAdaptation: Boolean = true
     var enableSprint: Boolean = true
-    var enableSegmented: Boolean = false
-    var segmentBlocks: Int = DEFAULT_SEGMENT_SIZE
 
     private var plan: RoutePlan = RoutePlan.Failed
     private var cursor: Int = 0
@@ -33,14 +34,17 @@ object PathExecutor {
     private var repathInFlight: Boolean = false
     private var pendingFallRepath: Boolean = false
     private var partialReplans: Int = 0
+    private var bestGoalDist: Double = Double.MAX_VALUE
     private var finalGoal: Vec3? = null
     private var travelMode: TravelMode = TravelMode.WALK
-    private val segmentContinuation = PathSegmentContinuation()
     private var waypointsMutable: MutableList<Vec3> = mutableListOf()
 
     fun beginLongPath(start: Vec3, finalGoal: Vec3, mode: TravelMode = TravelMode.WALK) {
-        enableSegmented = false
         partialReplans = 0
+        bestGoalDist = Double.MAX_VALUE
+        PredictionLogger.startRoute(finalGoal)
+        PredictionLogger.log("autoJump=${mc.options.autoJump().get()}")
+        JumpTracker.reset()
         planFullAsync(start, finalGoal, mode)
     }
 
@@ -48,9 +52,9 @@ object PathExecutor {
         RouteEngine.planAsync(start, finalGoal, mode).thenAccept { plan ->
             mc.execute {
                 if (plan is RoutePlan.Failed) {
-                    modMessage("§cNo route found in ${PlanStats.lastTotalMs}ms (${PlanStats.lastPolygonCount} polys scanned).")
+                    modMessage("§cNo route found in ${PlanStats.lastTotalMs}ms.")
                 } else {
-                    PathRouteReporter.reportTimings(plan, segmented = false)
+                    PathRouteReporter.reportTimings(plan)
                     begin(plan, finalGoal, mode)
                 }
             }
@@ -64,7 +68,8 @@ object PathExecutor {
             return
         }
         plan = routePlan
-        if (routePlan is RoutePlan.Ground && routePlan.complete) partialReplans = 0
+        val goal = originalGoal ?: routePlan.waypoints.last()
+        if (routePlan is RoutePlan.Ground && routePlan.complete && endsNearGoal(routePlan, goal)) partialReplans = 0
         waypointsMutable = routePlan.waypoints.toMutableList()
         cursor = 1
         steering.reset()
@@ -76,9 +81,15 @@ object PathExecutor {
         graceTicksRemaining = OBSTRUCTION_GRACE_TICKS
         repathInFlight = false
         pendingFallRepath = false
-        segmentContinuation.reset(enableSegmented, originalGoal, routePlan.waypoints.last())
-        finalGoal = originalGoal ?: routePlan.waypoints.last()
+        finalGoal = goal
         travelMode = mode
+    }
+
+    private fun endsNearGoal(routePlan: RoutePlan, goal: Vec3): Boolean {
+        val end = routePlan.waypoints.last()
+        val dx = end.x - goal.x
+        val dz = end.z - goal.z
+        return dx * dx + dz * dz <= GOAL_ARRIVE_DIST_SQ && abs(end.y - goal.y) <= GOAL_ARRIVE_Y_DIFF
     }
 
     fun stop() {
@@ -112,6 +123,7 @@ object PathExecutor {
         val active = plan
         if (active is RoutePlan.Failed) return
         val player = mc.player ?: return
+        JumpTracker.tick(player)
 
         val waypoints = waypointsMutable
         if (cursor >= waypoints.size) {
@@ -125,17 +137,6 @@ object PathExecutor {
         if (cursor >= waypoints.size) {
             arrive()
             return
-        }
-
-        if (segmentContinuation.shouldRequestNextSegment(cursor, waypoints.size)) {
-            segmentContinuation.requestNextSegment(
-                waypointsMutable,
-                finalGoal,
-                segmentBlocks,
-                travelMode,
-                stop = ::stop,
-                replanFromCurrentPosition = ::triggerObstructionRepath
-            )
         }
 
         if (!isSky && handleUnplannedFall(waypoints, pos, player)) return
@@ -187,6 +188,7 @@ object PathExecutor {
 
     private fun handleUnplannedFall(waypoints: List<Vec3>, pos: Vec3, player: LocalPlayer): Boolean {
         if (cursor <= 0 || cursor >= waypoints.size) return false
+        if (JumpTracker.isPending() && !pendingFallRepath) return false
 
         if (pendingFallRepath) {
             InputManager.releaseAll()
@@ -264,7 +266,9 @@ object PathExecutor {
     }
 
     private fun arrive() {
-        val pos = mc.player?.position()
+        val player = mc.player
+        if (player != null && !player.onGround() && plan !is RoutePlan.Sky) return
+        val pos = player?.position()
         val goal = finalGoal
         if (pos != null && goal != null) {
             val dx = pos.x - goal.x
@@ -273,6 +277,9 @@ object PathExecutor {
             val dy = abs(pos.y - goal.y)
             if (planar > GOAL_ARRIVE_DIST_SQ || dy > GOAL_ARRIVE_Y_DIFF) {
                 if (!repathInFlight) {
+                    val goalDist = sqrt(planar + dy * dy)
+                    if (bestGoalDist - goalDist > PARTIAL_PROGRESS_RESET_DIST) partialReplans = 0
+                    bestGoalDist = min(bestGoalDist, goalDist)
                     partialReplans++
                     if (partialReplans > MAX_PARTIAL_REPLANS) {
                         modMessage("§cGoal appears unreachable after $MAX_PARTIAL_REPLANS partial paths - giving up.")

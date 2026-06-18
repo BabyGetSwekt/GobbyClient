@@ -33,13 +33,12 @@ internal class PathMicroPauser {
 }
 
 internal object PathRouteReporter {
-    fun reportTimings(plan: RoutePlan, segmented: Boolean) {
-        val suffix = if (segmented) " (segment of ${plan.waypoints.size} waypoints)" else " (${plan.waypoints.size} waypoints)"
+    fun reportTimings(plan: RoutePlan) {
         val pieces = buildList {
             add("total=${PlanStats.lastTotalMs}ms")
             if (PlanStats.lastMeshMs > 0) add("mesh=${PlanStats.lastMeshMs}ms (${PlanStats.lastPolygonCount} polys)")
             if (PlanStats.lastSolveMs > 0) add("solve=${PlanStats.lastSolveMs}ms")
         }
-        modMessage("Route found$suffix - ${pieces.joinToString(" | ")}.")
+        modMessage("Route found (${plan.waypoints.size} waypoints) - ${pieces.joinToString(" | ")}.")
     }
 }

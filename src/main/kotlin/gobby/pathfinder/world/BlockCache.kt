@@ -104,7 +104,7 @@ object BlockCache : ChunkScopedCache() {
     fun getCollisionShape(pos: BlockPos): VoxelShape =
         getBlockState(pos).getCollisionShape(EmptyBlockGetter.INSTANCE, pos, CollisionContext.empty())
 
-    private fun getShapeAabbs(pos: BlockPos): List<AABB> {
+    fun getShapeAabbs(pos: BlockPos): List<AABB> {
         val state = getBlockState(pos)
         shapeAabbsCache[state]?.let { return it }
         val shape = state.getCollisionShape(EmptyBlockGetter.INSTANCE, pos, CollisionContext.empty())

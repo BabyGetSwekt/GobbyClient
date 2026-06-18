@@ -102,6 +102,22 @@ object BlockRenderUtils {
         vertexConsumerProvider.endBatch(linesLayer)
     }
 
+    fun drawNode(
+        matrixStack: PoseStack,
+        camera: Camera,
+        center: Vec3,
+        halfSize: Double,
+        color: Color,
+        filled: Boolean = true,
+        depthTest: Boolean = false
+    ) {
+        val box = AABB(
+            center.x - halfSize, center.y - halfSize, center.z - halfSize,
+            center.x + halfSize, center.y + halfSize, center.z + halfSize
+        )
+        draw3DBox(matrixStack, camera, box, color, filled, depthTest)
+    }
+
     fun drawLine3D(
         matrixStack: PoseStack,
         camera: Camera,

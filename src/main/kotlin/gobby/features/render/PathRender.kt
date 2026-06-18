@@ -4,6 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
 import gobby.pathfinder.PathExecutor
+import gobby.pathfinder.prediction.JumpTracker
 import gobby.utils.render.BlockRenderUtils
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -13,7 +14,9 @@ object PathRender {
 
     private val UPCOMING_COLOR = Color(80, 200, 255, 200)
     private val CURRENT_TARGET_COLOR = Color(80, 255, 120, 230)
+    private val PREDICTION_COLOR = Color(255, 200, 60, 220)
     private const val NODE_BOX_SIZE = 0.18
+    private const val PREDICTION_NODE_SIZE = 0.06
 
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
@@ -26,6 +29,13 @@ object PathRender {
 
         drawPathLines(event, waypoints, cursor)
         drawPathNodes(event, waypoints, cursor)
+        drawPredictionNodes(event)
+    }
+
+    private fun drawPredictionNodes(event: NewRender3DEvent) {
+        for (tickPos in JumpTracker.renderPositions()) {
+            BlockRenderUtils.drawNode(event.matrixStack, event.camera, tickPos, PREDICTION_NODE_SIZE, PREDICTION_COLOR)
+        }
     }
 
     private fun drawPathLines(event: NewRender3DEvent, waypoints: List<Vec3>, cursor: Int) {
