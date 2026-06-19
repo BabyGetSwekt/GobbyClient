@@ -261,10 +261,7 @@ object Brush {
         if (!mc.options.keyUse.isDown) rightClickUsed = false
         if (!mc.options.keyAttack.isDown) leftClickUsed = false
 
-        //? if >26.1.2
         val inGui = mc.gui.screen() != null
-        //? if <=26.1.2
-        /*val inGui = mc.screen != null*/
         if (wasInGui && !inGui) {
             rightClickUsed = mc.options.keyUse.isDown
             leftClickUsed = mc.options.keyAttack.isDown
@@ -292,10 +289,7 @@ object Brush {
     fun onRightClick(event: RightClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        //? if >26.1.2
         if (mc.gui.screen() != null) return
-        //? if <=26.1.2
-        /*if (mc.screen != null) return*/
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (rightClickUsed) return
@@ -322,10 +316,7 @@ object Brush {
     fun onLeftClick(event: LeftClickEvent) {
         if (!enabled) return
         if (!inDungeons) return
-        //? if >26.1.2
         if (mc.gui.screen() != null) return
-        //? if <=26.1.2
-        /*if (mc.screen != null) return*/
         val hitResult = getTargetedBlock() ?: return
         event.cancel()
         if (leftClickUsed) return

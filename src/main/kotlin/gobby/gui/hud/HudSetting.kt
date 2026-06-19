@@ -30,10 +30,7 @@ class HudSetting(
         module = thisRef
         HudManager.register(this)
         thisRef.settings.add(HudButton(name, desc) {
-            //? if >26.1.2
             mc.execute { mc.gui.setScreen(HudEditor(thisRef)) }
-            //? if <=26.1.2
-            /*mc.execute { mc.setScreen(HudEditor(thisRef)) }*/
         })
         return this
     }

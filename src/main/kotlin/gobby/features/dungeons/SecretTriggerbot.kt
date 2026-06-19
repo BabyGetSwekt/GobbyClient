@@ -20,10 +20,7 @@ object SecretTriggerbot : Triggerbot("Secret Triggerbot", "Automatically right-c
     }
 
     override fun shouldActivate(): Boolean {
-        //? if >26.1.2
         if (!inDungeons || inBoss || mc.gui.screen() != null) return false
-        //? if <=26.1.2
-        /*if (!inDungeons || inBoss || mc.screen != null) return false*/
         if (!enabled) return false
         if (currentRoom?.data?.name.equalsOneOf("Water Board", "Three Weirdos")) return false
         return true

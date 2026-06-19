@@ -85,10 +85,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
 
     fun isOverlayActive(): Boolean {
         if (!enabled || !inDungeons) return false
-        //? if >26.1.2
         val screen = mc.gui.screen() as? ContainerScreen ?: return false
-        //? if <=26.1.2
-        /*val screen = mc.screen as? ContainerScreen ?: return false*/
         return screen.title.string.contains("Spirit Leap")
     }
 
@@ -99,10 +96,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             return
         }
 
-        //? if >26.1.2
         val screen = mc.gui.screen() as? ContainerScreen
-        //? if <=26.1.2
-        /*val screen = mc.screen as? ContainerScreen*/
         if (screen == null || !screen.title.string.contains("Spirit Leap")) {
             if (isActive) deactivate()
             return
@@ -247,10 +241,7 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             it.width > 0 && it.height > 0 &&
                 mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        //? if >26.1.2
         val screen = mc.gui.screen() as? ContainerScreen ?: return
-        //? if <=26.1.2
-        /*val screen = mc.screen as? ContainerScreen ?: return*/
         val handler = screen.menu
         val player = mc.player ?: return
         val connection = mc.connection ?: return

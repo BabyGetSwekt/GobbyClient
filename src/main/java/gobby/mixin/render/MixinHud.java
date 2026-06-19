@@ -4,19 +4,13 @@ import gobby.Gobbyclient;
 import gobby.events.render.Render2DEvent;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-//? if >26.1.2
 import net.minecraft.client.gui.Hud;
-//? if <=26.1.2
-/*import net.minecraft.client.gui.Gui;*/
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-//? if >26.1.2
 @Mixin(Hud.class)
-//? if <=26.1.2
-/*@Mixin(Gui.class)*/
 public class MixinHud {
 
     /**

@@ -20,10 +20,7 @@ object SimulateCommand {
                         ClientCommands.argument("message", StringArgumentType.greedyString())
                             .executes { context ->
                                 val message = StringArgumentType.getString(context, "message")
-                                //? if >26.1.2
                                 mc.gui.hud.chat.addClientSystemMessage(Component.literal(message))
-                                //? if <=26.1.2
-                                /*mc.gui.chat.addClientSystemMessage(Component.literal(message))*/
                                 Command.SINGLE_SUCCESS
                             }
                     )

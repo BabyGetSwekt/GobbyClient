@@ -55,10 +55,7 @@ object GobbyCommand {
     private fun openConfig(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommands.literal(name)
             .executes {
-                //? if >26.1.2
                 mc.executeLater { mc.gui.setScreen(ClickGUI()) }
-                //? if <=26.1.2
-                /*mc.executeLater { mc.setScreen(ClickGUI()) }*/
                 Command.SINGLE_SUCCESS
             }
     }
@@ -491,10 +488,7 @@ object GobbyCommand {
             .then(
                 ClientCommands.literal("hud")
                     .executes {
-                        //? if >26.1.2
                         mc.executeLater { mc.gui.setScreen(HudEditor()) }
-                        //? if <=26.1.2
-                        /*mc.executeLater { mc.setScreen(HudEditor()) }*/
                         Command.SINGLE_SUCCESS
                     }
             )

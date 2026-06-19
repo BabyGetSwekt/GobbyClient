@@ -290,10 +290,7 @@ object MapScanner {
         val type = when {
             a.data.type == RoomType.ENTRANCE || b.data.type == RoomType.ENTRANCE -> DoorType.ENTRANCE
             block == Blocks.COAL_BLOCK -> DoorType.WITHER
-            //? if >26.1.2
             block == Blocks.DYED_TERRACOTTA.red() -> DoorType.BLOOD
-            //? if <=26.1.2
-            /*block == Blocks.RED_TERRACOTTA -> DoorType.BLOOD*/
             else -> DoorType.NORMAL
         }
         return MapTile.Door(type)

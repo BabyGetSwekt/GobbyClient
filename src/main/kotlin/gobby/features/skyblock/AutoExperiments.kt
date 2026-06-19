@@ -22,7 +22,7 @@ import net.minecraft.world.inventory.ContainerInput
 
 object AutoExperiments : Module("Auto Experiments", "Automatically does experiments", Category.SKYBLOCK) {
 
-    private val delayMs by NumberSetting("MouseButtonInfo Delay", 200, 0, 1000, 10, desc = "ms between clicks")
+    private val delayMs by NumberSetting("Click Delay", 200, 0, 1000, 10, desc = "Ms between clicks")
     private val serumCount by NumberSetting("Serum Count", 0, 0, 3, 1, desc = "Consumed Metaphysical Serum count")
     private val maxXp by BooleanSetting("Get Max XP", false, desc = "Solve to 15 (Chrono) / 20 (Ultra) for max XP")
 
@@ -65,10 +65,7 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
     fun onTick(event: ClientTickEvent.Pre) {
         val current = mode ?: return
         if (!enabled) return reset()
-        //? if >26.1.2
         val screen = mc.gui.screen() as? ContainerScreen ?: return reset()
-        //? if <=26.1.2
-        /*val screen = mc.screen as? ContainerScreen ?: return reset()*/
         when (current) {
             Mode.CHRONO -> stepChronomatron(screen.menu)
             Mode.ULTRA -> stepUltrasequencer(screen.menu)

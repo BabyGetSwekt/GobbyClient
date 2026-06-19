@@ -42,18 +42,10 @@ object FuckDiorite : Module(
     }
 
     private val pillars = arrayOf(
-        //? if >26.1.2 {
         Pillar(BlockPos(46, 169, 41), Blocks.STAINED_GLASS.lime()),
         Pillar(BlockPos(46, 169, 65), Blocks.STAINED_GLASS.yellow()),
         Pillar(BlockPos(100, 169, 65), Blocks.STAINED_GLASS.purple()),
         Pillar(BlockPos(100, 169, 41), Blocks.STAINED_GLASS.red())
-        //?}
-        //? if <=26.1.2 {
-        /*Pillar(BlockPos(46, 169, 41), Blocks.LIME_STAINED_GLASS),
-        Pillar(BlockPos(46, 169, 65), Blocks.YELLOW_STAINED_GLASS),
-        Pillar(BlockPos(100, 169, 65), Blocks.PURPLE_STAINED_GLASS),
-        Pillar(BlockPos(100, 169, 41), Blocks.RED_STAINED_GLASS)
-        *///?}
     )
 
     private val DIORITE_BLOCKS = setOf(Blocks.DIORITE, Blocks.POLISHED_DIORITE)

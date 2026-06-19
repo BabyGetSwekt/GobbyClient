@@ -10,8 +10,6 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
-//? if <=26.1.2
-/*import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;*/
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.joml.Matrix4fc;
@@ -25,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = LevelRenderer.class)
 public class MixinLevelRenderer {
 
-    //? if >26.1.2 {
     @Inject(at = @At("TAIL"), method = "render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V")
     public void gobbyclient$render(GraphicsResourceAllocator allocator, DeltaTracker tickCounter, boolean renderBlockOutline,
                        CameraRenderState cameraState, Matrix4fc positionMatrix,
@@ -47,28 +44,4 @@ public class MixinLevelRenderer {
 
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
     }
-    //?}
-    //? if <=26.1.2 {
-    /*@Inject(at = @At("TAIL"), method = "renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZLnet/minecraft/client/renderer/chunk/ChunkSectionsToRender;)V")
-    public void gobbyclient$render(GraphicsResourceAllocator allocator, DeltaTracker tickCounter, boolean renderBlockOutline,
-                       CameraRenderState cameraState, Matrix4fc positionMatrix,
-                       GpuBufferSlice fogBuffer, Vector4f fogColor, boolean renderSky, ChunkSectionsToRender chunkSections,
-                       CallbackInfo ci) {
-
-        GL11.glEnable(GL11.GL_LINE_SMOOTH);
-
-        RenderSystem.getModelViewStack().pushMatrix().mul(positionMatrix);
-        Frustum frustum = new Frustum(positionMatrix, cameraState.projectionMatrix);
-        frustum.prepare(cameraState.pos.x, cameraState.pos.y, cameraState.pos.z);
-
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        PoseStack matrixStack = new PoseStack();
-        NewRender3DEvent renderEvent = new NewRender3DEvent(matrixStack, frustum, tickCounter, camera);
-        Gobbyclient.EVENT_MANAGER.publish(renderEvent);
-
-        RenderSystem.getModelViewStack().popMatrix();
-
-        GL11.glDisable(GL11.GL_LINE_SMOOTH);
-    }
-    *///?}
 }

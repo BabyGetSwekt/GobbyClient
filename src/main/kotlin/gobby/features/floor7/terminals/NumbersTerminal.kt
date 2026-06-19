@@ -12,10 +12,7 @@ object NumbersTerminal : TerminalSolver() {
     override fun solve(screen: ContainerScreen): TerminalClick? {
         val slot = TerminalUtils.NUMBERS_SLOTS.filter { s ->
             val stack = screen.menu.slots[s].item
-            //? if >26.1.2
             !stack.isEmpty && !TerminalUtils.isTerminalItemDone(stack) && stack.item == Items.STAINED_GLASS_PANE.red()
-            //? if <=26.1.2
-            /*!stack.isEmpty && !TerminalUtils.isTerminalItemDone(stack) && stack.item == Items.RED_STAINED_GLASS_PANE*/
         }.minByOrNull { screen.menu.slots[it].item.count } ?: return null
         return TerminalClick(slot)
     }

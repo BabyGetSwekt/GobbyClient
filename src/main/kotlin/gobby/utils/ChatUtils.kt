@@ -62,37 +62,25 @@ object ChatUtils {
     fun modMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null || message == "") return
         val msg = if (showPrefix) "$PREFIX $message" else message.toString()
-        //? if >26.1.2
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(Component.literal(msg)) }
-        //? if <=26.1.2
-        /*mc.execute { mc.gui.chat.addClientSystemMessage(Component.literal(msg)) }*/
     }
 
     fun modMessage(text: Component, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null) return
         val msg = if (showPrefix) Component.literal("$PREFIX ").append(text) else text
-        //? if >26.1.2
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(msg) }
-        //? if <=26.1.2
-        /*mc.execute { mc.gui.chat.addClientSystemMessage(msg) }*/
     }
 
     fun devMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled || !gobby.features.developer.DevMode.enableDevMessages) return
         val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()
-        //? if >26.1.2
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(Component.literal(msg)) }
-        //? if <=26.1.2
-        /*mc.execute { mc.gui.chat.addClientSystemMessage(Component.literal(msg)) }*/
     }
 
     fun coloredModMessage(message: String, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null || message == "") return
         val text: MutableComponent = if (showPrefix) RAINBOW_PREFIX_COLOR.copy().append(Component.literal(message)) else Component.literal(message)
-        //? if >26.1.2
         mc.gui.hud.chat.addClientSystemMessage(text)
-        //? if <=26.1.2
-        /*mc.gui.chat.addClientSystemMessage(text)*/
     }
 
     fun errorMessage(message: Any) {
@@ -103,10 +91,7 @@ object ChatUtils {
             .append(Component.literal("] ").withStyle(ChatFormatting.DARK_RED))
             .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
             .append(Component.literal(message.toString()).withStyle(ChatFormatting.RED))
-        //? if >26.1.2
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(text) }
-        //? if <=26.1.2
-        /*mc.execute { mc.gui.chat.addClientSystemMessage(text) }*/
     }
 
     fun sendMessage(message: Any) {

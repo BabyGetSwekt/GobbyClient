@@ -11,9 +11,6 @@ object RedGreenTerminal : TerminalSolver() {
 
     override fun solve(screen: ContainerScreen) =
         TerminalUtils.RED_GREEN_SLOTS.firstOrNull {
-            //? if >26.1.2
             screen.menu.slots[it].item.item == Items.STAINED_GLASS_PANE.red()
-            //? if <=26.1.2
-            /*screen.menu.slots[it].item.item == Items.RED_STAINED_GLASS_PANE*/
         }?.let { TerminalClick(it) }
 }

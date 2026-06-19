@@ -50,10 +50,7 @@ object VelocityBuffer : Module("Velocity Buffer", "Inbound lag switch for Bonzo 
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
-        //? if >26.1.2
         if (!enabled || mc.gui.screen() != null) return
-        //? if <=26.1.2
-        /*if (!enabled || mc.screen != null) return*/
         if (toggleKey == 0 || event.key != toggleKey) return
         if (active) stop() else start()
     }

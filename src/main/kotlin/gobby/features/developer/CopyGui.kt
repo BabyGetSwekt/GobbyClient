@@ -28,10 +28,7 @@ object CopyGui : Module("Copy GUI", "Press the keybind in a GUI to dump its cont
         if (!enabled) return
         if (copyKey == 0 || event.key != copyKey) return
 
-        //? if >26.1.2
         val screen = mc.gui.screen() as? AbstractContainerScreen<*>
-        //? if <=26.1.2
-        /*val screen = mc.screen as? AbstractContainerScreen<*>*/
         if (screen == null) {
             errorMessage("Not in a container GUI")
             enabled = false

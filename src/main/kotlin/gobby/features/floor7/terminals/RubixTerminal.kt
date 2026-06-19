@@ -7,20 +7,11 @@ import net.minecraft.world.item.Items
 object RubixTerminal : TerminalSolver() {
 
     private val COLOR_ORDER = listOf(
-        //? if >26.1.2 {
         Items.STAINED_GLASS_PANE.red(),
         Items.STAINED_GLASS_PANE.orange(),
         Items.STAINED_GLASS_PANE.yellow(),
         Items.STAINED_GLASS_PANE.green(),
         Items.STAINED_GLASS_PANE.blue()
-        //?}
-        //? if <=26.1.2 {
-        /*Items.RED_STAINED_GLASS_PANE,
-        Items.ORANGE_STAINED_GLASS_PANE,
-        Items.YELLOW_STAINED_GLASS_PANE,
-        Items.GREEN_STAINED_GLASS_PANE,
-        Items.BLUE_STAINED_GLASS_PANE
-        *///?}
     )
     private val colorCount = COLOR_ORDER.size
     private val lastColorIndices = IntArray(9) { -1 }

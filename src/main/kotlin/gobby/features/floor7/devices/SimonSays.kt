@@ -146,10 +146,7 @@ object SimonSays : Module(
             reset()
             start()
         }
-        //? if >26.1.2
         if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.gui.screen() == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")
-        //? if <=26.1.2
-        /*if (event.key == sendSSBrokeKeybind && sendSSBrokeKeybind != 0 && mc.screen == null && DungeonUtils.getSection() == 1) partyMessage("SS Broke")*/
     }
 
     @SubscribeEvent

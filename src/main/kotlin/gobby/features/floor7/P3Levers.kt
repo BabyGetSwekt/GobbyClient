@@ -58,10 +58,7 @@ object P3Levers : Triggerbot(
     override fun getClickDelay(): Long = 50L
 
     override fun shouldActivate(): Boolean =
-        //? if >26.1.2
         enabled && inDungeons && dungeonFloor == 7 && inBoss && !isDead && mc.gui.screen() == null &&
-        //? if <=26.1.2
-        /*enabled && inDungeons && dungeonFloor == 7 && inBoss && !isDead && mc.screen == null &&*/
             (lightsDevice || p3Levers)
 
     override fun isValidBlock(pos: BlockPos): Boolean {

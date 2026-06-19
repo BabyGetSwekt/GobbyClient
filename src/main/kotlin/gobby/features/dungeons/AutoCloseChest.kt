@@ -29,10 +29,7 @@ object AutoCloseChest : Module("Auto Close Chest", "Automatically closes secret 
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
-        //? if >26.1.2
         if (pendingSyncId != -1 && mc.gui.screen() == null) {
-        //? if <=26.1.2
-        /*if (pendingSyncId != -1 && mc.screen == null) {*/
             pendingSyncId = -1
         }
     }

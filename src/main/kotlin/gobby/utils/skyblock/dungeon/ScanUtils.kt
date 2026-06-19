@@ -111,20 +111,14 @@ object ScanUtils {
         room.rotation = Rotations.entries.dropLast(1).find { rotation ->
             room.roomComponents.any { component ->
                 BlockPos(component.x + rotation.x, roomHeight, component.z + rotation.z).let { blockPos ->
-                    //? if >26.1.2
                     world.getBlockState(blockPos)?.block == Blocks.DYED_TERRACOTTA.blue() && (room.roomComponents.size == 1 || horizontals.all { facing ->
-                    //? if <=26.1.2
-                    /*world.getBlockState(blockPos)?.block == Blocks.BLUE_TERRACOTTA && (room.roomComponents.size == 1 || horizontals.all { facing ->*/
                         world.getBlockState(
                             blockPos.offset(
                                 (if (facing.axis == Direction.Axis.X) facing.stepX else 0),
                                 0,
                                 (if (facing.axis == Direction.Axis.Z) facing.stepZ else 0)
                             )
-                        //? if >26.1.2
                         )?.block?.equalsOneOf(Blocks.AIR, Blocks.DYED_TERRACOTTA.blue()) == true
-                        //? if <=26.1.2
-                        /*)?.block?.equalsOneOf(Blocks.AIR, Blocks.BLUE_TERRACOTTA) == true*/
                     }).also { isCorrectClay -> if (isCorrectClay) room.clayPos = blockPos }
                 }
             }

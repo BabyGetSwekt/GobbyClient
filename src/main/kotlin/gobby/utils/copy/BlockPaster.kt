@@ -81,9 +81,6 @@ object BlockPaster {
     }
 
     fun reloadClientChunks() {
-        //? if >26.1.2
         mc.execute { mc.levelExtractor.allChanged() }
-        //? if <=26.1.2
-        /*mc.execute { mc.levelRenderer.allChanged() }*/
     }
 }

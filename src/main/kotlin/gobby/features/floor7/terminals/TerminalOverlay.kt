@@ -109,10 +109,7 @@ object TerminalOverlay : Module(
 
     fun isOverlayActive(): Boolean {
         if (!enabled) return false
-        //? if >26.1.2
         val screen = mc.gui.screen() as? ContainerScreen ?: return false
-        //? if <=26.1.2
-        /*val screen = mc.screen as? ContainerScreen ?: return false*/
         return detect(screen.title.string) != null
     }
 
@@ -239,10 +236,7 @@ object TerminalOverlay : Module(
 
         val solution = slots.filter { s ->
             val st = handler.slots[s].item
-            //? if >26.1.2
             !st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.STAINED_GLASS_PANE.red()
-            //? if <=26.1.2
-            /*!st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.RED_STAINED_GLASS_PANE*/
         }.sortedBy { handler.slots[it].item.count }
 
         val colors = intArrayOf(cNum1, cNum2, cNum3)
@@ -302,10 +296,7 @@ object TerminalOverlay : Module(
     private fun drawRedGreen(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
         val handler = screen.menu
         for (slot in TerminalUtils.RED_GREEN_SLOTS) {
-            //? if >26.1.2
             if (handler.slots[slot].item.item != Items.STAINED_GLASS_PANE.red()) continue
-            //? if <=26.1.2
-            /*if (handler.slots[slot].item.item != Items.RED_STAINED_GLASS_PANE) continue*/
             val (cx, cy) = slotToCompact(Terminal.RED_GREEN, slot) ?: continue
             val (x, y) = compactPos(cx, cy)
             ctx.fill(x, y, x + CELL, y + CELL, cSolution)
@@ -332,10 +323,7 @@ object TerminalOverlay : Module(
         val containerSlots = handler.slots.size - PLAYER_INV_SLOTS
 
         val targetChestCol = (MELODY_LANE_START..MELODY_LANE_END).firstOrNull {
-            //? if >26.1.2
             handler.slots[it].item.item == Items.STAINED_GLASS_PANE.magenta()
-            //? if <=26.1.2
-            /*handler.slots[it].item.item == Items.MAGENTA_STAINED_GLASS_PANE*/
         } ?: -1
         val targetCompact = if (targetChestCol in MELODY_LANE_START..MELODY_LANE_END) targetChestCol - MELODY_LANE_START else -1
 
@@ -344,10 +332,7 @@ object TerminalOverlay : Module(
 
         if (targetChestCol >= 0) {
             for (slot in CHEST_ROW_WIDTH until containerSlots) {
-                //? if >26.1.2
                 if (handler.slots[slot].item.item == Items.STAINED_GLASS_PANE.lime()) {
-                //? if <=26.1.2
-                /*if (handler.slots[slot].item.item == Items.LIME_STAINED_GLASS_PANE) {*/
                     val col = slot % CHEST_ROW_WIDTH
                     if (col == targetChestCol) {
                         correctBtnRow = slot / CHEST_ROW_WIDTH
