@@ -103,7 +103,6 @@ object ModuleManager {
         FullBright,
         InventoryHud,
         Keystrokes,
-        CoordWaypoints,
         TerminatorAC,
         Trajectory,
         StarredMobEsp,

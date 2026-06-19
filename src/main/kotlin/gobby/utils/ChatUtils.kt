@@ -19,9 +19,6 @@ object ChatUtils {
     val publicMessageRegex = Regex("""^\[\d+]\s+(\[[^]]+])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")
     val partyMessageRegex = Regex("""^Party > (\[[^]]*])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")
 
-    val publicCoordRegex = Regex("""^\[\d+]\s+(?:\[[^]]+]\s+)?(\w{1,16})(?: [ቾ⚒])?: x: (-?\d+), y: (-?\d+), z: (-?\d+)$""")
-    val partyCoordRegex = Regex("""^Party > (?:\[[^]]+]\s+)?(\w{1,16})(?: [ቾ⚒])?: x: (-?\d+), y: (-?\d+), z: (-?\d+)$""")
-
 
 
     private const val PREFIX = "§b[§3Gobby Client§b] §8»§r"

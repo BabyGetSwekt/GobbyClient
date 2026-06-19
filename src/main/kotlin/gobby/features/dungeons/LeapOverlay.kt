@@ -21,7 +21,7 @@ import net.minecraft.network.HashedStack
 import net.minecraft.ChatFormatting
 import java.awt.Color
 
-object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS, defaultEnabled = true) {
+object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS,) {
 
     val scale by NumberSetting("Scale", 100, 50, 200, desc = "Scale of the overlay UI (percent)")
 
