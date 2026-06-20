@@ -28,20 +28,18 @@ object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses 
         "King Midas"
     )
 
+    fun matchesMiniBossName(name: String): Boolean = MINIBOSS_NAMES.any { name.contains(it) }
+
+    fun isMiniBoss(entity: Entity): Boolean {
+        if (entity is ArmorStand) return entity.customName?.string?.contains("Angry Archaeologist") == true
+        if (entity !is Player || entity == mc.player) return false
+        if (entity.isRemoved || entity.isSleeping) return false
+        return matchesMiniBossName(entity.name.string) || matchesMiniBossName(entity.customName?.string ?: "")
+    }
+
     override fun shouldHighlight(entity: Entity): Boolean {
         if (!inDungeons || inBoss) return false
-
-        if (entity is ArmorStand) {
-            val customName = entity.customName?.string ?: ""
-            if (customName.contains("Angry Archaeologist")) return true
-        }
-
-        if (entity !is Player) return false
-        if (entity == mc.player) return false
-        if (entity.isRemoved() || entity.isSleeping) return false
-        val name = entity.name.string
-        val customName = entity.customName?.string ?: ""
-        return MINIBOSS_NAMES.any { name.contains(it) || customName.contains(it) }
+        return isMiniBoss(entity)
     }
 
     override fun resolveEntity(entity: Entity): Entity? {
@@ -55,4 +53,5 @@ object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses 
     override fun shouldDrawLines(): Boolean = espLines
     override fun getLineColor(): Color = espColor
     override fun getLineMode(): Int = espLineMode
+    override fun rendersArmor(): Boolean = true
 }

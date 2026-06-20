@@ -4,20 +4,20 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.render.Interpolate
 import gobby.utils.render.Render3D.drawEntityModel
-import net.minecraft.client.Camera
-import com.mojang.blaze3d.vertex.PoseStack
-import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.boss.wither.WitherBoss
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
 import java.awt.Color
+
+private const val LINE_MODE_FEET = 0
+private const val LINE_MODE_CROSSHAIR = 1
 
 abstract class EntityHighlighter(
     name: String,
@@ -29,16 +29,24 @@ abstract class EntityHighlighter(
     private val cachedMobs = mutableSetOf<Entity>()
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
-        val player = mc.player ?: return
-        val world = mc.level ?: return
-        if (!enabled) return
+    fun onRender(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity || !enabled) return
+        val context = event.context
+        val poseStack = context.poseStack()
+        val collector = context.submitNodeCollector()
+        val camera = mc.gameRenderer.mainCamera()
+        val delta = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
+        val color = getColor()
+        val lineColor = getLineColor()
+        val player = mc.player
+        val lineStart = if (shouldDrawLines() && player != null) {
+            if (getLineMode() == LINE_MODE_FEET) Interpolate.interpolateEntity(player) else Interpolate.interpolatedLookVec()
+        } else null
 
-        val matrixStack = event.matrixStack
-        val camera = event.camera
-        val delta = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
-
-        onRenderTick(event, matrixStack, camera, delta, player, world)
+        forEachHighlight { entity ->
+            drawEntityModel(poseStack, collector, camera, delta, entity, color, rendersArmor())
+            lineStart?.let { drawLine3D(poseStack, camera, it, Interpolate.interpolateEntity(entity), lineColor) }
+        }
     }
 
     @SubscribeEvent
@@ -49,6 +57,7 @@ abstract class EntityHighlighter(
         for (entity in world.entitiesForRendering()) {
             if (!shouldHighlight(entity)) continue
             val mob = getCorrespondingMob(entity) ?: continue
+            if (!shouldCacheMob(mob)) continue
             cachedMobs.add(mob)
         }
 
@@ -60,50 +69,21 @@ abstract class EntityHighlighter(
         cachedMobs.clear()
     }
 
-    protected open fun onRenderTick(
-        event: NewRender3DEvent,
-        matrixStack: PoseStack,
-        camera: Camera,
-        delta: Float,
-        player: Entity,
-        world: ClientLevel
-    ) {
+    private inline fun forEachHighlight(action: (Entity) -> Unit) {
         if (usesMobCaching()) {
-            for (entity in cachedMobs) {
-                if (!entity.isAlive) continue
-                renderEntity(event, matrixStack, camera, delta, entity, player)
-            }
+            cachedMobs.forEach { if (it.isAlive) action(it) }
         } else {
-            for (entity in world.entitiesForRendering()) {
-                if (!shouldHighlight(entity)) continue
-                val resolved = resolveEntity(entity) ?: continue
-                renderEntity(event, matrixStack, camera, delta, resolved, player)
+            val world = mc.level ?: return
+            world.entitiesForRendering().forEach { entity ->
+                if (!shouldHighlight(entity)) return@forEach
+                action(resolveEntity(entity) ?: return@forEach)
             }
-        }
-    }
-
-    protected open fun renderEntity(
-        event: NewRender3DEvent,
-        matrixStack: PoseStack,
-        camera: Camera,
-        delta: Float,
-        entity: Entity,
-        player: Entity
-    ) {
-        event.drawEntityModel(matrixStack, camera, delta, entity, getColor())
-
-        if (shouldDrawLines()) {
-            val start = if (getLineMode() == 0) {
-                Interpolate.interpolateEntity(player)
-            } else {
-                Interpolate.interpolatedLookVec()
-            }
-            val end = Interpolate.interpolateEntity(entity)
-            drawLine3D(matrixStack, camera, start, end, getLineColor())
         }
     }
 
     protected open fun resolveEntity(entity: Entity): Entity? = entity
+
+    protected open fun shouldCacheMob(mob: Entity): Boolean = true
 
     protected fun getCorrespondingMob(entity: Entity): Entity? {
         val world = entity.level()
@@ -119,11 +99,23 @@ abstract class EntityHighlighter(
         }
     }
 
+    fun isHighlighting(entity: Entity): Boolean {
+        if (!enabled) return false
+        return if (usesMobCaching()) cachedMobs.contains(entity) else shouldHighlight(entity)
+    }
+
     abstract fun shouldHighlight(entity: Entity): Boolean
     abstract fun getColor(): Color
 
     open fun usesMobCaching(): Boolean = false
     open fun shouldDrawLines(): Boolean = false
     open fun getLineColor(): Color = getColor()
-    open fun getLineMode(): Int = 1
+    open fun getLineMode(): Int = LINE_MODE_CROSSHAIR
+    open fun rendersArmor(): Boolean = false
+
+    companion object {
+        @JvmStatic
+        fun isHighlightedByAny(entity: Entity): Boolean =
+            modules.any { it is EntityHighlighter && it.isHighlighting(entity) }
+    }
 }

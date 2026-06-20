@@ -12,6 +12,7 @@ import gobby.gui.click.Category
 import gobby.gui.click.SelectorSetting
 import gobby.utils.ChatUtils
 import gobby.utils.LocationUtils
+import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.PlayerUtils
 import gobby.utils.Utils
 import gobby.utils.isEtherwarpable
@@ -115,7 +116,7 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
-        if (!enabled || !preventDeath || mc.gui.screen() != null) return
+        if (!enabled || !preventDeath || mc.gui.screen() != null || !inDungeons) return
         if (event.packet !is ServerboundUseItemPacket && event.packet !is ServerboundUseItemOnPacket) return
         if (isInEntrance) return
         val player = mc.player ?: return

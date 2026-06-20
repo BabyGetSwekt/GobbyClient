@@ -1,24 +1,24 @@
 package gobby.utils.render
 
 import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.math.Axis
 import gobby.Gobbyclient.Companion.mc
-import gobby.events.render.NewRender3DEvent
+import gobby.mixin.accessor.LivingEntityRendererAccessor
 import gobby.utils.Utils.cameraPos
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.Camera
 import net.minecraft.client.model.EntityModel
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
+import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer
+import net.minecraft.client.renderer.entity.state.EntityRenderState
+import net.minecraft.client.renderer.entity.state.HumanoidRenderState
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
-import net.minecraft.core.Direction
+import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Pose
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
-import kotlin.math.cos
 
 /**
  * Contents of this file are based on Aoba-Client and the work of coltonk9043 under GNU General Public License v3.0.
@@ -28,18 +28,17 @@ import kotlin.math.cos
  */
 object Render3D {
 
-    private var submitNodeCollector: SubmitNodeCollector? = null
+    private val OPAQUE_ALPHA = 0xFF shl 24
+    private const val BAKED_LIGHT_IGNORED = 0
 
-    init {
-        LevelRenderEvents.COLLECT_SUBMITS.register { context -> submitNodeCollector = context.submitNodeCollector() }
-    }
-
-    fun NewRender3DEvent.drawEntityModel(
+    fun drawEntityModel(
         matrixStack: PoseStack,
+        collector: SubmitNodeCollector,
         camera: Camera,
         partialTicks: Float,
         entity: Entity?,
-        color: Color
+        color: Color,
+        renderArmor: Boolean = false
     ) {
         if (entity !is LivingEntity) return
         val renderer = mc.entityRenderDispatcher.getRenderer(entity) ?: return
@@ -54,9 +53,11 @@ object Render3D {
         renderState.isBaby = entity.isBaby
         model.setupAnim(renderState)
         val sleepDirection = entity.bedOrientation
+        val leAccessor = leRenderer as LivingEntityRendererAccessor
 
-        val interpolatedPos = getEntityPositionInterpolated(entity, partialTicks).subtract(camera.cameraPos)
-        var interpolatedBodyYaw = Mth.rotLerp(partialTicks, entity.yBodyRotO, entity.yBodyRot)
+        val interpolatedPos = getEntityPositionInterpolated(entity, partialTicks)
+            .add(leRenderer.getRenderOffset(renderState))
+            .subtract(camera.cameraPos)
         matrixStack.translate(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z)
 
         if (entity.hasPose(Pose.SLEEPING) && sleepDirection != null) {
@@ -68,51 +69,44 @@ object Render3D {
             )
         }
 
-        val entityScale = entity.scale
+        val entityScale = renderState.scale
         matrixStack.scale(entityScale, entityScale, entityScale)
-
-        if (entity.isFullyFrozen) {
-            interpolatedBodyYaw += cos((entity.tickCount * 3.25) * Math.PI * 0.4f).toFloat()
-        }
-
-        if (!entity.hasPose(Pose.SLEEPING)) {
-            matrixStack.mulPose(Axis.YP.rotationDegrees(180f - interpolatedBodyYaw))
-        }
-
-        if (entity.deathTime > 0) {
-            var dyingAngle = Mth.sqrt((entity.deathTime + partialTicks - 1.0f) / 20.0f * 1.6f)
-            if (dyingAngle > 1.0f) dyingAngle = 1.0f
-            matrixStack.mulPose(Axis.ZP.rotationDegrees(dyingAngle * 90f))
-        } else if (entity.isAutoSpinAttack) {
-            matrixStack.mulPose(Axis.XP.rotationDegrees(-90.0f - entity.xRot))
-            matrixStack.mulPose(Axis.YP.rotationDegrees((entity.tickCount + partialTicks) * -75.0f))
-        } else if (entity.hasPose(Pose.SLEEPING)) {
-            val sleepAngle = sleepDirection?.let { yawFromDirection(it) } ?: interpolatedBodyYaw
-            matrixStack.mulPose(Axis.YP.rotationDegrees(sleepAngle))
-            matrixStack.mulPose(Axis.ZP.rotationDegrees(90.0f))
-            matrixStack.mulPose(Axis.YP.rotationDegrees(270.0f))
-        }
-
-        val customName = entity.customName?.string
-        if (customName != null && customName.contains("Dinnerbone")) {
-            matrixStack.translate(0.0f, entity.bbHeight + 0.1f, 0.0f)
-            matrixStack.mulPose(Axis.ZP.rotationDegrees(180.0f))
-        }
-
+        leAccessor.`gobbyclient$invokeSetupRotations`(renderState, matrixStack, renderState.bodyRot, entityScale)
         matrixStack.scale(-1.0f, -1.0f, 1.0f)
+        leAccessor.`gobbyclient$invokeScale`(renderState, matrixStack)
         matrixStack.translate(0.0f, -1.501f, 0.0f)
 
-        submitNodeCollector?.submitModel(model, renderState, matrixStack, ItemBlockRenderTypes.ESP_QUADS, 0, 0, color.rgb, null)
+        val solidFill = color.rgb or OPAQUE_ALPHA
+        collector.submitModel(
+            model,
+            renderState,
+            matrixStack,
+            ItemBlockRenderTypes.ESP_QUADS,
+            BAKED_LIGHT_IGNORED,
+            OverlayTexture.NO_OVERLAY,
+            solidFill,
+            null,
+            EntityRenderState.NO_OUTLINE,
+            null
+        )
+
+        if (renderArmor && renderState is HumanoidRenderState) {
+            armorLayerOf(leRenderer)?.submit(
+                matrixStack,
+                TintingSubmitCollector(collector, solidFill),
+                BAKED_LIGHT_IGNORED,
+                renderState,
+                renderState.yRot,
+                renderState.xRot
+            )
+        }
         matrixStack.popPose()
     }
 
-    private fun yawFromDirection(direction: Direction): Float = when (direction) {
-        Direction.WEST -> 0.0f
-        Direction.SOUTH -> 90.0f
-        Direction.EAST -> 180.0f
-        Direction.NORTH -> 270.0f
-        else -> 0.0f
-    }
+    @Suppress("UNCHECKED_CAST")
+    private fun armorLayerOf(renderer: LivingEntityRenderer<*, *, *>): HumanoidArmorLayer<HumanoidRenderState, *, *>? =
+        (renderer as LivingEntityRendererAccessor).`gobbyclient$getLayers`()
+            .firstOrNull { it is HumanoidArmorLayer<*, *, *> } as? HumanoidArmorLayer<HumanoidRenderState, *, *>
 
     fun getEntityPositionInterpolated(entity: Entity, delta: Float): Vec3 {
         return Vec3(
