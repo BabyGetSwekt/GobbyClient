@@ -101,6 +101,7 @@ object ModuleManager {
         RenderTurtles,
         StructureScanner,
         FullBright,
+        MobEsp,
         InventoryHud,
         Keystrokes,
         TerminatorAC,

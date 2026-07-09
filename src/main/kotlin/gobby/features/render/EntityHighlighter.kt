@@ -26,7 +26,7 @@ abstract class EntityHighlighter(
     defaultEnabled: Boolean = false
 ) : Module(name, description, category, toggled = true, defaultEnabled = defaultEnabled) {
 
-    private val cachedMobs = mutableSetOf<Entity>()
+    private val cachedMobs = mutableMapOf<Entity, Entity>()
 
     @SubscribeEvent
     fun onRender(event: Render3DEvent) {
@@ -36,16 +36,15 @@ abstract class EntityHighlighter(
         val collector = context.submitNodeCollector()
         val camera = mc.gameRenderer.mainCamera()
         val delta = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
-        val color = getColor()
         val lineColor = getLineColor()
         val player = mc.player
         val lineStart = if (shouldDrawLines() && player != null) {
             if (getLineMode() == LINE_MODE_FEET) Interpolate.interpolateEntity(player) else Interpolate.interpolatedLookVec()
         } else null
 
-        forEachHighlight { entity ->
-            drawEntityModel(poseStack, collector, camera, delta, entity, color, rendersArmor())
-            lineStart?.let { drawLine3D(poseStack, camera, it, Interpolate.interpolateEntity(entity), lineColor) }
+        forEachHighlight { renderEntity, sourceEntity ->
+            drawEntityModel(poseStack, collector, camera, delta, renderEntity, getColorFor(sourceEntity), rendersArmor())
+            lineStart?.let { drawLine3D(poseStack, camera, it, Interpolate.interpolateEntity(renderEntity), lineColor) }
         }
     }
 
@@ -58,10 +57,10 @@ abstract class EntityHighlighter(
             if (!shouldHighlight(entity)) continue
             val mob = getCorrespondingMob(entity) ?: continue
             if (!shouldCacheMob(mob)) continue
-            cachedMobs.add(mob)
+            cachedMobs[mob] = entity
         }
 
-        cachedMobs.removeIf { !it.isAlive }
+        cachedMobs.entries.removeIf { !it.key.isAlive }
     }
 
     @SubscribeEvent
@@ -69,14 +68,14 @@ abstract class EntityHighlighter(
         cachedMobs.clear()
     }
 
-    private inline fun forEachHighlight(action: (Entity) -> Unit) {
+    private inline fun forEachHighlight(action: (render: Entity, source: Entity) -> Unit) {
         if (usesMobCaching()) {
-            cachedMobs.forEach { if (it.isAlive) action(it) }
+            cachedMobs.forEach { (mob, source) -> if (mob.isAlive) action(mob, source) }
         } else {
             val world = mc.level ?: return
             world.entitiesForRendering().forEach { entity ->
                 if (!shouldHighlight(entity)) return@forEach
-                action(resolveEntity(entity) ?: return@forEach)
+                action(resolveEntity(entity) ?: return@forEach, entity)
             }
         }
     }
@@ -101,11 +100,13 @@ abstract class EntityHighlighter(
 
     fun isHighlighting(entity: Entity): Boolean {
         if (!enabled) return false
-        return if (usesMobCaching()) cachedMobs.contains(entity) else shouldHighlight(entity)
+        return if (usesMobCaching()) cachedMobs.containsKey(entity) else shouldHighlight(entity)
     }
 
     abstract fun shouldHighlight(entity: Entity): Boolean
     abstract fun getColor(): Color
+
+    protected open fun getColorFor(entity: Entity): Color = getColor()
 
     open fun usesMobCaching(): Boolean = false
     open fun shouldDrawLines(): Boolean = false

@@ -8,13 +8,13 @@ import gg.essential.elementa.components.UIText
 import gg.essential.elementa.components.input.UITextInput
 import gg.essential.elementa.constraints.CenterConstraint
 import gg.essential.elementa.constraints.SiblingConstraint
-import gg.essential.elementa.constraints.animation.Animations
 import gg.essential.elementa.dsl.*
 import gg.essential.elementa.effects.OutlineEffect
 import gobby.Gobbyclient.Companion.mc
 import gobby.features.skyblock.ModIdHider
 import gobby.gui.components.GobbyScrollPanel
 import gobby.gui.components.ModIdEntryComponent
+import gobby.gui.components.applyHoverColor
 import java.awt.Color
 
 class ModIdHiderScreen private constructor() : WindowScreen(
@@ -224,22 +224,22 @@ class ModIdHiderScreen private constructor() : WindowScreen(
         inputBg.enableEffect(OutlineEffect(Color(40, 40, 50), 1f))
         inputBg.onMouseClick { textInput.grabWindowFocus() }
 
-        addButton.applyHoverAnimation(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
+        addButton.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
         addButton.onMouseClick { addCurrentInput() }
 
         textInput.onKeyType { typedChar, _ ->
             if (typedChar == '\r') addCurrentInput()
         }
 
-        saveButton.applyHoverAnimation(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
+        saveButton.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
         saveButton.onMouseClick { saveAndClose() }
 
         overlay.onMouseClick { tryClose() }
 
-        dialogSaveBtn.applyHoverAnimation(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
+        dialogSaveBtn.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
         dialogSaveBtn.onMouseClick { saveAndClose() }
 
-        dialogLeaveBtn.applyHoverAnimation(Color(120, 30, 30, 220), Color(180, 40, 40, 240))
+        dialogLeaveBtn.applyHoverColor(Color(120, 30, 30, 220), Color(180, 40, 40, 240))
         dialogLeaveBtn.onMouseClick {
             forceClose = true
             displayScreen(null)
@@ -318,15 +318,6 @@ class ModIdHiderScreen private constructor() : WindowScreen(
     companion object {
         fun open() {
             displayScreen(ModIdHiderScreen())
-        }
-
-        private fun UIRoundedRectangle.applyHoverAnimation(baseColor: Color, hoverColor: Color) {
-            onMouseEnter {
-                animate { setColorAnimation(Animations.OUT_EXP, 0.15f, hoverColor.toConstraint()) }
-            }
-            onMouseLeave {
-                animate { setColorAnimation(Animations.OUT_EXP, 0.2f, baseColor.toConstraint()) }
-            }
         }
     }
 }

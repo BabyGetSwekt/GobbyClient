@@ -60,14 +60,6 @@ dependencies {
 	// Essentials
 	implementation(universalcraft)
 	include(universalcraft)
-	implementation(("gg.essential:vigilance:312")) { // Kan !! erbij zetten, check docs
-		exclude(group = "gg.essential", module = "elementa")
-		exclude(group = "gg.essential", module = "universalcraft")
-	}
-	include("gg.essential:vigilance:312") {
-		exclude(group = "gg.essential", module = "elementa")
-		exclude(group = "gg.essential", module = "universalcraft")
-	}
 	implementation("gg.essential:elementa:710")
 	include("gg.essential:elementa:710")
 

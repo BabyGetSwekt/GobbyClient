@@ -11,6 +11,7 @@ open class Module(
 ) {
     var enabled = defaultEnabled
     var expanded = false
+    var onLeftClick: (() -> Unit)? = null
     val settings = mutableListOf<Setting<*>>()
 
     val isAlwaysEnabled: Boolean get() = this::class.java.isAnnotationPresent(AlwaysEnabled::class.java)

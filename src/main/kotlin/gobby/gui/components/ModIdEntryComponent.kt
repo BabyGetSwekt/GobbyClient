@@ -3,7 +3,6 @@ package gobby.gui.components
 import gg.essential.elementa.components.UIRoundedRectangle
 import gg.essential.elementa.components.UIText
 import gg.essential.elementa.constraints.CenterConstraint
-import gg.essential.elementa.constraints.animation.Animations
 import gg.essential.elementa.dsl.*
 import java.awt.Color
 
@@ -39,13 +38,13 @@ class ModIdEntryComponent(
             color = Color(220, 220, 220).toConstraint()
         } childOf removeBtn
 
-        removeBtn.applyHoverAnimation(REMOVE_COLOR, REMOVE_HOVER_COLOR)
+        removeBtn.applyHoverColor(REMOVE_COLOR, REMOVE_HOVER_COLOR)
         removeBtn.onMouseClick { event ->
             event.stopPropagation()
             onRemove(this@ModIdEntryComponent)
         }
 
-        applyHoverAnimation(BASE_COLOR, HOVER_COLOR)
+        applyHoverColor(BASE_COLOR, HOVER_COLOR)
     }
 
     companion object {
@@ -53,14 +52,5 @@ class ModIdEntryComponent(
         private val HOVER_COLOR = Color(34, 34, 42, 255)
         private val REMOVE_COLOR = Color(120, 30, 30, 200)
         private val REMOVE_HOVER_COLOR = Color(180, 40, 40, 240)
-
-        private fun UIRoundedRectangle.applyHoverAnimation(baseColor: Color, hoverColor: Color) {
-            onMouseEnter {
-                animate { setColorAnimation(Animations.OUT_EXP, 0.15f, hoverColor.toConstraint()) }
-            }
-            onMouseLeave {
-                animate { setColorAnimation(Animations.OUT_EXP, 0.2f, baseColor.toConstraint()) }
-            }
-        }
     }
 }

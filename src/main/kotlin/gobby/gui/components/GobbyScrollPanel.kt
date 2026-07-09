@@ -8,6 +8,8 @@ import gg.essential.elementa.constraints.animation.Animations
 import gg.essential.elementa.dsl.*
 import java.awt.Color
 
+const val SCROLL_BAR_RESERVE = 14f
+
 /**
  * Reusable scroll panel with a styled scroll track and grip.
  * Add children to [scrollArea] to populate the scrollable content.
@@ -25,7 +27,7 @@ class GobbyScrollPanel(
         pixelsPerScroll = pixelsPerScroll,
         scrollAcceleration = scrollAcceleration
     ).constrain {
-        width = 100.percent - 14.pixels
+        width = 100.percent - SCROLL_BAR_RESERVE.pixels
         height = 100.percent
     } childOf this
 

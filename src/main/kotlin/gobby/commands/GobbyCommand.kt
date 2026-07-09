@@ -7,6 +7,7 @@ import com.mojang.brigadier.Command
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.gui.ModIdHiderScreen
+import gobby.gui.MobEspScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
 import gobby.features.dungeons.DungeonMap
@@ -95,6 +96,7 @@ object GobbyCommand {
                         modMessage("§e/gobby §7- Opens the settings menu")
                         modMessage("§e/gobby help §7- Shows this help menu")
                         modMessage("§e/gobby modid §7- Hide mod IDs from other mods")
+                        modMessage("§e/gobby mobesp §7- Configure mob ESP highlights")
                         modMessage("§e/gobby blockselector §7- Pick a block for the brush")
                         modMessage("§e/gobby brush §7- Toggle brush mode")
                         modMessage("§e/gobby sendcoords §7- Send your coords in chat")
@@ -114,6 +116,17 @@ object GobbyCommand {
                 ClientCommands.literal("modid")
                     .executes {
                         mc.executeLater { ModIdHiderScreen.open() }
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
+    private fun mobEspCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal("gobby")
+            .then(
+                ClientCommands.literal("mobesp")
+                    .executes {
+                        mc.executeLater { MobEspScreen.open() }
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -501,6 +514,7 @@ object GobbyCommand {
         event.register(sendCoordsCommand())
         event.register(blockSelectorCommand())
         event.register(modIdCommand())
+        event.register(mobEspCommand())
         event.register(helpCommand())
         event.register(pathCommand())
         event.register(flyPathCommand())
