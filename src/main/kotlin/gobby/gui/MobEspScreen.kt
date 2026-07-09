@@ -60,6 +60,7 @@ class MobEspScreen private constructor() : WindowScreen(
     private val rows = mutableListOf<MobEspEntryComponent>()
     private var dirty = false
     private var forceClose = false
+    private var headersShown = true
 
     private val overlay by UIBlock(ComponentTheme.OVERLAY).constrain {
         width = 100.percent
@@ -134,7 +135,7 @@ class MobEspScreen private constructor() : WindowScreen(
     } childOf headerBar
 
     private val scrollPanel by GobbyScrollPanel(
-        emptyString = "No mobs configured - click + Add",
+        emptyString = "Click \"+ Add\" to add mobs",
         innerPadding = SCROLL_INNER_PADDING,
         pixelsPerScroll = SCROLL_PIXELS_PER,
         scrollAcceleration = SCROLL_ACCELERATION
@@ -196,6 +197,14 @@ class MobEspScreen private constructor() : WindowScreen(
         overlay.onMouseClick { tryReturn() }
 
         MobHighlighterConfig.getEntries().forEach { addRow(it) }
+        updateHeaderVisibility()
+    }
+
+    private fun updateHeaderVisibility() {
+        val shouldShow = rows.isNotEmpty()
+        if (shouldShow == headersShown) return
+        headersShown = shouldShow
+        if (shouldShow) headerBar.unhide() else headerBar.hide(instantly = true)
     }
 
     private fun addNewRow() {
@@ -217,12 +226,14 @@ class MobEspScreen private constructor() : WindowScreen(
         rows.add(row)
         row childOf scrollPanel.scrollArea
         if (entry.name.isEmpty()) dirty = true
+        updateHeaderVisibility()
     }
 
     private fun removeRow(row: MobEspEntryComponent) {
         rows.remove(row)
         scrollPanel.scrollArea.removeChild(row)
         dirty = true
+        updateHeaderVisibility()
     }
 
     private fun tryReturn() {

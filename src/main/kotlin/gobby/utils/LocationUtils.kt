@@ -179,10 +179,13 @@ object LocationUtils {
         return tabList.map { it.profile.name }
     }
 
+    private fun Char.isAreaIcon(): Boolean = this == '\uE067' || this == 'ф'
+
     fun getIslandArea(): String {
-        return STRING_SCOREBOARD.firstOrNull {
-            it.contains("⏣") || it.contains("ф")
-        }?.replace(Regex("[⏣ф]"), "")?.trim() ?: "Unknown"
+        return STRING_SCOREBOARD.firstOrNull { line -> line.any { it.isAreaIcon() } }
+            ?.filterNot { it.isAreaIcon() }
+            ?.trim()
+            ?: "Unknown"
     }
 
 

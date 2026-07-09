@@ -1,5 +1,8 @@
 package gobby.features.floor7.terminals
 
+import gobby.utils.ChatUtils.modMessage
+import gobby.utils.getItemID
+import gobby.utils.getLoreStrings
 import gobby.utils.skyblock.dungeon.TerminalUtils
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.ChatFormatting
@@ -22,5 +25,30 @@ object StartsWithTerminal : TerminalSolver() {
             !name.isNullOrEmpty() && name.startsWith(letter)
         } ?: return null
         return TerminalClick(slot)
+    }
+
+    override fun onStuck(screen: ContainerScreen) {
+        val letter = titleRegex.find(ChatFormatting.stripFormatting(screen.title.string) ?: "")
+            ?.groupValues?.get(1)?.lowercase() ?: return
+
+        fun nameOf(slot: Int) = ChatFormatting.stripFormatting(screen.menu.slots[slot].item.hoverName.string)?.trim() ?: "?"
+
+        val slots = TerminalUtils.STARTS_WITH_SLOTS.filter { !screen.menu.slots[it].item.isEmpty }
+        val (done, notDone) = slots.partition { TerminalUtils.isItemDone(it, screen.menu.slots[it].item) }
+
+        modMessage(
+            ":StartsWith Item Name: ${letter.uppercase()} | " +
+                "All items {${slots.joinToString(", ") { nameOf(it) }}} | " +
+                "StartsWith Finished Clicking {${done.joinToString(", ") { nameOf(it) }}} | " +
+                "Items left Unclicked {${notDone.joinToString(", ") { nameOf(it) }}} |"
+        )
+
+        slots.filter { nameOf(it).lowercase().startsWith(letter) }
+            .map { slot ->
+                val stack = screen.menu.slots[slot].item
+                "§7  slot=$slot §f'${nameOf(slot)}' §7glint=${TerminalUtils.isTerminalItemDone(stack)} " +
+                    "id=${stack.getItemID()} x${stack.count} §8lore: ${stack.getLoreStrings().joinToString(" | ")}"
+            }
+            .forEach { modMessage(it) }
     }
 }

@@ -40,7 +40,7 @@ class MobEspEntryComponent(
         height = MobEspColumns.CHECKBOX_SIZE.pixels
     } childOf this
 
-    private val nameField = GobbyTextField(entry.name, "Mob name...", font = font) { onChange() }.constrain {
+    private val nameField = GobbyTextField(entry.name, "Mob name...") { onChange() }.constrain {
         x = MobEspColumns.NAME_X.pixels
         y = CenterConstraint()
         width = 100.percent - MobEspColumns.NAME_RESERVED.pixels

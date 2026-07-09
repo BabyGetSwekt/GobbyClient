@@ -49,11 +49,25 @@ object DevTestCommand {
             }
     }
 
+    private fun printCodes(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal(name)
+            .executes {
+                LocationUtils.updateScoreboard(mc)
+                modMessage("========== SCOREBOARD CODEPOINTS ==========")
+                LocationUtils.STRING_SCOREBOARD
+                    .map { line -> line to line.filter { it.code > 127 }.map { "U+%04X".format(it.code) } }
+                    .filter { it.second.isNotEmpty() }
+                    .forEach { (line, codes) -> modMessage("§e'${line.trim()}' §7→ §f${codes.joinToString(" ")}") }
+                Command.SINGLE_SUCCESS
+            }
+    }
+
     @SubscribeEvent
     fun register(event: CommandRegisterEvent) {
         event.register(setTask("settask"))
         event.register(getItemID("getitemid"))
         event.register(getMessage("testmessage"))
+        event.register(printCodes("printcodes"))
     }
 
 }

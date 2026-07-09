@@ -60,7 +60,7 @@ abstract class EntityHighlighter(
             cachedMobs[mob] = entity
         }
 
-        cachedMobs.entries.removeIf { !it.key.isAlive }
+        cachedMobs.entries.removeIf { !it.key.isAlive || (revalidateCache() && !shouldHighlight(it.value)) }
     }
 
     @SubscribeEvent
@@ -83,6 +83,8 @@ abstract class EntityHighlighter(
     protected open fun resolveEntity(entity: Entity): Entity? = entity
 
     protected open fun shouldCacheMob(mob: Entity): Boolean = true
+
+    protected open fun revalidateCache(): Boolean = false
 
     protected fun getCorrespondingMob(entity: Entity): Entity? {
         val world = entity.level()

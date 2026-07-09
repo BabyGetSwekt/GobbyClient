@@ -11,7 +11,9 @@ import gg.essential.elementa.font.FontProvider
 
 private const val OPTION_HEIGHT = 16f
 private const val LABEL_PADDING = 5f
-private const val CARET_PADDING = 5f
+private const val CARET_PADDING = 6f
+private const val CHEVRON_WIDTH = 7f
+private const val CHEVRON_HEIGHT = 4f
 
 class GobbyDropdown(
     private val window: UIComponent,
@@ -33,11 +35,11 @@ class GobbyDropdown(
         font?.let { fontProvider = it }
     } childOf this
 
-    private val caret = UIText("v", shadow = false).constrain {
+    private val caret = GobbyChevron().constrain {
         x = CARET_PADDING.pixels(alignOpposite = true)
         y = CenterConstraint()
-        color = ComponentTheme.TEXT_DIM.toConstraint()
-        font?.let { fontProvider = it }
+        width = CHEVRON_WIDTH.pixels
+        height = CHEVRON_HEIGHT.pixels
     } childOf this
 
     init {

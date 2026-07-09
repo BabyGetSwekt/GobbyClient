@@ -34,5 +34,7 @@ object MobEsp : EntityHighlighter("Mob ESP", "Highlights mobs whose name matches
 
     override fun usesMobCaching(): Boolean = true
 
+    override fun revalidateCache(): Boolean = true
+
     override fun rendersArmor(): Boolean = true
 }
