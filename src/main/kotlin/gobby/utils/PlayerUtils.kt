@@ -11,21 +11,23 @@ import gobby.utils.skyblock.dungeon.DungeonUtils
 import net.minecraft.client.KeyMapping
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.entity.Pose
 import net.minecraft.world.phys.Vec3
 
 
 object PlayerUtils {
 
     const val STANDING_EYE_HEIGHT = 1.62
-    const val MODERN_SNEAK_HEIGHT = 1.27
-    const val LEGACY_SNEAK_HEIGHT = 1.54
-
-    private val modernIslands = setOf(Island.GALATEA, Island.PARK, Island.HUB, Island.SPIDERS_DEN)
+    const val SNEAK_EYE_HEIGHT = 1.27
+    const val SWIMMING_EYE_HEIGHT = 0.4
 
     fun getEyeHeight(): Double {
         val player = mc.player ?: return STANDING_EYE_HEIGHT
-        if (!player.isCrouching) return STANDING_EYE_HEIGHT
-        return if (modernIslands.any(LocationUtils::isIn)) MODERN_SNEAK_HEIGHT else LEGACY_SNEAK_HEIGHT
+        return when {
+            player.pose == Pose.SWIMMING -> SWIMMING_EYE_HEIGHT
+            player.isCrouching -> SNEAK_EYE_HEIGHT
+            else -> STANDING_EYE_HEIGHT
+        }
     }
 
     fun getSyncedPos(): Vec3? {
