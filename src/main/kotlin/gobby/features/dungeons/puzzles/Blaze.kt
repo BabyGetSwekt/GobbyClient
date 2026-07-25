@@ -29,7 +29,7 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
     private val BLUE = Color(0, 100, 255, 255)
     private val WHITE = Color(255, 255, 255, 255)
     private val COLORS = listOf(GREEN, ORANGE, BLUE)
-    private val HP_REGEX = Regex("""\[Lv15]\s*♨\s*Blaze\s+[\d,]+/([\d,]+)❤""")
+    private val HP_REGEX = Regex("""\[Lv\d+].*?Blaze\s+[\d,]+/([\d,]+)❤""")
 
     private var roomCenterX = 0
     private var roomCenterZ = 0

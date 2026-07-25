@@ -38,7 +38,6 @@ object MapCheckmarks {
             for (col in 0 until GRID_SIZE step 2) {
                 val index = row * GRID_SIZE + col
                 if (grid[index] !is MapTile.Room) continue
-                if (checkmarks[index] == MapCheckmark.GREEN) continue
 
                 val roomCol = col / 2
                 val roomRow = row / 2
@@ -54,15 +53,23 @@ object MapCheckmarks {
                 val mcz = (mrz + halfRoom - 1 + 2).coerceIn(0, 127)
                 val centerByte = colors[mcz * 128 + mcx]
 
-                checkmarks[index] = if (cornerByte == centerByte) MapCheckmark.NONE
+                val detected = if (cornerByte == centerByte) MapCheckmark.NONE
                 else when (centerByte) {
                     CHECK_GREEN -> MapCheckmark.GREEN
                     CHECK_WHITE -> MapCheckmark.WHITE
                     CHECK_FAILED -> MapCheckmark.FAILED
                     else -> MapCheckmark.NONE
                 }
+                if (detected.priority() > checkmarks[index].priority()) checkmarks[index] = detected
             }
         }
+    }
+
+    private fun MapCheckmark.priority(): Int = when (this) {
+        MapCheckmark.NONE -> 0
+        MapCheckmark.FAILED -> 1
+        MapCheckmark.WHITE -> 2
+        MapCheckmark.GREEN -> 3
     }
 
     private fun scanMapDimensions(colors: ByteArray): Boolean {

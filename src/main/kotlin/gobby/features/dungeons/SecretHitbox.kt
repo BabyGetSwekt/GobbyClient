@@ -35,8 +35,7 @@ object SecretHitbox : Module(
 
     fun isSecretSkull(world: BlockGetter, pos: BlockPos): Boolean {
         if (!shouldExpand() || !skulls) return false
-        val blockEntity = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
-        val id = blockEntity.ownerProfile?.partialProfile()?.id?.toString() ?: return false
-        return id == DungeonUtils.WITHER_ESSENCE_ID || id == DungeonUtils.REDSTONE_KEY
+        val skull = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
+        return DungeonUtils.isSecretSkull(skull)
     }
 }

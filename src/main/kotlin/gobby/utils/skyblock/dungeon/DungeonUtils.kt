@@ -27,11 +27,13 @@ import net.minecraft.world.level.block.entity.SkullBlockEntity
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.Vec3i
+import java.util.Base64
 
 object DungeonUtils {
 
-    const val WITHER_ESSENCE_ID = "e0f3e929-869e-3dca-9504-54c666ee6f23"
-    const val REDSTONE_KEY = "fed95410-aba1-39df-9b95-1d4f361eb66e"
+    private const val WITHER_ESSENCE_TEXTURE = "e49ec7d82b1415acae2059f78cd1d1754b9de9b18ca59f609024c4af843d4d24"
+    private const val REDSTONE_KEY_TEXTURE = "a223e36ac13f0f71abcfbf0c96fdc2010cc3e11ff2b0d8112d0e63f4b4aaa0de"
+    private val SECRET_SKULL_TEXTURES = setOf(WITHER_ESSENCE_TEXTURE, REDSTONE_KEY_TEXTURE)
 
     data class DungeonTeammate(
         val name: String,
@@ -88,11 +90,16 @@ object DungeonUtils {
         if (block.equalsOneOf(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.LEVER)) return true
 
         if (block is AbstractSkullBlock) {
-            val blockEntity = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
-            val owner = blockEntity.ownerProfile ?: return false
-            return owner.partialProfile().id?.toString()?.equalsOneOf(WITHER_ESSENCE_ID, REDSTONE_KEY) == true
+            val skull = world.getBlockEntity(pos) as? SkullBlockEntity ?: return false
+            return isSecretSkull(skull)
         }
         return false
+    }
+
+    fun isSecretSkull(skull: SkullBlockEntity): Boolean {
+        val texture = skull.ownerProfile?.partialProfile()?.properties?.get("textures")?.firstOrNull()?.value ?: return false
+        val decoded = runCatching { String(Base64.getDecoder().decode(texture)) }.getOrNull() ?: return false
+        return SECRET_SKULL_TEXTURES.any { it in decoded }
     }
 
     fun getPhase(): Int {

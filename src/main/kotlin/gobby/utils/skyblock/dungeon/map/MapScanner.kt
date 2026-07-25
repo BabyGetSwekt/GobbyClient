@@ -8,11 +8,18 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.HALF_ROOM
 import gobby.utils.skyblock.dungeon.map.MapConstants.START_X
 import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.tiles.RoomData
-import gobby.utils.skyblock.dungeon.tiles.RoomType
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.core.BlockPos
 
 object MapScanner {
+
+    private const val WALL_HEIGHT = 85
+    private const val DOOR_BLOCK_Y = 69
+    private val ENTRANCE_DOOR_BLOCKS = setOf(
+        Blocks.INFESTED_STONE, Blocks.INFESTED_COBBLESTONE, Blocks.INFESTED_STONE_BRICKS,
+        Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.INFESTED_CRACKED_STONE_BRICKS,
+        Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.INFESTED_DEEPSLATE
+    )
 
     /** Runs only inference + gap resolution on an existing grid (for testing). */
     fun runInference(grid: Array<MapTile>) {
@@ -112,9 +119,8 @@ object MapScanner {
                     val room = grid[row * GRID_SIZE + col] as? MapTile.Room ?: continue
                     val arrangements = getArrangements(room.data.shape, col, row) ?: continue
 
-                    // Filter: valid position AND doesn't block any other multi-cell room
                     val valid = arrangements.filter { block ->
-                        isValidBlock(grid, room.data, block) && !wouldBlockOtherRoom(grid, room.data, block)
+                        isValidBlock(grid, room.data, block) && !wouldBlockOtherRoom(grid, room.data, block) && !crossesDoor(block)
                     }
                     if (valid.size == 1) {
                         val block = valid[0]
@@ -230,6 +236,14 @@ object MapScanner {
         return true
     }
 
+    private fun crossesDoor(block: IntArray): Boolean {
+        val cells = (block.indices step 2).map { block[it] to block[it + 1] }.toHashSet()
+        return cells.any { (c, r) ->
+            ((c + 2 to r) in cells && detectDoor(c + 1, r) != null) ||
+            ((c to r + 2) in cells && detectDoor(c, r + 1) != null)
+        }
+    }
+
     private fun resolveGap(grid: Array<MapTile>, col: Int, row: Int): MapTile? {
         val colOdd = col and 1 == 1
         val rowOdd = row and 1 == 1
@@ -264,35 +278,26 @@ object MapScanner {
         val roomB = b as? MapTile.Room
 
         if (roomA == null && roomB == null) return null
-        if (roomA == null || roomB == null) return null
+        if (roomA != null && roomB != null && roomA.data === roomB.data) return MapTile.Connection(roomA.data)
 
-        if (roomA.data === roomB.data) return MapTile.Connection(roomA.data)
-
-        return detectDoor(col, row, roomA, roomB)
+        return detectDoor(col, row)
     }
 
-    /**
-     * Checks if there's an actual door/passage at this gap position.
-     * Like Devonian: only creates a door when there's a ceiling (height > 0) lower than room height (< 85).
-     * No ceiling or full-height wall = no passage = null.
-     */
-    private fun detectDoor(col: Int, row: Int, a: MapTile.Room, b: MapTile.Room): MapTile.Door? {
+    private fun detectDoor(col: Int, row: Int): MapTile.Door? {
         val world = mc.level ?: return null
         val x = START_X + col * HALF_ROOM
         val z = START_Z + row * HALF_ROOM
+        val block = world.getBlockState(BlockPos(x, DOOR_BLOCK_Y, z)).block
+
+        when {
+            block == Blocks.COAL_BLOCK -> return MapTile.Door(DoorType.WITHER)
+            block == Blocks.DYED_TERRACOTTA.red() -> return MapTile.Door(DoorType.BLOOD)
+            block in ENTRANCE_DOOR_BLOCKS -> return MapTile.Door(DoorType.ENTRANCE)
+        }
 
         val chunk = world.getChunk(x shr 4, z shr 4)
         val height = ScanUtils.getTopLayerOfRoom(VecUtils.Vec2(x, z), chunk)
-
-        if (height == 0 || height >= 85) return null
-
-        val block = world.getBlockState(BlockPos(x, 69, z)).block
-        val type = when {
-            a.data.type == RoomType.ENTRANCE || b.data.type == RoomType.ENTRANCE -> DoorType.ENTRANCE
-            block == Blocks.COAL_BLOCK -> DoorType.WITHER
-            block == Blocks.DYED_TERRACOTTA.red() -> DoorType.BLOOD
-            else -> DoorType.NORMAL
-        }
-        return MapTile.Door(type)
+        if (height == 0 || height >= WALL_HEIGHT) return null
+        return MapTile.Door(DoorType.NORMAL)
     }
 }

@@ -48,6 +48,7 @@ object MapRenderer {
     private const val DEFAULT_HEAD_SIZE = 6
     private const val MIN_HEAD_SIZE = 3
     private const val NAME_SCALE = 0.35f
+    private const val HEAD_ROTATION_OFFSET = 180.0
 
     private val HYPHENATED = mapOf(
         "Deathmite" to "Death-\nmite",
@@ -266,11 +267,14 @@ object MapRenderer {
             val skinTexture = entry.skin.body().texturePath()
             if (skinTexture != null) {
                 val scale = headSize / FACE_SIZE.toFloat()
+                val partial = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
+                val angle = Math.toRadians(player.getViewYRot(partial) - HEAD_ROTATION_OFFSET).toFloat()
                 ctx.pose().pushMatrix()
-                ctx.pose().translate(hx.toFloat(), hy.toFloat())
+                ctx.pose().translate(pixelX.toFloat(), pixelY.toFloat())
+                ctx.pose().rotate(angle)
                 ctx.pose().scale(scale, scale)
-                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
-                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, 0, 0, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, -FACE_SIZE / 2, -FACE_SIZE / 2, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, -FACE_SIZE / 2, -FACE_SIZE / 2, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
                 ctx.pose().popMatrix()
             } else {
                 ctx.fill(hx - 1, hy - 1, hx + headSize + 1, hy + headSize + 1, Color.BLACK.rgb)
