@@ -19,7 +19,7 @@ import net.minecraft.network.HashedStack
 
 object EquipmentManager {
 
-    private const val SCREEN_TITLE = "Your Equipment and Stats"
+    private const val SCREEN_TITLE = "Stats & Equipment"
     private const val HELMET_SLOT = 11
     private const val CHESTPLATE_SLOT = 20
     private const val LEGGINGS_SLOT = 29
@@ -65,7 +65,7 @@ object EquipmentManager {
         itemSlot = slot
         state = State.WAITING_SCREEN
         ticksWaiting = 0
-        ChatUtils.sendCommand("equipment")
+        ChatUtils.sendCommand("stats")
     }
 
     private fun invToContainerSlot(invSlot: Int): Int {
