@@ -102,6 +102,7 @@ object ModuleManager {
         StructureScanner,
         FullBright,
         MobEsp,
+        ChinaHat,
         InventoryHud,
         Keystrokes,
         TerminatorAC,

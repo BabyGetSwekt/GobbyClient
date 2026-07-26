@@ -6,6 +6,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
+import org.joml.Quaternionf
+import org.joml.Vector3f
 import java.awt.Color
 import kotlin.math.PI
 import kotlin.math.cos
@@ -227,6 +229,51 @@ object BlockRenderUtils {
 
                 buildLineRaw(pose, lineBuf, wx1, yBottom.toDouble(), wz1, wx2, yBottom.toDouble(), wz2, r, g, b, a)
                 buildLineRaw(pose, lineBuf, wx1, yTop.toDouble(), wz1, wx2, yTop.toDouble(), wz2, r, g, b, a)
+            }
+        }
+    }
+
+    fun drawCone(
+        matrixStack: PoseStack,
+        camera: Camera,
+        centerX: Double, centerY: Double, centerZ: Double,
+        radius: Double,
+        height: Double,
+        brimOffset: Double = 0.0,
+        yaw: Float = 0f,
+        pitch: Float = 0f,
+        segments: Int = 48,
+        depthTest: Boolean = false,
+        colorFor: (segment: Int, apex: Boolean) -> Color
+    ) {
+        val collector = RenderUtils.frameCollector ?: return
+        val cameraPos = camera.cameraPos
+        val orientation = Quaternionf()
+            .rotateY(Math.toRadians(-yaw.toDouble()).toFloat())
+            .rotateX(Math.toRadians(pitch.toDouble()).toFloat())
+
+        val cosValues = DoubleArray(segments + 1) { i -> cos(2.0 * PI * i / segments) }
+        val sinValues = DoubleArray(segments + 1) { i -> sin(2.0 * PI * i / segments) }
+        val apexOffset = brimOffset + height
+
+        val quadsLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
+        collector.submitCustomGeometry(matrixStack, quadsLayer) { pose, buf ->
+            val local = Vector3f()
+            fun v(lx: Double, ly: Double, lz: Double, c: Color) {
+                local.set(lx.toFloat(), ly.toFloat(), lz.toFloat())
+                orientation.transform(local)
+                buf.addVertex(
+                    pose,
+                    (centerX + local.x - cameraPos.x).toFloat(),
+                    (centerY + local.y - cameraPos.y).toFloat(),
+                    (centerZ + local.z - cameraPos.z).toFloat()
+                ).setColor(c.red / 255f, c.green / 255f, c.blue / 255f, c.alpha / 255f)
+            }
+            for (i in 0 until segments) {
+                v(cosValues[i] * radius, brimOffset, sinValues[i] * radius, colorFor(i, false))
+                v(cosValues[i + 1] * radius, brimOffset, sinValues[i + 1] * radius, colorFor(i + 1, false))
+                v(0.0, apexOffset, 0.0, colorFor(i, true))
+                v(0.0, apexOffset, 0.0, colorFor(i, true))
             }
         }
     }

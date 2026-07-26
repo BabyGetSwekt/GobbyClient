@@ -12,6 +12,7 @@ import net.minecraft.client.KeyMapping
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Pose
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 
 
@@ -84,3 +85,5 @@ object PlayerUtils {
         return playerX in x1..x2 && playerY in y1..y2 && playerZ in z1..z2
     }
 }
+
+fun Player.isNpc(): Boolean = uuid.version() != 4
