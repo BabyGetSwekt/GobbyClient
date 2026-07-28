@@ -38,6 +38,8 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
 
     internal var listeningKeybind: KeybindSetting? = null
     internal var draggingSlider: NumberSetting? = null
+    internal var draggingRange: RangeSetting? = null
+    internal var draggingRangeHigh = false
     internal var sliderBaseX = 0
     internal var sliderBaseW = 0
     internal var draggingColorSB: ColorSetting? = null

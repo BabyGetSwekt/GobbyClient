@@ -5,6 +5,7 @@ import gobby.utils.Utils
 
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
+import kotlin.math.abs
 
 object InputHandler {
 
@@ -51,6 +52,21 @@ object InputHandler {
                         gui.sliderBaseX = slX
                         gui.sliderBaseW = slW
                         updateSlider(setting, mx, slX, slW)
+                    }
+                }
+            }
+            is RangeSetting -> {
+                if (button == 0) {
+                    val slW = PW - SETTING_INDENT - PAD
+                    val slX = px + SETTING_INDENT
+                    if (mx in slX..(slX + slW)) {
+                        gui.draggingRange = setting
+                        gui.sliderBaseX = slX
+                        gui.sliderBaseW = slW
+                        val lowX = slX + (slW * setting.progress(setting.value.start)).toInt()
+                        val highX = slX + (slW * setting.progress(setting.value.endInclusive)).toInt()
+                        gui.draggingRangeHigh = abs(mx - highX) <= abs(mx - lowX)
+                        updateRange(setting, mx, slX, slW, gui.draggingRangeHigh)
                     }
                 }
             }
@@ -167,9 +183,20 @@ object InputHandler {
         ConfigManager.save()
     }
 
+    private fun updateRange(setting: RangeSetting, mx: Int, baseX: Int, baseW: Int, high: Boolean) {
+        val progress = ((mx - baseX).toFloat() / baseW).coerceIn(0f, 1f)
+        val raw = setting.min + (setting.max - setting.min) * progress
+        if (high) setting.high = raw else setting.low = raw
+        ConfigManager.save()
+    }
+
     fun handleMouseDrag(gui: ClickGUI, currentX: Double, currentY: Double): Boolean {
         gui.draggingSlider?.let {
             updateSlider(it, currentX.toInt(), gui.sliderBaseX, gui.sliderBaseW)
+            return true
+        }
+        gui.draggingRange?.let {
+            updateRange(it, currentX.toInt(), gui.sliderBaseX, gui.sliderBaseW, gui.draggingRangeHigh)
             return true
         }
         gui.draggingColorSB?.let { s ->
@@ -198,6 +225,7 @@ object InputHandler {
 
     fun handleMouseRelease(gui: ClickGUI) {
         gui.draggingSlider = null
+        gui.draggingRange = null
         gui.draggingColorSB = null
         gui.draggingColorHue = null
         gui.draggingColorAlpha = null

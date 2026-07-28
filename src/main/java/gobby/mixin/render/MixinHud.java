@@ -2,6 +2,7 @@ package gobby.mixin.render;
 
 import gobby.Gobbyclient;
 import gobby.events.render.Render2DEvent;
+import gobby.features.render.ScoreboardHider;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
@@ -20,5 +21,10 @@ public class MixinHud {
     private void gobbyclient$onRenderPlayerList(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
         Render2DEvent event = new Render2DEvent(context, tickCounter);
         Gobbyclient.EVENT_MANAGER.publish(event);
+    }
+
+    @Inject(method = "extractScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$hideScoreboard(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
+        if (ScoreboardHider.INSTANCE.getEnabled()) ci.cancel();
     }
 }

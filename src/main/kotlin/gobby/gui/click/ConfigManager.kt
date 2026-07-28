@@ -1,6 +1,7 @@
 package gobby.gui.click
 
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import gobby.Gobbyclient
 import gobby.gui.hud.HudManager
@@ -25,6 +26,7 @@ object ConfigManager {
                     when (setting) {
                         is BooleanSetting -> mj.addProperty(setting.name, setting.value)
                         is NumberSetting -> mj.addProperty(setting.name, setting.value)
+                        is RangeSetting -> mj.add(setting.name, JsonArray().apply { add(setting.value.start); add(setting.value.endInclusive) })
                         is SelectorSetting -> mj.addProperty(setting.name, setting.value)
                         is ColorSetting -> mj.addProperty(setting.name, setting.value.rgb)
                         is KeybindSetting -> mj.addProperty(setting.name, setting.value)
@@ -74,6 +76,10 @@ object ConfigManager {
                         when (setting) {
                             is BooleanSetting -> setting.value = mj.get(setting.name).asBoolean
                             is NumberSetting -> setting.value = mj.get(setting.name).asInt
+                            is RangeSetting -> mj.getAsJsonArray(setting.name)?.takeIf { it.size() == 2 }?.let { arr ->
+                                setting.high = maxOf(arr[0].asFloat, arr[1].asFloat)
+                                setting.low = minOf(arr[0].asFloat, arr[1].asFloat)
+                            }
                             is SelectorSetting -> setting.value = mj.get(setting.name).asInt
                             is ColorSetting -> setting.value = Color(mj.get(setting.name).asInt, true)
                             is KeybindSetting -> setting.value = mj.get(setting.name).asInt

@@ -139,12 +139,20 @@ object RotationUtils {
     private const val SIM_TICKS = 120
     private const val AIM_GRID_RES = 5
     private const val AIM_FACE_MARGIN = 0.05
+    private const val AIM_ITERATIONS = 15
+    private const val AIM_STEP_CLAMP = 25f
+    private const val AIM_PITCH_LIMIT = 88f
+    private const val AIM_PITCH_EPSILON = 1f
+    private const val AIM_SLOPE_EPSILON = 1e-4
+    private const val AIM_TOLERANCE = 0.02
 
     fun aimAtBlockShortbow(pos: BlockPos, rotate: Boolean = true, delayMs: Long = 150L, onComplete: (() -> Unit)? = null) {
         val (yaw, pitch) = findClearShortbowAim(pos) ?: return
         if (rotate) easeTo(yaw, pitch, delayMs, onComplete)
         else { snapTo(yaw, pitch); onComplete?.invoke() }
     }
+
+    fun canAimShortbow(pos: BlockPos): Boolean = findClearShortbowAim(pos) != null
 
     private data class AimCandidate(val point: Vec3, val angles: Pair<Float, Float>?, val valid: Boolean)
 
@@ -199,13 +207,16 @@ object RotationUtils {
         val horizDist = sqrt(dx * dx + dz * dz)
         if (horizDist < 1e-4) return null
         val yaw = Math.toDegrees(atan2(-dx, dz)).toFloat()
-        var pitch = (-Math.toDegrees(atan2(target.y - eye.y, horizDist))).toFloat()
-        repeat(10) {
+        var pitch = (-Math.toDegrees(atan2(target.y - eye.y, horizDist))).toFloat().coerceIn(-AIM_PITCH_LIMIT, AIM_PITCH_LIMIT)
+        repeat(AIM_ITERATIONS) {
             val arrowY = simulateArrowYAtRange(eye, yaw, pitch, horizDist) ?: return null
             val yMiss = target.y - arrowY
-            if (abs(yMiss) < 0.02) return@repeat
-            pitch -= Math.toDegrees(atan2(yMiss, horizDist)).toFloat()
-            if (pitch < -90f || pitch > 90f) return null
+            if (abs(yMiss) < AIM_TOLERANCE) return yaw to pitch
+            val probeY = simulateArrowYAtRange(eye, yaw, pitch + AIM_PITCH_EPSILON, horizDist) ?: return null
+            val slope = (probeY - arrowY) / AIM_PITCH_EPSILON
+            if (abs(slope) < AIM_SLOPE_EPSILON) return null
+            val step = (yMiss / slope).coerceIn(-AIM_STEP_CLAMP.toDouble(), AIM_STEP_CLAMP.toDouble())
+            pitch = (pitch + step).toFloat().coerceIn(-AIM_PITCH_LIMIT, AIM_PITCH_LIMIT)
         }
         return yaw to pitch
     }

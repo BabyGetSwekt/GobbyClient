@@ -2,6 +2,7 @@ package gobby.gui.click
 
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
+import kotlin.math.roundToInt
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -46,6 +47,55 @@ class NumberSetting(
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): NumberSetting {
+        thisRef.settings.add(this)
+        return this
+    }
+}
+
+class RangeSetting(
+    name: String,
+    defaultLow: Float,
+    defaultHigh: Float,
+    val min: Float,
+    val max: Float,
+    val increment: Float = 1f,
+    desc: String = "",
+    hidden: Boolean = false
+) : Setting<ClosedFloatingPointRange<Float>>(name, desc, defaultLow..defaultHigh, hidden),
+    ReadOnlyProperty<Any?, ClosedFloatingPointRange<Float>> {
+
+    constructor(name: String, defaultLow: Int, defaultHigh: Int, min: Int, max: Int, increment: Int = 1, desc: String = "", hidden: Boolean = false) :
+        this(name, defaultLow.toFloat(), defaultHigh.toFloat(), min.toFloat(), max.toFloat(), increment.toFloat(), desc, hidden)
+
+    override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
+    init {
+        val lo = snap(defaultLow).coerceIn(min, (max - increment).coerceAtLeast(min))
+        value = lo..snap(defaultHigh).coerceIn((lo + increment).coerceAtMost(max), max)
+    }
+
+    var low: Float
+        get() = value.start
+        set(v) {
+            val hi = value.endInclusive
+            value = snap(v).coerceIn(min, (hi - increment).coerceAtLeast(min))..hi
+        }
+
+    var high: Float
+        get() = value.endInclusive
+        set(v) {
+            val lo = value.start
+            value = lo..snap(v).coerceIn((lo + increment).coerceAtMost(max), max)
+        }
+
+    fun progress(v: Float): Float = ((v - min) / (max - min)).coerceIn(0f, 1f)
+
+    private fun snap(v: Float): Float = (min + ((v - min) / increment).roundToInt() * increment).coerceIn(min, max)
+
+    fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
+
+    operator fun provideDelegate(thisRef: Module, property: KProperty<*>): RangeSetting {
         thisRef.settings.add(this)
         return this
     }

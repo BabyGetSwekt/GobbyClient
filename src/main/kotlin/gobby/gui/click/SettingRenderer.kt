@@ -2,6 +2,7 @@ package gobby.gui.click
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
+import kotlin.math.roundToInt
 
 object SettingRenderer {
 
@@ -14,6 +15,7 @@ object SettingRenderer {
             is KeybindSetting -> drawKeybindSetting(ctx, gui, px, y, setting)
             is BooleanSetting -> drawBoolSetting(ctx, px, y, setting)
             is NumberSetting -> drawNumberSetting(ctx, gui, px, y, setting)
+            is RangeSetting -> drawRangeSetting(ctx, px, y, setting)
             is SelectorSetting -> drawSelectorSetting(ctx, px, y, setting)
             is ColorSetting -> drawColorSetting(ctx, gui, px, y, setting)
             is ActionSetting -> drawActionSetting(ctx, px, y, setting, mx, my, clipTop, clipBot)
@@ -90,6 +92,40 @@ object SettingRenderer {
         val fillW = (slW * progress).toInt()
         fill(ctx, slX, slY, slW, SLIDER_H, cSliderTrack)
         fill(ctx, slX, slY, fillW, SLIDER_H, cSliderFill)
+    }
+
+    private fun drawRangeSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: RangeSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
+        val textY = y + (SH - SLIDER_H - 2 - fh) / 2
+        drawTextSmall(ctx, px + SETTING_INDENT, textY, s.name, cTextGray)
+
+        val valStr = "${fmtRange(s.value.start)} - ${fmtRange(s.value.endInclusive)}"
+        drawTextSmall(ctx, px + PW - PAD - textWSmall(valStr), textY, valStr, cText)
+
+        val slW = PW - SETTING_INDENT - PAD
+        val slX = px + SETTING_INDENT
+        val slY = y + SH - SLIDER_H - 2
+        fill(ctx, slX, slY, slW, SLIDER_H, cSliderTrack)
+
+        val lowX = slX + (slW * s.progress(s.value.start)).toInt()
+        val highX = slX + (slW * s.progress(s.value.endInclusive)).toInt()
+        fill(ctx, lowX, slY, highX - lowX, SLIDER_H, cSliderFill)
+        val steps = ((s.max - s.min) / s.increment).roundToInt().coerceAtLeast(1)
+        for (i in 0..steps) fill(ctx, slX + slW * i / steps, slY - 1, 1, SLIDER_H + 2, cTextDark)
+        drawRangeThumb(ctx, lowX, slY)
+        drawRangeThumb(ctx, highX, slY)
+    }
+
+    private fun drawRangeThumb(ctx: GuiGraphicsExtractor, cx: Int, slY: Int) {
+        val tx = cx - RANGE_THUMB_W / 2
+        val ty = slY + SLIDER_H / 2 - RANGE_THUMB_H / 2
+        fill(ctx, tx, ty, RANGE_THUMB_W, RANGE_THUMB_H, cKnob)
+        drawBorder(ctx, tx, ty, RANGE_THUMB_W, RANGE_THUMB_H, cBorder)
+    }
+
+    private fun fmtRange(v: Float): String {
+        val i = v.toLong()
+        return if (v == i.toFloat()) i.toString() else v.toString()
     }
 
     private fun drawSelectorSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: SelectorSetting) {
