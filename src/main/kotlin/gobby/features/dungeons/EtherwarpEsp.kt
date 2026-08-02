@@ -2,42 +2,43 @@ package gobby.features.dungeons
 
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
-import gobby.features.render.BlockHighlighter
-import gobby.features.skyblock.Etherwarp
+import gobby.events.render.NewRender3DEvent
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
+import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
-import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.Identifier as ResourceLocation
+import gobby.utils.skyblock.dungeon.ScanUtils
+import gobby.utils.skyblock.dungeon.tiles.Room
 import net.minecraft.core.BlockPos
-import java.awt.Color
+import net.minecraft.world.phys.AABB
 
-object EtherwarpEsp : BlockHighlighter() {
+object EtherwarpEsp {
 
-    private val highlightColor = Color(255, 255, 0, 60)
+    private val positions = mutableListOf<BlockPos>()
 
-    override fun isEnabled(): Boolean = Etherwarp.enabled && Etherwarp.esp && inDungeons && !inBoss
-
-    override fun getStatePredicate(): (BlockState) -> Boolean = { false }
-
-    override fun getColor(pos: BlockPos): Color = highlightColor
+    private fun isEnabled(): Boolean = EtherwarpTriggerbot.enabled && EtherwarpTriggerbot.esp && inDungeons && !inBoss
 
     @SubscribeEvent
-    fun onRoomEnter(event: RoomEnterEvent) {
-        highlightedBlocks.clear()
-        if (!isEnabled()) return
-        val room = event.room ?: return
-        val blocks = Brush.getRoomBlocks(room.data.name) ?: return
+    fun onRoomEnter(event: RoomEnterEvent) = load(event.room)
 
-        for ((blockId, coords) in blocks) {
-            val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
-            if (block !in Etherwarp.TARGET_BLOCKS) continue
-            for (encoded in coords) {
-                val parts = encoded.substringBefore("|").split(",").map { it.trim().toInt() }
-                val realPos = room.getRealCoords(BlockPos(parts[0], parts[1], parts[2]))
-                highlightedBlocks.add(realPos)
-            }
+    fun refresh() = load(ScanUtils.currentRoom)
+
+    private fun load(room: Room?) {
+        positions.clear()
+        if (room == null) return
+        EtherwarpRoutes.spots(room.data.name).forEach { encoded ->
+            val (x, y, z) = encoded.split(",").map { it.trim().toInt() }
+            positions.add(room.getRealCoords(BlockPos(x, y, z)))
+        }
+    }
+
+    @SubscribeEvent
+    fun onRender3D(event: NewRender3DEvent) {
+        if (!isEnabled() || positions.isEmpty()) return
+        val color = EtherwarpTriggerbot.espColor
+        positions.forEach { pos ->
+            val box = AABB(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), pos.x + 1.0, pos.y + 1.0, pos.z + 1.0)
+            draw3DBox(event.matrixStack, event.camera, box, color)
         }
     }
 }

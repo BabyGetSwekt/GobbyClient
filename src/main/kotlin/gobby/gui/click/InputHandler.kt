@@ -10,9 +10,18 @@ import kotlin.math.abs
 object InputHandler {
 
     fun handleMouseClick(gui: ClickGUI, mx: Int, my: Int, button: Int): Boolean {
+        gui.listeningKeybind?.let { kb ->
+            if (button in GLFW.GLFW_MOUSE_BUTTON_LEFT..GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+                kb.value = KeybindSetting.MOUSE_OFFSET + button
+                gui.listeningKeybind = null
+                ConfigManager.save()
+                return true
+            }
+        }
         gui.hexEditSetting = null
         gui.numberEditSetting = null
         gui.searchSelectAll = false
+        gui.stringEditSetting?.let { commitStringEdit(gui, it) }
 
         if (SearchComponent.handleClick(gui, mx, my)) return true
         if (SidebarComponent.handleClick(gui, mx, my)) return true
@@ -43,7 +52,7 @@ object InputHandler {
             is NumberSetting -> {
                 if (button == 1) {
                     gui.numberEditSetting = setting
-                    gui.numberInput = setting.value.toString()
+                    gui.numberInput = setting.display()
                 } else {
                     val slW = PW - SETTING_INDENT - PAD
                     val slX = px + SETTING_INDENT
@@ -69,6 +78,12 @@ object InputHandler {
                         updateRange(setting, mx, slX, slW, gui.draggingRangeHigh)
                     }
                 }
+            }
+            is StringSetting -> {
+                gui.stringEditSetting = setting
+                gui.stringInput = setting.value
+                gui.stringCursor = setting.value.length
+                gui.stringSelectAll = false
             }
             is SelectorSetting -> {
                 setting.value = if (button == 1) {
@@ -174,14 +189,45 @@ object InputHandler {
     }
 
     private fun updateSlider(setting: NumberSetting, mx: Int, baseX: Int, baseW: Int) {
-        val progress = ((mx - baseX).toFloat() / baseW).coerceIn(0f, 1f)
-        var raw = (setting.min + (setting.max - setting.min) * progress).toInt()
-        if (setting.step > 1) {
-            raw = ((raw - setting.min + setting.step / 2) / setting.step) * setting.step + setting.min
-        }
-        setting.value = raw
+        setting.setFromProgress(((mx - baseX).toFloat() / baseW).coerceIn(0f, 1f))
         ConfigManager.save()
     }
+
+    private fun commitStringEdit(gui: ClickGUI, setting: StringSetting) {
+        setting.value = gui.stringInput.trim()
+        gui.stringEditSetting = null
+        gui.stringSelectAll = false
+        setting.onCommit(setting.value)
+        ConfigManager.save()
+    }
+
+    private fun pasteIntoString(gui: ClickGUI, setting: StringSetting) {
+        val pasted = Utils.getClipboard().filter { isAllowedStringChar(it) }
+        if (pasted.isNotEmpty()) insertInString(gui, setting, pasted)
+    }
+
+    private fun insertInString(gui: ClickGUI, setting: StringSetting, text: String) {
+        if (gui.stringSelectAll) { gui.stringInput = ""; gui.stringCursor = 0; gui.stringSelectAll = false }
+        val cursor = gui.stringCursor.coerceIn(0, gui.stringInput.length)
+        val toAdd = text.take(setting.length - gui.stringInput.length)
+        if (toAdd.isEmpty()) return
+        gui.stringInput = gui.stringInput.substring(0, cursor) + toAdd + gui.stringInput.substring(cursor)
+        gui.stringCursor = cursor + toAdd.length
+    }
+
+    private fun deleteInString(gui: ClickGUI, forward: Boolean) {
+        if (gui.stringSelectAll) { gui.stringInput = ""; gui.stringCursor = 0; gui.stringSelectAll = false; return }
+        val input = gui.stringInput
+        val cursor = gui.stringCursor.coerceIn(0, input.length)
+        if (forward) {
+            if (cursor < input.length) gui.stringInput = input.removeRange(cursor, cursor + 1)
+        } else if (cursor > 0) {
+            gui.stringInput = input.removeRange(cursor - 1, cursor)
+            gui.stringCursor = cursor - 1
+        }
+    }
+
+    private fun isAllowedStringChar(chr: Char): Boolean = chr.isLetterOrDigit() || chr in "._:/-"
 
     private fun updateRange(setting: RangeSetting, mx: Int, baseX: Int, baseW: Int, high: Boolean) {
         val progress = ((mx - baseX).toFloat() / baseW).coerceIn(0f, 1f)
@@ -284,6 +330,23 @@ object InputHandler {
             return true
         }
 
+        gui.stringEditSetting?.let { s ->
+            when {
+                key == GLFW.GLFW_KEY_ESCAPE -> { gui.stringEditSetting = null; gui.stringSelectAll = false }
+                key == GLFW.GLFW_KEY_ENTER -> commitStringEdit(gui, s)
+                key == GLFW.GLFW_KEY_A && isCtrlHeld() -> gui.stringSelectAll = gui.stringInput.isNotEmpty()
+                key == GLFW.GLFW_KEY_C && isCtrlHeld() && gui.stringSelectAll -> Utils.setClipboard(gui.stringInput)
+                key == GLFW.GLFW_KEY_V && isCtrlHeld() -> pasteIntoString(gui, s)
+                key == GLFW.GLFW_KEY_LEFT -> { gui.stringSelectAll = false; gui.stringCursor = (gui.stringCursor - 1).coerceAtLeast(0) }
+                key == GLFW.GLFW_KEY_RIGHT -> { gui.stringSelectAll = false; gui.stringCursor = (gui.stringCursor + 1).coerceAtMost(gui.stringInput.length) }
+                key == GLFW.GLFW_KEY_HOME -> { gui.stringSelectAll = false; gui.stringCursor = 0 }
+                key == GLFW.GLFW_KEY_END -> { gui.stringSelectAll = false; gui.stringCursor = gui.stringInput.length }
+                key == GLFW.GLFW_KEY_DELETE -> deleteInString(gui, forward = true)
+                key == GLFW.GLFW_KEY_BACKSPACE -> deleteInString(gui, forward = false)
+            }
+            return true
+        }
+
         if (gui.searchFocused && key == GLFW.GLFW_KEY_A && isCtrlHeld()) {
             if (gui.searchQuery.isNotEmpty()) gui.searchSelectAll = true
             return true
@@ -348,11 +411,14 @@ object InputHandler {
             return true
         }
 
-        gui.numberEditSetting?.let {
-            if (chr.isDigit() || (chr == '-' && gui.numberInput.isEmpty())) {
-                gui.numberInput += chr
-                return true
-            }
+        gui.numberEditSetting?.let { s ->
+            val allowDot = chr == '.' && s.decimals > 0 && '.' !in gui.numberInput
+            if (chr.isDigit() || allowDot || (chr == '-' && gui.numberInput.isEmpty())) gui.numberInput += chr
+            return true
+        }
+
+        gui.stringEditSetting?.let { s ->
+            if (isAllowedStringChar(chr)) insertInString(gui, s, chr.toString())
             return true
         }
 
@@ -374,8 +440,8 @@ object InputHandler {
     }
 
     private fun applyNumberInput(gui: ClickGUI, s: NumberSetting) {
-        val parsed = gui.numberInput.toIntOrNull() ?: return
-        s.value = parsed.coerceIn(s.min, s.max)
+        val parsed = gui.numberInput.toFloatOrNull() ?: return
+        s.setSnapped(parsed)
         ConfigManager.save()
     }
 

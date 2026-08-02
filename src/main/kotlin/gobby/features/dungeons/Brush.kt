@@ -8,9 +8,12 @@ import gobby.events.BlockStateChangeEvent
 import gobby.events.ClientTickEvent
 import gobby.events.LeftClickEvent
 import gobby.events.RightClickEvent
+import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
 import gobby.gui.brush.BlockSelector
+import gobby.gui.click.Category
+import gobby.gui.click.Module
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
@@ -34,9 +37,9 @@ import net.minecraft.core.Direction
 import net.minecraft.util.RandomSource
 import java.io.File
 
-object Brush {
+object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and lets you place or remove them", Category.DUNGEONS) {
 
-    var enabled = false
+    private var wasEnabled = false
     private var rightClickUsed = false
     private var leftClickUsed = false
     private var wasInBoss = false
@@ -192,8 +195,6 @@ object Brush {
 
     fun isFavorite(blockId: String): Boolean = blockId in favoriteBlocks
 
-    fun getRoomBlocks(roomName: String): Map<String, List<String>>? = brushData[roomName]
-
     private fun loadFavorites() {
         if (!favoritesFile.exists()) return
         try {
@@ -258,6 +259,11 @@ object Brush {
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
+        if (enabled != wasEnabled) {
+            wasEnabled = enabled
+            if (enabled) applyCurrentRoom() else revertAll()
+        }
+
         if (!mc.options.keyUse.isDown) rightClickUsed = false
         if (!mc.options.keyAttack.isDown) leftClickUsed = false
 
@@ -268,10 +274,8 @@ object Brush {
         }
         wasInGui = inGui
 
-        if (inDungeons && inBoss && !wasInBoss) {
-            val world = mc.level
-            val floorBlocks = bossData[dungeonFloor.toString()]
-            if (world != null && floorBlocks != null) applyBlockData(world, floorBlocks)
+        if (enabled && inDungeons && inBoss && !wasInBoss) {
+            mc.level?.let { world -> bossData[dungeonFloor.toString()]?.let { applyBlockData(world, it) } }
         }
         wasInBoss = inDungeons && inBoss
 
@@ -343,8 +347,7 @@ object Brush {
 
     @SubscribeEvent
     fun onBlockChange(event: BlockStateChangeEvent) {
-        if (enabled) return
-        if (!inDungeons) return
+        if (!enabled || !inDungeons) return
 
         val ctx = resolveContext(event.blockPos, writable = false) ?: return
         val isTracked = ctx.blocks.values.any { it.any { entry -> coordPart(entry) == ctx.coord } }
@@ -353,9 +356,36 @@ object Brush {
 
     @SubscribeEvent
     fun onRoomEnter(event: RoomEnterEvent) {
+        if (!enabled) return
         val room = event.room ?: return
         val world = mc.level ?: return
         val roomBlocks = brushData[room.data.name] ?: return
         applyBlockData(world, roomBlocks) { room.getRealCoords(it) }
+    }
+
+    @SubscribeEvent
+    fun onWorldLoad(event: WorldLoadEvent) {
+        originalStates.clear()
+        wasInBoss = false
+    }
+
+    private fun applyCurrentRoom() {
+        val world = mc.level ?: return
+        if (inBoss) {
+            bossData[dungeonFloor.toString()]?.let { applyBlockData(world, it) }
+        } else {
+            val room = ScanUtils.currentRoom ?: return
+            brushData[room.data.name]?.let { applyBlockData(world, it) { pos -> room.getRealCoords(pos) } }
+        }
+    }
+
+    private fun revertAll() {
+        val world = mc.level ?: return
+        originalStates.forEach { (pos, state) ->
+            val current = world.getBlockState(pos)
+            world.setBlock(pos, state, 3)
+            world.sendBlockUpdated(pos, current, state, 3)
+        }
+        originalStates.clear()
     }
 }

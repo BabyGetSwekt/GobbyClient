@@ -42,7 +42,8 @@ object ModuleManager {
         DevTestCommand,
         BrushCommand,
         SimulateCommand,
-        ClipCommand
+        ClipCommand,
+        EtherwarpCommands
     ).forEach(EVENT_MANAGER::subscribe)
 
     private fun subscribeManagers() = listOf(
@@ -79,11 +80,11 @@ object ModuleManager {
             RenderBlock,
             SecretTriggerbot,
             EtherwarpEsp,
+            EtherwarpRoutes,
             LastBreathHelper,
             DebuffAreaRenderer,
             ShootingDeviceEsp,
             P3Levers,
-            Brush,
             YouAreAKingGG,
             TerminalUtils,
             NumbersTerminal,
@@ -112,6 +113,8 @@ object ModuleManager {
         DungeonMap,
         DoorKeyEsp,
         Etherwarp,
+        EtherwarpTriggerbot,
+        Brush,
         AutoLeap,
         LeapOverlay,
         AutoCloseChest,
@@ -138,6 +141,8 @@ object ModuleManager {
         NoFire,
         NoBlockOverlay,
         ScoreboardHider,
+        SkinChanger,
+        NickHider,
         DisableBlockParticles,
         WardrobeSwapper,
         MaskSwapper,

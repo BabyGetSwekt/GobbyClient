@@ -91,6 +91,17 @@ object ChatUtils {
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(text) }
     }
 
+    fun errorMessage(text: Component) {
+        if (mc.player == null || mc.level == null) return
+        val prefixed = Component.empty()
+            .append(Component.literal("[").withStyle(ChatFormatting.DARK_RED))
+            .append(Component.literal("Gobby Client").withStyle(ChatFormatting.RED))
+            .append(Component.literal("] ").withStyle(ChatFormatting.DARK_RED))
+            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(text.copy().withStyle(ChatFormatting.RED))
+        mc.execute { mc.gui.hud.chat.addClientSystemMessage(prefixed) }
+    }
+
     fun sendMessage(message: Any) {
         if (mc.player == null || mc.level == null || message == "") return
         mc.player?.connection?.sendChat(message.toString())

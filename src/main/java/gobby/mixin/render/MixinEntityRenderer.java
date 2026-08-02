@@ -2,6 +2,7 @@ package gobby.mixin.render;
 
 import gobby.features.dungeons.StarredMobEsp;
 import gobby.features.render.EntityHighlighter;
+import gobby.features.render.NickHider;
 import gobby.gui.components.hud.InventoryHud;
 import gobby.interfaces.EspLayerHidingState;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -19,6 +20,8 @@ public class MixinEntityRenderer {
     private void gobbyclient$suppressNameTag(Entity entity, EntityRenderState state, float partialTick, CallbackInfo ci) {
         if (InventoryHud.suppressNameTag) {
             state.nameTag = null;
+        } else if (state.nameTag != null) {
+            state.nameTag = NickHider.INSTANCE.replaceComponent(state.nameTag);
         }
     }
 

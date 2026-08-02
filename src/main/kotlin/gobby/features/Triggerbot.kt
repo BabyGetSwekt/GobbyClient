@@ -22,6 +22,11 @@ abstract class Triggerbot(
     protected val clock = Clock()
     protected val clickedBlocks = mutableMapOf<BlockPos, Long>()
 
+    protected fun capCooldown(pos: BlockPos, maxCooldown: Long) {
+        val last = clickedBlocks[pos] ?: return
+        clickedBlocks[pos] = last - (getBlockCooldown() - maxCooldown).coerceAtLeast(0L)
+    }
+
     @SubscribeEvent
     open fun onTick(event: ClientTickEvent.Pre) {
         if (mc.player == null || mc.level == null) return

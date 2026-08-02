@@ -14,11 +14,9 @@ import gobby.gui.click.RangeSetting
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inDungeons
+import gobby.utils.PlayerUtils.isPlayerInBox
 import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.Utils.getRandomInt
-import gobby.utils.Utils.posX
-import gobby.utils.Utils.posY
-import gobby.utils.Utils.posZ
 import gobby.utils.getBowShootSpeedMs
 import gobby.utils.isShortbow
 import gobby.utils.render.BlockRenderUtils.draw3DBox
@@ -33,7 +31,6 @@ import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
-import kotlin.math.abs
 
 object CreeperBeams : Module("Creeper Beams", "Draws and auto-solves the creeper beams puzzle", Category.DUNGEONS) {
 
@@ -62,8 +59,8 @@ object CreeperBeams : Module("Creeper Beams", "Draws and auto-solves the creeper
         BlockPos(25, 76, 23) to BlockPos(6, 74, 5)
     )
 
-    private const val STAND_Y = 75.0
-    private const val STAND_Y_TOLERANCE = 0.1
+    private const val STAND_EYE_MIN = 76.0
+    private const val STAND_EYE_MAX = 77.0
     private const val STAND_XZ_TOLERANCE = 3.0
     private const val MAX_ATTEMPTS = 3
     private const val MISS_FALLBACK_MS = 3000L
@@ -219,8 +216,10 @@ object CreeperBeams : Module("Creeper Beams", "Draws and auto-solves the creeper
         val mid = middlePos ?: return false
         val player = mc.player ?: return false
         val c = blockCenter(mid)
-        return player.onGround() && abs(posY - STAND_Y) < STAND_Y_TOLERANCE &&
-            abs(posX - c.x) <= STAND_XZ_TOLERANCE && abs(posZ - c.z) <= STAND_XZ_TOLERANCE
+        return player.onGround() && isPlayerInBox(
+            c.x - STAND_XZ_TOLERANCE, STAND_EYE_MIN, c.z - STAND_XZ_TOLERANCE,
+            c.x + STAND_XZ_TOLERANCE, STAND_EYE_MAX, c.z + STAND_XZ_TOLERANCE
+        )
     }
 
     private fun puzzleDone(world: ClientLevel): Boolean {

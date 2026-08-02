@@ -3,6 +3,7 @@ package gobby.utils.skyblock
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.PlayerUtils
 import gobby.utils.getEtherTransmissionRange
+import gobby.utils.rotation.AngleUtils.calcAimAnglesBetween
 import net.minecraft.core.Direction
 import net.minecraft.core.SectionPos
 import net.minecraft.core.BlockPos
@@ -18,6 +19,34 @@ import kotlin.math.sign
 
 object EtherwarpUtils {
 
+    val TARGET_BLOCKS = setOf(
+        Blocks.PRISMARINE_BRICK_SLAB,
+        Blocks.PRISMARINE_BRICK_STAIRS,
+        Blocks.PRISMARINE_BRICKS,
+        Blocks.PRISMARINE_WALL
+    )
+
+    private val AIM_OFFSETS = listOf(
+        Triple(0.5, 0.5, 0.5),
+        Triple(0.5, 0.95, 0.5),
+        Triple(0.5, 0.5, 0.05), Triple(0.5, 0.5, 0.95),
+        Triple(0.05, 0.5, 0.5), Triple(0.95, 0.5, 0.5),
+        Triple(0.5, 0.05, 0.5)
+    )
+
+    /** Returns the yaw/pitch to look at [target] from [eye] if the etherwarp actually reaches it (line of sight + landable), else null. */
+    fun aimForBlock(target: BlockPos, eye: Vec3): Pair<Float, Float>? {
+        val range = mc.player?.mainHandItem?.getEtherTransmissionRange()?.toDouble() ?: return null
+        return AIM_OFFSETS.firstNotNullOfOrNull { (ox, oy, oz) ->
+            val point = Vec3(target.x + ox, target.y + oy, target.z + oz)
+            val dir = point.subtract(eye)
+            val dist = dir.length()
+            if (dist < 1e-4 || dist > range) return@firstNotNullOfOrNull null
+            val hit = traverseVoxels(eye, eye.add(dir.scale(range / dist)), etherWarp = true)
+            if (hit.succeeded && hit.pos == target) calcAimAnglesBetween(eye, point) else null
+        }
+    }
+
     data class EtherPos(val succeeded: Boolean, val pos: BlockPos?, val state: BlockState? = null) {
         val vec3: Vec3 by lazy { Vec3(pos ?: BlockPos.ZERO) }
 
@@ -26,21 +55,22 @@ object EtherwarpUtils {
         }
     }
 
-    fun getEtherPos(): EtherPos {
+    fun getEtherPos(eyeHeight: Double? = null): EtherPos {
         val range = mc.player?.mainHandItem?.getEtherTransmissionRange()?.toDouble() ?: 0.0
-        return getEtherPos(mc.player?.position(), range, etherWarp = true)
+        return getEtherPos(mc.player?.position(), range, etherWarp = true, eyeHeight = eyeHeight)
     }
 
     fun getEtherPos(
         position: Vec3?,
         distance: Double,
         returnEnd: Boolean = false,
-        etherWarp: Boolean = false
+        etherWarp: Boolean = false,
+        eyeHeight: Double? = null
     ): EtherPos {
         val player = mc.player ?: return EtherPos.NONE
         if (position == null) return EtherPos.NONE
 
-        val startPos = position.add(0.0, PlayerUtils.getEyeHeight(), 0.0)
+        val startPos = position.add(0.0, eyeHeight ?: PlayerUtils.getEyeHeight(), 0.0)
         val endPos = player.lookAngle.multiply(distance, distance, distance).add(startPos)
 
         return traverseVoxels(startPos, endPos, etherWarp)

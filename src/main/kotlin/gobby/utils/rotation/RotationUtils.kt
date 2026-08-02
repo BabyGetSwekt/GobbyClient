@@ -30,6 +30,25 @@ object RotationUtils {
     private var targetPitch = 0f
     private val easeClock = Clock()
     private var duration = 0L
+    private var easingFn: (Float) -> Float = ::easeInOutCubic
+
+    val isAngleLocked: Boolean get() = angleLock != null
+    private var angleLock: (() -> Pair<Float, Float>?)? = null
+    private var lockSpeed = 200L
+    private var lockArrival = 0.3f
+    private val lockClock = Clock()
+    private const val LOCK_REF_ANGLE = 90f
+    private const val LOCK_MAX_FRAME_MS = 100L
+
+    fun startAngleLock(durationMs: Long, arrival: Float = 0.3f, supplier: () -> Pair<Float, Float>?) {
+        lockSpeed = durationMs.coerceAtLeast(1L)
+        lockArrival = arrival.coerceIn(0.02f, 1f)
+        angleLock = supplier
+        lockClock.update()
+        easing = false
+    }
+
+    fun stopAngleLock() { angleLock = null }
 
     fun startAimLock(entity: Entity) {
         aimLockTarget = entity
@@ -52,16 +71,16 @@ object RotationUtils {
         }
     }
 
-    fun easeToBlock(pos: BlockPos, timeMs: Long, onComplete: (() -> Unit)? = null) {
-        easeToVec(Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, onComplete)
+    fun easeToBlock(pos: BlockPos, timeMs: Long, ease: (Float) -> Float = ::easeInOutCubic, onComplete: (() -> Unit)? = null) {
+        easeToVec(Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, ease, onComplete)
     }
 
-    fun easeToVec(target: Vec3, timeMs: Long, onComplete: (() -> Unit)? = null) {
+    fun easeToVec(target: Vec3, timeMs: Long, ease: (Float) -> Float = ::easeInOutCubic, onComplete: (() -> Unit)? = null) {
         val (yaw, pitch) = calcAimAngles(target) ?: return
-        easeTo(yaw, pitch, timeMs, onComplete)
+        easeTo(yaw, pitch, timeMs, ease, onComplete)
     }
 
-    fun easeTo(yaw: Float, pitch: Float, timeMs: Long, onComplete: (() -> Unit)? = null) {
+    fun easeTo(yaw: Float, pitch: Float, timeMs: Long, ease: (Float) -> Float = ::easeInOutCubic, onComplete: (() -> Unit)? = null) {
         val player = mc.player ?: return
         startYaw = player.yRot
         startPitch = player.xRot
@@ -69,6 +88,7 @@ object RotationUtils {
         targetPitch = pitch.coerceIn(-90f, 90f)
         easeClock.update()
         duration = timeMs
+        easingFn = ease
         this.onComplete = onComplete
         easing = true
     }
@@ -88,9 +108,10 @@ object RotationUtils {
         return d
     }
 
-    private fun easeInOutCubic(t: Float): Float {
-        return if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
-    }
+    fun linear(t: Float): Float = t
+    fun easeOutCubic(t: Float): Float = 1f - (1f - t).let { it * it * it }
+    fun easeInOutCubic(t: Float): Float =
+        if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
 
     @SubscribeEvent
     fun onRender(event: NewRender3DEvent) {
@@ -112,6 +133,17 @@ object RotationUtils {
             return
         }
 
+        angleLock?.let { supplier ->
+            val dt = lockClock.getTime().coerceIn(1L, LOCK_MAX_FRAME_MS)
+            lockClock.update()
+            supplier()?.let { (yaw, pitch) ->
+                val maxStep = LOCK_REF_ANGLE * dt.toFloat() / lockSpeed.toFloat()
+                player.yRot += (wrapDelta(yaw - player.yRot) * lockArrival).coerceIn(-maxStep, maxStep)
+                player.xRot += ((pitch.coerceIn(-90f, 90f) - player.xRot) * lockArrival).coerceIn(-maxStep, maxStep)
+            }
+            return
+        }
+
         if (!easing) return
 
         val elapsed = easeClock.getTime()
@@ -124,7 +156,7 @@ object RotationUtils {
             return
         }
 
-        val progress = easeInOutCubic((elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f))
+        val progress = easingFn((elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f))
         player.yRot = startYaw + (targetYaw - startYaw) * progress
         player.xRot = startPitch + (targetPitch - startPitch) * progress
     }
@@ -132,6 +164,7 @@ object RotationUtils {
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
         stopAimLock()
+        stopAngleLock()
         easing = false
         onComplete = null
     }
@@ -148,7 +181,7 @@ object RotationUtils {
 
     fun aimAtBlockShortbow(pos: BlockPos, rotate: Boolean = true, delayMs: Long = 150L, onComplete: (() -> Unit)? = null) {
         val (yaw, pitch) = findClearShortbowAim(pos) ?: return
-        if (rotate) easeTo(yaw, pitch, delayMs, onComplete)
+        if (rotate) easeTo(yaw, pitch, delayMs, onComplete = onComplete)
         else { snapTo(yaw, pitch); onComplete?.invoke() }
     }
 

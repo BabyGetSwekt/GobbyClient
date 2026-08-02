@@ -1,7 +1,9 @@
 package gobby.gui.click
 
+import gobby.Gobbyclient.Companion.mc
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
+import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
@@ -34,21 +36,38 @@ class BooleanSetting(
 
 class NumberSetting(
     name: String,
-    default: Int = 0,
-    val min: Int = 0,
-    val max: Int = 100,
-    val step: Int = 1,
+    default: Float,
+    val min: Float,
+    val max: Float,
+    val step: Float = 1f,
+    val decimals: Int = 2,
     desc: String = "",
     hidden: Boolean = false
-) : Setting<Int>(name, desc, default, hidden), ReadWriteProperty<Any?, Int> {
-    override fun getValue(thisRef: Any?, property: KProperty<*>) = value
-    override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v.coerceIn(min, max) }
+) : Setting<Float>(name, desc, snap(default, min, max, step), hidden), ReadWriteProperty<Any?, Int> {
+
+    constructor(name: String, default: Int = 0, min: Int = 0, max: Int = 100, step: Int = 1, desc: String = "", hidden: Boolean = false) :
+        this(name, default.toFloat(), min.toFloat(), max.toFloat(), step.toFloat(), 0, desc, hidden)
+
+    val floatValue: Float get() = value
+    val progress: Float get() = ((value - min) / (max - min)).coerceIn(0f, 1f)
+
+    fun display(): String = if (decimals <= 0) value.roundToInt().toString() else String.format(Locale.US, "%.${decimals}f", value)
+    fun setSnapped(v: Float) { value = snap(v, min, max, step) }
+    fun setFromProgress(fraction: Float) = setSnapped(min + (max - min) * fraction)
+
+    override fun getValue(thisRef: Any?, property: KProperty<*>) = value.roundToInt()
+    override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { setSnapped(v.toFloat()) }
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): NumberSetting {
         thisRef.settings.add(this)
         return this
+    }
+
+    companion object {
+        private fun snap(v: Float, min: Float, max: Float, step: Float): Float =
+            if (step <= 0f) v.coerceIn(min, max) else (min + ((v - min) / step).roundToInt() * step).coerceIn(min, max)
     }
 }
 
@@ -101,6 +120,24 @@ class RangeSetting(
     }
 }
 
+class StringSetting(
+    name: String,
+    default: String = "",
+    desc: String = "",
+    hidden: Boolean = false,
+    val length: Int = 50,
+    val onCommit: (String) -> Unit = {}
+) : Setting<String>(name, desc, default, hidden), ReadOnlyProperty<Any?, String> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+    fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
+
+    operator fun provideDelegate(thisRef: Module, property: KProperty<*>): StringSetting {
+        thisRef.settings.add(this)
+        return this
+    }
+}
+
 class SelectorSetting(
     name: String,
     default: Int = 0,
@@ -111,6 +148,7 @@ class SelectorSetting(
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v.coerceIn(0, options.lastIndex) }
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): SelectorSetting {
         thisRef.settings.add(this)
@@ -157,6 +195,8 @@ class KeybindSetting(
     hidden: Boolean = false,
     val notification: Boolean = false
 ) : Setting<Int>(name, desc, 0, hidden), ReadWriteProperty<Any?, Int> {
+    companion object { const val MOUSE_OFFSET = 1000 }
+
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v }
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
@@ -166,8 +206,21 @@ class KeybindSetting(
         return this
     }
 
+    fun isPressed(): Boolean {
+        if (value == 0) return false
+        val handle = mc.window.handle()
+        return if (value >= MOUSE_OFFSET) GLFW.glfwGetMouseButton(handle, value - MOUSE_OFFSET) == GLFW.GLFW_PRESS
+        else GLFW.glfwGetKey(handle, value) == GLFW.GLFW_PRESS
+    }
+
     fun getKeyName(): String {
         if (value == 0) return "None"
+        if (value >= MOUSE_OFFSET) return when (value - MOUSE_OFFSET) {
+            GLFW.GLFW_MOUSE_BUTTON_LEFT -> "LMB"
+            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> "RMB"
+            GLFW.GLFW_MOUSE_BUTTON_MIDDLE -> "MMB"
+            else -> "M${value - MOUSE_OFFSET + 1}"
+        }
         val name = GLFW.glfwGetKeyName(value, 0)
         return name?.uppercase() ?: when (value) {
             GLFW.GLFW_KEY_LEFT_SHIFT -> "L-SHIFT"

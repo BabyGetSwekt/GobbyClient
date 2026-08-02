@@ -13,7 +13,7 @@ import gg.essential.elementa.effects.OutlineEffect
 import gg.essential.universal.UScreen
 import gobby.Gobbyclient.Companion.mc
 import gobby.features.dungeons.Brush
-import gobby.features.skyblock.Etherwarp
+import gobby.utils.skyblock.EtherwarpUtils
 import gobby.gui.components.BlockItemComponent
 import gobby.gui.components.GobbyScrollPanel
 import gobby.utils.ChatUtils.modMessage
@@ -224,7 +224,7 @@ class BlockSelector private constructor (
             context.fill(left, top, right, bottom, bg)
             context.item(entry.stack, left + 2, top + 2)
 
-            if (entry.block in Etherwarp.TARGET_BLOCKS) {
+            if (entry.block in EtherwarpUtils.TARGET_BLOCKS) {
                 val c = BlockItemComponent.ETHERWARP_COLOR
                 context.fill(left, top, right, top + 1, c)
                 context.fill(left, bottom - 1, right, bottom, c)

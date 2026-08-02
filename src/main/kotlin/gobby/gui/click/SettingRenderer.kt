@@ -1,10 +1,13 @@
 package gobby.gui.click
 
+import gobby.utils.timer.Clock
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
 import kotlin.math.roundToInt
 
 object SettingRenderer {
+
+    private val blinkClock = Clock()
 
     fun drawSettingRow(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, setting: Setting<*>, mx: Int, my: Int, clipTop: Int, clipBot: Int) {
         if (setting !is ColorSetting && setting !is DropDownSetting) {
@@ -16,6 +19,7 @@ object SettingRenderer {
             is BooleanSetting -> drawBoolSetting(ctx, px, y, setting)
             is NumberSetting -> drawNumberSetting(ctx, gui, px, y, setting)
             is RangeSetting -> drawRangeSetting(ctx, px, y, setting)
+            is StringSetting -> drawStringSetting(ctx, gui, px, y, setting)
             is SelectorSetting -> drawSelectorSetting(ctx, px, y, setting)
             is ColorSetting -> drawColorSetting(ctx, gui, px, y, setting)
             is ActionSetting -> drawActionSetting(ctx, px, y, setting, mx, my, clipTop, clipBot)
@@ -75,7 +79,7 @@ object SettingRenderer {
         drawTextSmall(ctx, px + SETTING_INDENT, textY, s.name, cTextGray)
 
         val isEditing = gui.numberEditSetting == s
-        val valStr = if (isEditing) gui.numberInput else s.value.toString()
+        val valStr = if (isEditing) gui.numberInput else s.display()
         val valCol = if (isEditing) cTextBright else cText
         val valW = textWSmall(valStr)
         drawTextSmall(ctx, px + PW - PAD - valW, textY, valStr, valCol)
@@ -88,8 +92,7 @@ object SettingRenderer {
         val slW = PW - SETTING_INDENT - PAD
         val slX = px + SETTING_INDENT
         val slY = y + SH - SLIDER_H - 2
-        val progress = (s.value - s.min).toFloat() / (s.max - s.min).coerceAtLeast(1)
-        val fillW = (slW * progress).toInt()
+        val fillW = (slW * s.progress).toInt()
         fill(ctx, slX, slY, slW, SLIDER_H, cSliderTrack)
         fill(ctx, slX, slY, fillW, SLIDER_H, cSliderFill)
     }
@@ -126,6 +129,49 @@ object SettingRenderer {
     private fun fmtRange(v: Float): String {
         val i = v.toLong()
         return if (v == i.toFloat()) i.toString() else v.toString()
+    }
+
+    private fun drawStringSetting(ctx: GuiGraphicsExtractor, gui: ClickGUI, px: Int, y: Int, s: StringSetting) {
+        val fh = (tr.lineHeight * SETTING_SCALE).toInt()
+        drawTextSmall(ctx, px + SETTING_INDENT, y + (SH - fh) / 2, s.name, cTextGray)
+
+        val editing = gui.stringEditSetting == s
+        val boxX = px + SETTING_INDENT
+        val boxW = PW - SETTING_INDENT - PAD
+        val boxH = SH - 4
+        val boxY = y + SH
+        fill(ctx, boxX, boxY, boxW, boxH, cKeyBox)
+        drawBorder(ctx, boxX, boxY, boxW, boxH, if (editing) cAccent else cKeyBoxBorder)
+
+        val maxW = boxW - STRING_TEXT_PAD * 2
+        val textX = boxX + STRING_TEXT_PAD
+        val textY = boxY + (boxH - fh) / 2
+        if (!editing) {
+            drawTextSmall(ctx, textX, textY, visibleTail(s.value, maxW), cText)
+            return
+        }
+
+        val cursor = gui.stringCursor.coerceIn(0, gui.stringInput.length)
+        val (visible, start) = visibleWindow(gui.stringInput, cursor, maxW)
+        if (gui.stringSelectAll && visible.isNotEmpty()) fill(ctx, textX - 1, textY - 1, textWSmall(visible) + 1, fh + 1, cAccent)
+        drawTextSmall(ctx, textX, textY, visible, cTextBright)
+        if (!gui.stringSelectAll && (blinkClock.getTime() / CURSOR_BLINK_MS) % 2 == 0L) {
+            fill(ctx, textX + textWSmall(gui.stringInput.substring(start, cursor)), textY, 1, fh, cAccent)
+        }
+    }
+
+    private fun visibleTail(text: String, maxWidth: Int): String {
+        var start = 0
+        while (start < text.length && textWSmall(text.substring(start)) > maxWidth) start++
+        return text.substring(start)
+    }
+
+    private fun visibleWindow(text: String, cursor: Int, maxWidth: Int): Pair<String, Int> {
+        var start = 0
+        while (start < cursor && textWSmall(text.substring(start, cursor)) > maxWidth) start++
+        var end = text.length
+        while (end > cursor && textWSmall(text.substring(start, end)) > maxWidth) end--
+        return text.substring(start, end) to start
     }
 
     private fun drawSelectorSetting(ctx: GuiGraphicsExtractor, px: Int, y: Int, s: SelectorSetting) {

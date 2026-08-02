@@ -27,6 +27,7 @@ object ConfigManager {
                         is BooleanSetting -> mj.addProperty(setting.name, setting.value)
                         is NumberSetting -> mj.addProperty(setting.name, setting.value)
                         is RangeSetting -> mj.add(setting.name, JsonArray().apply { add(setting.value.start); add(setting.value.endInclusive) })
+                        is StringSetting -> mj.addProperty(setting.name, setting.value)
                         is SelectorSetting -> mj.addProperty(setting.name, setting.value)
                         is ColorSetting -> mj.addProperty(setting.name, setting.value.rgb)
                         is KeybindSetting -> mj.addProperty(setting.name, setting.value)
@@ -75,11 +76,12 @@ object ConfigManager {
                     try {
                         when (setting) {
                             is BooleanSetting -> setting.value = mj.get(setting.name).asBoolean
-                            is NumberSetting -> setting.value = mj.get(setting.name).asInt
+                            is NumberSetting -> setting.setSnapped(mj.get(setting.name).asFloat)
                             is RangeSetting -> mj.getAsJsonArray(setting.name)?.takeIf { it.size() == 2 }?.let { arr ->
                                 setting.high = maxOf(arr[0].asFloat, arr[1].asFloat)
                                 setting.low = minOf(arr[0].asFloat, arr[1].asFloat)
                             }
+                            is StringSetting -> { setting.value = mj.get(setting.name).asString; setting.onCommit(setting.value) }
                             is SelectorSetting -> setting.value = mj.get(setting.name).asInt
                             is ColorSetting -> setting.value = Color(mj.get(setting.name).asInt, true)
                             is KeybindSetting -> setting.value = mj.get(setting.name).asInt

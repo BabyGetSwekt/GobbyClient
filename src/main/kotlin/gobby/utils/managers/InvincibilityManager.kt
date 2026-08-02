@@ -6,6 +6,7 @@ import gobby.events.ServerTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.BONZO_MASK_IDS
+import gobby.utils.ChatUtils.modMessage
 import gobby.utils.SPIRIT_MASK_IDS
 import gobby.utils.getHelmetID
 import gobby.utils.skyblockID
@@ -24,7 +25,7 @@ object InvincibilityManager {
 
     private const val SPIRIT_POP_MSG = "Second Wind Activated! Your Spirit Mask saved your life!"
     private const val BONZO_POP_MSG_1 = "Your Bonzo's Mask saved your life!"
-    private const val BONZO_POP_MSG_2 = "Your \u269A Bonzo's Mask saved your life!"
+    private const val BONZO_POP_MSG_2 = "Your ⚚ Bonzo's Mask saved your life!"
 
     private const val SPIRIT_COOLDOWN_SECONDS = 30
 

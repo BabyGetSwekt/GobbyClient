@@ -18,6 +18,7 @@ object ModuleSettingsComponent {
     fun settingHeight(s: Setting<*>): Int {
         if (s is ColorSetting && s.expanded) return SH + COLOR_PICKER_H
         if (s is DropDownSetting && s.expanded) return SH + s.children.filter { it.isVisible }.sumOf { settingHeight(it) }
+        if (s is StringSetting) return SH + SH
         return SH
     }
 
@@ -107,16 +108,18 @@ object ModuleSettingsComponent {
         var y = baseY + headerBlockHeight(mod, gui)
         for (s in visibleSettings(mod)) {
             val h = settingHeight(s)
-            if (mx in px..(px + PW) && my in y..(y + h))
-                return InputHandler.dispatchSettingClick(gui, s, px, y, mx, my, button)
             if (s is DropDownSetting && s.expanded) {
+                if (mx in px..(px + PW) && my in y until (y + SH))
+                    return InputHandler.dispatchSettingClick(gui, s, px, y, mx, my, button)
                 var cy = y + SH
                 for (child in s.children.filter { it.isVisible }) {
                     val ch = settingHeight(child)
-                    if (mx in px..(px + PW) && my in cy..(cy + ch))
+                    if (mx in px..(px + PW) && my in cy until (cy + ch))
                         return InputHandler.dispatchSettingClick(gui, child, px, cy, mx, my, button)
-                    cy += ch + 2
+                    cy += ch
                 }
+            } else if (mx in px..(px + PW) && my in y..(y + h)) {
+                return InputHandler.dispatchSettingClick(gui, s, px, y, mx, my, button)
             }
             y += h + 2
         }

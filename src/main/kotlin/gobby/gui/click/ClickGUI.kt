@@ -53,6 +53,10 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     internal var hexInput = ""
     internal var numberEditSetting: NumberSetting? = null
     internal var numberInput = ""
+    internal var stringEditSetting: StringSetting? = null
+    internal var stringInput = ""
+    internal var stringSelectAll = false
+    internal var stringCursor = 0
 
     internal var tooltipText: String? = null
     internal var tooltipX = 0
@@ -89,6 +93,9 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         listeningKeybind = null
         numberEditSetting = null
         hexEditSetting = null
+        stringEditSetting = null
+        stringSelectAll = false
+        stringCursor = 0
     }
 
     fun closeSettings() {
@@ -98,6 +105,9 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         listeningKeybind = null
         numberEditSetting = null
         hexEditSetting = null
+        stringEditSetting = null
+        stringSelectAll = false
+        stringCursor = 0
     }
 
     fun visibleModules(): List<Module> {

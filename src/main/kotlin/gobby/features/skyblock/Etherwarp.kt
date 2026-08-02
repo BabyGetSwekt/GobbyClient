@@ -1,44 +1,37 @@
 package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.events.ClientTickEvent
 import gobby.events.PacketSentEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
+import gobby.events.network.ClientSoundReceivedEvent
 import gobby.events.render.NewRender3DEvent
-import gobby.features.Triggerbot
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
-import gobby.gui.click.SelectorSetting
+import gobby.gui.click.DropDownSetting
+import gobby.gui.click.Module
+import gobby.gui.click.NumberSetting
+import gobby.gui.click.StringSetting
 import gobby.utils.ChatUtils
-import gobby.utils.LocationUtils
 import gobby.utils.LocationUtils.inDungeons
-import gobby.utils.PlayerUtils
-import gobby.utils.Utils
 import gobby.utils.isEtherwarpable
+import gobby.utils.managers.SoundManager
 import gobby.utils.render.BlockRenderUtils
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.skyblock.dungeon.tiles.RoomType
-import net.minecraft.core.BlockPos
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
-import net.minecraft.world.level.block.Blocks
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.phys.AABB
 import java.awt.Color
+import java.net.URI
 
-object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", Category.SKYBLOCK) {
+object Etherwarp : Module("Etherwarp", "Etherwarp highlighter, death prevention and custom sound", Category.SKYBLOCK) {
 
-    val mode by SelectorSetting(
-        "Mode",
-        0,
-        listOf("Auto Sneak", "Manual Sneak"),
-        desc = "Auto Sneak: Automatically sneaks and etherwarps\nManual Sneak: Only right-clicks when already sneaking"
-    )
-    val esp by BooleanSetting(
-        "ESP",
-        false,
-        desc = "Highlights etherwarp target blocks in dungeons.\nThe only blocks that can be used to etherwarp to are:\n- PRISMARINE_BRICK_SLAB\n- PRISMARINE_BRICK_STAIRS\n- PRISMARINE_BRICKS\n- PRISMARINE_WALL\n\nTo place these blocks down use `/gobby brush`. Or use `/gobby help` for more info.\nEtherwarp blocks are marked as yellow."
-    )
     val highlighter by BooleanSetting("Highlighter", false, desc = "Highlights the block you would etherwarp to")
     private val preventDeath by BooleanSetting(
         "Prevent Accidental Death",
@@ -46,67 +39,19 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
         desc = "Cancels etherwarps that would land on the highest block of the current dungeon room (at death barrier)"
     )
 
-    val TARGET_BLOCKS = setOf(
-        Blocks.PRISMARINE_BRICK_SLAB,
-        Blocks.PRISMARINE_BRICK_STAIRS,
-        Blocks.PRISMARINE_BRICKS,
-        Blocks.PRISMARINE_WALL
-    )
+    private val soundGroup = DropDownSetting("Sound", desc = "Replace the etherwarp sound with a custom one").also { settings.add(it) }
+    private val customSound by BooleanSetting("Custom Sound", false, desc = "Cancels the etherwarp sound and plays your own instead").childOf(soundGroup)
+    private val soundName by StringSetting("Etherwarp Sound", "minecraft:entity.experience_orb.pickup", desc = "Sound id to play", length = 60, onCommit = ::validateSound).childOf(soundGroup).withDependency { customSound }
+    private val soundPitch = NumberSetting("Etherwarp Sound Pitch", 1.0f, 0.1f, 2.0f, 0.05f, desc = "Pitch of the custom sound").also { settings.add(it) }.childOf(soundGroup).withDependency { customSound }
+    private val soundVolume = NumberSetting("Etherwarp Sound Volume", 1.0f, 0.1f, 1.0f, 0.05f, desc = "Volume of the custom sound").also { settings.add(it) }.childOf(soundGroup).withDependency { customSound }
 
+    private const val ETHERWARP_SOUND_PITCH = 0.53968257f
+    private const val SOUND_LIST_URL = "https://discord.com/channels/1500450422694084620/1533138074731811077/1533140035896082613"
     private val validColor = Color(0, 255, 0, 80)
     private val invalidColor = Color(255, 0, 0, 80)
 
-    private var sneakDelay = 0
-    private var wasSneaking = false
     private var currentHighestY: Int? = null
     private var isInEntrance = false
-
-    override fun shouldActivate(): Boolean = enabled && !LocationUtils.inBoss && LocationUtils.dungeonFloor != -1 && mc.gui.screen() == null
-
-    override fun isValidBlock(pos: BlockPos): Boolean =
-        mc.level?.getBlockState(pos)?.block in TARGET_BLOCKS
-
-    override fun getBlockCooldown(): Long = 3000L
-
-    override fun getTargetPos(): BlockPos? {
-        val player = mc.player ?: return null
-        if (!player.mainHandItem.isEtherwarpable()) return null
-        if (mode == 1 && !player.isShiftKeyDown) return null
-        return EtherwarpUtils.getEtherPos().takeIf { it.succeeded }?.pos
-    }
-
-    override fun performAction() {
-        val player = mc.player ?: return
-        when (mode) {
-            0 -> {
-                if (player.isShiftKeyDown) {
-                    PlayerUtils.rightClick()
-                } else {
-                    wasSneaking = false
-                    mc.options.keyShift.isDown = true
-                    sneakDelay = Utils.getRandomInt(3, 4)
-                }
-            }
-            1 -> {
-                if (player.isShiftKeyDown) PlayerUtils.rightClick()
-            }
-        }
-    }
-
-    @SubscribeEvent
-    override fun onTick(event: ClientTickEvent.Pre) {
-        if (sneakDelay > 0) {
-            processSneakSequence()
-            return
-        }
-        super.onTick(event)
-    }
-
-    private fun processSneakSequence() {
-        sneakDelay--
-        if (sneakDelay == 0 && !wasSneaking) mc.options.keyShift.isDown = false
-        if (sneakDelay == 1) PlayerUtils.rightClick()
-    }
 
     @SubscribeEvent
     fun onRoomEnter(event: RoomEnterEvent) {
@@ -116,9 +61,8 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
 
     @SubscribeEvent
     fun onPacketSent(event: PacketSentEvent) {
-        if (!enabled || !preventDeath || mc.gui.screen() != null || !inDungeons) return
+        if (!enabled || !preventDeath || mc.gui.screen() != null || !inDungeons || isInEntrance) return
         if (event.packet !is ServerboundUseItemPacket && event.packet !is ServerboundUseItemOnPacket) return
-        if (isInEntrance) return
         val player = mc.player ?: return
         if (!player.mainHandItem.isEtherwarpable()) return
         val highestY = currentHighestY ?: return
@@ -130,20 +74,37 @@ object Etherwarp : Triggerbot("Etherwarp", "Etherwarp triggerbot and helpers", C
     }
 
     @SubscribeEvent
+    fun onSound(event: ClientSoundReceivedEvent) {
+        if (!enabled || !customSound) return
+        if (event.sound.location() != SoundEvents.ENDER_DRAGON_HURT.location() || event.pitch != ETHERWARP_SOUND_PITCH) return
+        if (soundName.isBlank() || !SoundManager.soundExists(soundName)) return
+        event.cancel()
+        SoundManager.playCustomSound(soundName, soundPitch.floatValue, soundVolume.floatValue)
+    }
+
+    private fun validateSound(name: String) {
+        if (name.isBlank() || SoundManager.soundExists(name)) return
+        ChatUtils.errorMessage(
+            Component.literal("Unknown sound, the full list of sounds are ").append(
+                Component.literal("here").withStyle(
+                    Style.EMPTY.withUnderlined(true)
+                        .withClickEvent(ClickEvent.OpenUrl(URI.create(SOUND_LIST_URL)))
+                        .withHoverEvent(HoverEvent.ShowText(Component.literal("§eOpen the sound list")))
+                )
+            )
+        )
+    }
+
+    @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {
         if (!enabled || !highlighter) return
         val player = mc.player ?: return
-        if (!player.isShiftKeyDown) return
-        if (!player.mainHandItem.isEtherwarpable()) return
+        if (!player.isShiftKeyDown || !player.mainHandItem.isEtherwarpable()) return
 
         val etherPos = EtherwarpUtils.getEtherPos()
         val pos = etherPos.pos ?: return
         val color = if (etherPos.succeeded) validColor else invalidColor
-
-        val box = AABB(
-            pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
-            pos.x + 1.0, pos.y + 1.0, pos.z + 1.0
-        )
+        val box = AABB(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), pos.x + 1.0, pos.y + 1.0, pos.z + 1.0)
         BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, color)
     }
 }
