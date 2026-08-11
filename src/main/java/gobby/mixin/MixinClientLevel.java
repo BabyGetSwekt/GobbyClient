@@ -3,6 +3,7 @@ package gobby.mixin;
 
 import gobby.Gobbyclient;
 import gobby.events.BlockStateChangeEvent;
+import gobby.events.BlockStateAppliedEvent;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,5 +21,10 @@ public class MixinClientLevel {
         BlockState oldState = world.getBlockState(pos);
         BlockStateChangeEvent event = Gobbyclient.EVENT_MANAGER.publish(new BlockStateChangeEvent(pos.immutable(), oldState, newState));
         if (event.isCanceled()) ci.cancel();
+    }
+
+    @Inject(method = "setServerVerifiedBlockState", at = @At("TAIL"))
+    private void gobbyclient$onBlockUpdateApplied(BlockPos pos, BlockState newState, int flags, CallbackInfo ci) {
+        Gobbyclient.EVENT_MANAGER.publish(new BlockStateAppliedEvent(pos.immutable(), newState));
     }
 }

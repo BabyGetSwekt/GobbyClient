@@ -4,6 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
 import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
+import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.gui.ModIdHiderScreen
@@ -11,6 +12,11 @@ import gobby.gui.MobEspScreen
 import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
 import gobby.features.dungeons.DungeonMap
+import gobby.utils.skyblock.dungeon.map.DungeonRooms
+import gobby.utils.skyblock.dungeon.map.MapCheckmarks
+import gobby.utils.skyblock.dungeon.map.MapScanner
+import gobby.utils.skyblock.dungeon.map.MapTile
+import gobby.utils.skyblock.dungeon.tiles.RoomType
 //import gobby.features.force.AutoUpdater
 import gobby.utils.skyblock.dungeon.DungeonMapSaver
 import gobby.gui.hud.HudEditor
@@ -534,6 +540,55 @@ object GobbyCommand {
         event.register(copyStructureCommand())
         event.register(pasteStructureCommand())
         event.register(copyRoomCommand())
+        event.register(mapDebugCommand())
+        event.register(setRotationCommand())
+    }
+
+    private fun setRotationCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal("gobby")
+            .then(
+                ClientCommands.literal("setrotation")
+                    .then(
+                        ClientCommands.argument("yaw", FloatArgumentType.floatArg())
+                            .then(
+                                ClientCommands.argument("pitch", FloatArgumentType.floatArg())
+                                    .executes { context ->
+                                        val player = mc.player ?: return@executes 0
+                                        val yaw = FloatArgumentType.getFloat(context, "yaw")
+                                        val pitch = FloatArgumentType.getFloat(context, "pitch")
+                                        player.yRotO = yaw
+                                        player.xRotO = pitch
+                                        player.yRot = yaw
+                                        player.xRot = pitch
+                                        modMessage("§aRotation set to yaw=§e$yaw §apitch=§e$pitch")
+                                        Command.SINGLE_SUCCESS
+                                    }
+                            )
+                    )
+            )
+    }
+
+    private fun mapDebugCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal("gobby")
+            .then(
+                ClientCommands.literal("mapdebug")
+                    .executes {
+                        val player = mc.player ?: return@executes 0
+                        val grid = DungeonMap.grid
+                        val disc = DungeonMap.discoveredView
+                        val cell = DungeonRooms.roomCellAt(grid, player.x, player.z)
+                        val entrance = grid.indices.firstOrNull { (grid[it] as? MapTile.Room)?.data?.type == RoomType.ENTRANCE }
+                        modMessage("§e[MapDebug] inDungeons=${LocationUtils.inDungeons} scanned=${DungeonMap.hasScanned}")
+                        modMessage("§e pos=(${player.x.toInt()},${player.z.toInt()}) playerCell=$cell discovered=${cell?.let { disc.getOrElse(it) { false } }}")
+                        modMessage("§e discoveredCount=${disc.count { it }} entranceCell=$entrance entranceDiscovered=${entrance?.let { disc.getOrElse(it) { false } }}")
+                        modMessage("§e ${MapCheckmarks.debugInfo()}")
+                        MapCheckmarks.dumpRooms(grid, disc).forEach { println("[GobbyMapDump] $it") }
+                        MapCheckmarks.dumpMapGrid().forEach { println("[GobbyMapGrid] $it") }
+                        MapScanner.dumpDoors(grid).forEach { println("[GobbyDoors] $it") }
+                        modMessage("§7 (per-room + map-grid + doors dump written to log)")
+                        Command.SINGLE_SUCCESS
+                    }
+            )
     }
 
     private fun copyRoomCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {

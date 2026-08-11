@@ -22,21 +22,28 @@ import java.awt.Color
 
 object MapRenderer {
 
-    private val COL_NORMAL = Color(107, 58, 17)
-    private val COL_PUZZLE = Color(117, 0, 133)
-    private val COL_TRAP = Color(216, 127, 51)
+    private val COL_NORMAL = Color(114, 67, 27)
+    private val COL_PUZZLE = Color(176, 75, 213)
+    private val COL_TRAP = Color(213, 126, 50)
     private val COL_BLOOD = Color(255, 0, 0)
-    private val COL_ENTRANCE = Color(20, 133, 0)
-    private val COL_FAIRY = Color(224, 0, 224)
-    private val COL_RARE = Color(255, 203, 89)
+    private val COL_ENTRANCE = Color(0, 123, 0)
+    private val COL_FAIRY = Color(239, 126, 163)
+    private val COL_RARE = Color(226, 226, 50)
     private val COL_BG = Color(0, 0, 0, 100)
 
-    private val COL_DOOR_NORMAL = Color(92, 52, 14)
+    private val COL_DOOR_NORMAL = Color(114, 67, 27)
     private val COL_DOOR_WITHER = Color(0, 0, 0)
     private val COL_DOOR_BLOOD = Color(255, 0, 0)
-    private val COL_DOOR_ENTRANCE = Color(20, 133, 0)
+    private val COL_DOOR_ENTRANCE = Color(0, 123, 0)
+    private val COL_DOOR_OPENED = Color(114, 67, 27)
+    private val COL_UNKNOWN = Color(64, 64, 64)
+
+    private const val UNDISCOVERED_DIM = 0.6
+    private const val DIM_ROUNDING = 0.5
+    private const val UNKNOWN_DOOR_PENALTY = 100
 
     private val CHECKMARK_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/white_checkmark")
+    private val QUESTION_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/white_question_mark")
     private var checkmarkRegistered = false
 
     private const val SKIN_TEX_SIZE = 64
@@ -70,17 +77,80 @@ object MapRenderer {
         RoomType.RARE, RoomType.CHAMPION -> COL_RARE
     }
 
-    private fun doorColor(type: DoorType): Color = when (type) {
-        DoorType.NORMAL -> COL_DOOR_NORMAL
-        DoorType.WITHER -> COL_DOOR_WITHER
-        DoorType.BLOOD -> COL_DOOR_BLOOD
-        DoorType.ENTRANCE -> COL_DOOR_ENTRANCE
+    private fun roomFill(data: RoomData, discovered: Boolean, legit: Boolean): Int = when {
+        discovered || data.type == RoomType.ENTRANCE -> roomColor(data).rgb
+        legit -> COL_UNKNOWN.rgb
+        else -> dim(roomColor(data)).rgb
+    }
+
+    private fun dim(color: Color): Color =
+        Color((color.red * UNDISCOVERED_DIM + DIM_ROUNDING).toInt(), (color.green * UNDISCOVERED_DIM + DIM_ROUNDING).toInt(), (color.blue * UNDISCOVERED_DIM + DIM_ROUNDING).toInt())
+
+    private data class DoorRoom(val data: RoomData, val seen: Boolean)
+
+    private fun doorFill(grid: Array<MapTile>, discovered: BooleanArray, legit: Boolean, col: Int, row: Int, type: DoorType, opened: Boolean): Int = when (type) {
+        DoorType.WITHER -> if (opened) COL_DOOR_OPENED.rgb else COL_DOOR_WITHER.rgb
+        DoorType.BLOOD -> if (opened) COL_DOOR_OPENED.rgb else COL_DOOR_BLOOD.rgb
+        DoorType.ENTRANCE -> COL_DOOR_ENTRANCE.rgb
+        DoorType.NORMAL -> normalDoorFill(grid, discovered, legit, col, row)
+    }
+
+    private fun normalDoorFill(grid: Array<MapTile>, discovered: BooleanArray, legit: Boolean, col: Int, row: Int): Int {
+        val chosen = doorRooms(grid, discovered, col, row)
+            .maxByOrNull { it.data.type.ordinal - if (it.seen) 0 else UNKNOWN_DOOR_PENALTY }
+            ?: return COL_DOOR_NORMAL.rgb
+        return roomFill(chosen.data, chosen.seen, legit)
+    }
+
+    private fun doorRooms(grid: Array<MapTile>, discovered: BooleanArray, col: Int, row: Int): List<DoorRoom> {
+        val offsets = if (col and 1 == 1) listOf(-1 to 0, 1 to 0) else listOf(0 to -1, 0 to 1)
+        return offsets.mapNotNull { (dc, dr) ->
+            val c = col + dc
+            val r = row + dr
+            if (!MapGrid.inRange(c, r)) return@mapNotNull null
+            val idx = MapGrid.index(c, r)
+            (grid[idx] as? MapTile.Room)?.let { DoorRoom(it.data, discovered[idx]) }
+        }
+    }
+
+    private fun neighbourCells(col: Int, row: Int): List<Pair<Int, Int>> {
+        val colOdd = col and 1 == 1
+        val rowOdd = row and 1 == 1
+        return when {
+            colOdd && rowOdd -> listOf(col - 1 to row - 1, col + 1 to row - 1, col - 1 to row + 1, col + 1 to row + 1)
+            colOdd -> listOf(col - 1 to row, col + 1 to row)
+            else -> listOf(col to row - 1, col to row + 1)
+        }
+    }
+
+    private fun neighbourDiscovered(discovered: BooleanArray, col: Int, row: Int): Boolean =
+        neighbourCells(col, row).any { (c, r) -> MapGrid.inRange(c, r) && discovered[MapGrid.index(c, r)] }
+
+    private fun neighbourAll(discovered: BooleanArray, col: Int, row: Int): Boolean =
+        neighbourCells(col, row).all { (c, r) -> MapGrid.inRange(c, r) && discovered[MapGrid.index(c, r)] }
+
+    private val FRONT_DIRS = listOf(0 to -1, 0 to 1, -1 to 0, 1 to 0)
+
+    private fun entranceFrontCell(grid: Array<MapTile>): Int {
+        val entrance = grid.indices.firstOrNull { (grid[it] as? MapTile.Room)?.data?.type == RoomType.ENTRANCE } ?: return -1
+        val ec = entrance % GRID_SIZE
+        val er = entrance / GRID_SIZE
+        return FRONT_DIRS.firstNotNullOfOrNull { (dc, dr) ->
+            val roomCol = ec + 2 * dc
+            val roomRow = er + 2 * dr
+            if (MapGrid.inRange(ec + dc, er + dr) && grid.getOrNull(MapGrid.index(ec + dc, er + dr)) is MapTile.Door &&
+                MapGrid.inRange(roomCol, roomRow) && grid.getOrNull(MapGrid.index(roomCol, roomRow)) is MapTile.Room
+            ) MapGrid.index(roomCol, roomRow) else null
+        } ?: -1
     }
 
     fun drawMap(
         ctx: GuiGraphicsExtractor,
         grid: Array<MapTile>,
         checkmarks: Array<MapCheckmark>,
+        discovered: BooleanArray,
+        openedDoors: BooleanArray,
+        legitMode: Boolean,
         renderNames: Boolean,
         nameScale: Int,
         renderCheckmarks: Boolean,
@@ -89,6 +159,7 @@ object MapRenderer {
     ) {
         val size = getMapSize()
         ctx.fill(0, 0, size, size, COL_BG.rgb)
+        val forcedFront = entranceFrontCell(grid)
 
         for (row in 0 until GRID_SIZE) {
             for (col in 0 until GRID_SIZE) {
@@ -99,9 +170,16 @@ object MapRenderer {
                 val rowOdd = row and 1 == 1
 
                 when (tile) {
-                    is MapTile.Room -> ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomColor(tile.data).rgb)
-                    is MapTile.Connection -> {
-                        val c = roomColor(tile.data).rgb
+                    is MapTile.Room -> {
+                        val idx = row * GRID_SIZE + col
+                        val question = checkmarks[idx] == MapCheckmark.UNKNOWN || (idx == forcedFront && !discovered[idx])
+                        if (!legitMode || discovered[idx] || question || tile.data.type == RoomType.ENTRANCE) {
+                            ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomFill(tile.data, discovered[idx], legitMode))
+                            if (renderCheckmarks && question && !discovered[idx]) drawCheckmark(ctx, MapCheckmark.UNKNOWN, px + CELL_SIZE / 2, py + CELL_SIZE / 2)
+                        }
+                    }
+                    is MapTile.Connection -> if (!legitMode || neighbourAll(discovered, col, row)) {
+                        val c = roomFill(tile.data, neighbourDiscovered(discovered, col, row), legitMode)
                         when {
                             colOdd && !rowOdd -> ctx.fill(px + CELL_SIZE, py, px + CELL_SIZE + GAP, py + CELL_SIZE, c)
                             !colOdd && rowOdd -> ctx.fill(px, py + CELL_SIZE, px + CELL_SIZE, py + CELL_SIZE + GAP, c)
@@ -117,9 +195,10 @@ object MapRenderer {
             for (col in 0 until GRID_SIZE) {
                 val tile = grid[row * GRID_SIZE + col]
                 if (tile !is MapTile.Door) continue
+                if (legitMode && tile.type != DoorType.ENTRANCE && !neighbourDiscovered(discovered, col, row)) continue
                 val px = (col / 2) * STEP
                 val py = (row / 2) * STEP
-                val c = doorColor(tile.type).rgb
+                val c = doorFill(grid, discovered, legitMode, col, row, tile.type, openedDoors[row * GRID_SIZE + col])
                 val inset = (CELL_SIZE - DOOR_THICKNESS) / 2
 
                 if (col and 1 == 1) {
@@ -146,20 +225,23 @@ object MapRenderer {
                     }
                 }
 
+                val visible = if (legitMode) cells.filter { (c, r) -> discovered[r * GRID_SIZE + c] } else cells
+                if (visible.isEmpty()) continue
+
                 if (renderCheckmarks) {
                     var bestCheckmark = MapCheckmark.NONE
-                    for ((c, r) in cells) {
+                    for ((c, r) in visible) {
                         val cm = checkmarks[r * GRID_SIZE + c]
-                        if (cm.ordinal > bestCheckmark.ordinal) bestCheckmark = cm
+                        if (cm != MapCheckmark.UNKNOWN && cm.ordinal > bestCheckmark.ordinal) bestCheckmark = cm
                     }
                     if (bestCheckmark != MapCheckmark.NONE) {
-                        val (cx, cy) = getRoomCheckmarkCenter(cells, tile.data.shape)
+                        val (cx, cy) = getRoomCheckmarkCenter(visible, tile.data.shape)
                         drawCheckmark(ctx, bestCheckmark, cx, cy)
                     }
                 }
 
-                if (renderNames) {
-                    val (nameCol, nameRow) = cells.first()
+                if (renderNames && (!legitMode || visible.any { (c, r) -> discovered[r * GRID_SIZE + c] })) {
+                    val (nameCol, nameRow) = visible.first()
                     val namePx = (nameCol / 2) * STEP
                     val namePy = (nameRow / 2) * STEP
                     drawRoomName(ctx, tile.data, namePx, namePy, nameScale)
@@ -218,6 +300,7 @@ object MapRenderer {
         val cx = centerX - checkSize / 2
         val cy = centerY - checkSize / 2
 
+        val id = if (checkmark == MapCheckmark.UNKNOWN) QUESTION_ID else CHECKMARK_ID
         val tint = when (checkmark) {
             MapCheckmark.GREEN -> Color(0, 255, 0).rgb
             MapCheckmark.FAILED -> Color(255, 0, 0).rgb
@@ -225,22 +308,27 @@ object MapRenderer {
         }
 
         ctx.blit(
-            RenderPipelines.GUI_TEXTURED, CHECKMARK_ID,
+            RenderPipelines.GUI_TEXTURED, id,
             cx, cy, 0f, 0f, checkSize, checkSize, checkSize, checkSize, tint
         )
     }
 
     private fun registerCheckmarkTexture() {
         if (checkmarkRegistered) return
+        registerTexture(CHECKMARK_ID)
+        registerTexture(QUESTION_ID)
+        checkmarkRegistered = true
+    }
+
+    private fun registerTexture(id: ResourceLocation) {
         try {
             val stream = MapRenderer::class.java.classLoader.getResourceAsStream(
-                "assets/${CHECKMARK_ID.namespace}/${CHECKMARK_ID.path}.png"
+                "assets/${id.namespace}/${id.path}.png"
             ) ?: return
             val image = NativeImage.read(stream)
-            mc.textureManager.register(CHECKMARK_ID, DynamicTexture({ CHECKMARK_ID.toString() }, image))
+            mc.textureManager.register(id, DynamicTexture({ id.toString() }, image))
             stream.close()
         } catch (_: Exception) {}
-        checkmarkRegistered = true
     }
 
     private fun drawPlayers(ctx: GuiGraphicsExtractor, headScalePercent: Int) {

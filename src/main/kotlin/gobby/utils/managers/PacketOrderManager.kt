@@ -1,7 +1,9 @@
 package gobby.utils.managers
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
+import gobby.utils.PlayerUtils
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -22,6 +24,11 @@ object PacketOrderManager {
     fun register(phase: Phase, action: Runnable) {
         queues.getOrPut(phase) { mutableListOf() }.add(action)
     }
+
+    fun queueUseItem(yaw: Float, pitch: Float, canRun: () -> Boolean = { true }) =
+        register(Phase.ITEM_USE) { if (canRun()) PlayerUtils.useItem(yaw, pitch) }
+
+    fun queueUseItem() = register(Phase.ITEM_USE) { mc.player?.let { PlayerUtils.useItem(it.yRot, it.xRot) } }
 
     fun execute(phase: Phase) {
         val list = queues[phase] ?: return

@@ -53,8 +53,14 @@ object RouteEngine {
         TravelMode.HYBRID -> hybrid(start, goal, scanRange)
     }
 
-    fun planAsync(start: Vec3, goal: Vec3, mode: TravelMode, scanRange: Int = DEFAULT_SCAN_RANGE): CompletableFuture<RoutePlan> =
-        CompletableFuture.supplyAsync({ plan(start, goal, mode, scanRange) }, executor)
+    fun planAsync(start: Vec3, goal: Vec3, mode: TravelMode, scanRange: Int = DEFAULT_SCAN_RANGE): CompletableFuture<RoutePlan> {
+        val minX = (minOf(start.x, goal.x).toInt() - scanRange) shr 4
+        val maxX = (maxOf(start.x, goal.x).toInt() + scanRange) shr 4
+        val minZ = (minOf(start.z, goal.z).toInt() - scanRange) shr 4
+        val maxZ = (maxOf(start.z, goal.z).toInt() + scanRange) shr 4
+        BlockCache.captureLoadedChunks(minX, minZ, maxX, maxZ)
+        return CompletableFuture.supplyAsync({ plan(start, goal, mode, scanRange) }, executor)
+    }
 
     private const val SNAP_SEARCH_Y = 8.0
     private const val SNAP_SPIRAL_RADIUS = 4

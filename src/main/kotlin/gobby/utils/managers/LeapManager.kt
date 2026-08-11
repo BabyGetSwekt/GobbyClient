@@ -6,7 +6,6 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.modMessage
-import gobby.utils.PlayerUtils
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
@@ -67,10 +66,7 @@ object LeapManager {
 
         if (result == SwapResult.ALREADY_HELD) {
             state = State.OPENING_MENU
-            PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
-                val p = mc.player ?: return@register
-                PlayerUtils.useItem(p.yRot, p.xRot)
-            }
+            PacketOrderManager.queueUseItem()
         } else {
             state = State.SWAPPING
         }
@@ -84,10 +80,7 @@ object LeapManager {
 
         if (state == State.SWAPPING && SwapManager.canUseAbility) {
             state = State.OPENING_MENU
-            PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
-                val p = mc.player ?: return@register
-                PlayerUtils.useItem(p.yRot, p.xRot)
-            }
+            PacketOrderManager.queueUseItem()
         }
 
         if (++ticks > TIMEOUT_TICKS) reset()

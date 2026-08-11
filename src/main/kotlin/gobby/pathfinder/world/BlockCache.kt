@@ -2,7 +2,9 @@ package gobby.pathfinder.world
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.util.ChunkScopedCache
+import gobby.utils.LocationUtils.inDungeons
 import net.minecraft.world.level.block.state.BlockState
+import gobby.utils.skyblock.dungeon.map.MapScanner
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.chunk.PalettedContainer
 import net.minecraft.world.level.levelgen.Heightmap
@@ -23,7 +25,7 @@ object BlockCache : ChunkScopedCache() {
         val feetY: Double
     )
 
-    private class ChunkSnapshot(
+    internal class ChunkSnapshot(
         val minBlockY: Int,
         val sections: Array<PalettedContainer<BlockState>?>,
         val surfaceHeights: IntArray
@@ -44,11 +46,28 @@ object BlockCache : ChunkScopedCache() {
         fun surfaceY(x: Int, z: Int): Int = surfaceHeights[((z and 15) shl 4) or (x and 15)]
     }
 
+    class SnapshotView internal constructor(
+        private val snapshots: Map<Long, ChunkSnapshot>,
+        private val passableOverrides: Set<Long>
+    ) {
+        fun hasSnapshot(x: Int, z: Int): Boolean = snapshots.containsKey(chunkKey(x shr 4, z shr 4))
+
+        fun isPassableOverride(pos: BlockPos): Boolean = pos.asLong() in passableOverrides
+
+        fun getBlockState(pos: BlockPos): BlockState {
+            if (isPassableOverride(pos)) return AIR
+            return snapshots[chunkKey(pos.x shr 4, pos.z shr 4)]?.blockState(pos.x, pos.y, pos.z) ?: AIR
+        }
+    }
+
     private val AIR: BlockState = Blocks.AIR.defaultBlockState()
 
-    private const val MAX_SNAPSHOT_CHUNKS = 1024
+    private val DOOR_BLOCKS = MapScanner.ENTRANCE_DOOR_BLOCKS + setOf(Blocks.COAL_BLOCK, Blocks.DYED_TERRACOTTA.red())
 
     private val snapshots = ConcurrentHashMap<Long, ChunkSnapshot>()
+    private val dirtyChunks = ConcurrentHashMap.newKeySet<Long>()
+    private val reportedMissingSnapshots = ConcurrentHashMap.newKeySet<Long>()
+    private val reportedDirtySnapshots = ConcurrentHashMap.newKeySet<Long>()
     private val supportTopCache = ConcurrentHashMap<BlockState, List<Double>>()
     private val shapeAabbsCache = ConcurrentHashMap<BlockState, List<AABB>>()
     private data class ColumnRangeKey(val x: Int, val z: Int, val minY: Int, val maxY: Int)
@@ -64,23 +83,83 @@ object BlockCache : ChunkScopedCache() {
     private const val SUPPORT_EPSILON = 0.05
     private const val HORIZONTAL_MARGIN = 1.0E-3
 
-    fun getBlockState(pos: BlockPos): BlockState =
-        snapshotFor(pos.x shr 4, pos.z shr 4)?.blockState(pos.x, pos.y, pos.z) ?: AIR
+    private val passableOverride = ConcurrentHashMap.newKeySet<Long>()
+
+    fun markPassable(pos: BlockPos) {
+        passableOverride.add(pos.asLong())
+    }
+
+    fun unmarkPassable(pos: BlockPos) {
+        passableOverride.remove(pos.asLong())
+    }
+
+    fun isPassableOverride(pos: BlockPos): Boolean = pos.asLong() in passableOverride
+
+    fun getBlockState(pos: BlockPos): BlockState {
+        if (passableOverride.isNotEmpty() && pos.asLong() in passableOverride) return AIR
+        return snapshotFor(pos.x shr 4, pos.z shr 4)?.blockState(pos.x, pos.y, pos.z) ?: AIR
+    }
 
     private fun chunkKey(cx: Int, cz: Int): Long = (cx.toLong() shl 32) or (cz.toLong() and 0xFFFFFFFFL)
 
+    fun captureLoadedChunks(minChunkX: Int, minChunkZ: Int, maxChunkX: Int, maxChunkZ: Int, refresh: Boolean = false) {
+        val world = mc.level ?: return
+        var inspected = 0
+        var captured = 0
+        (minChunkX..maxChunkX).flatMap { cx -> (minChunkZ..maxChunkZ).map { cz -> cx to cz } }
+            .forEach { (cx, cz) ->
+                inspected++
+                val key = chunkKey(cx, cz)
+                if ((refresh || key in dirtyChunks || !snapshots.containsKey(key)) && isChunkLoadedChunk(cx, cz)) {
+                    if (captureAndStore(cx, cz) != null) captured++
+                }
+            }
+        CacheDiagnostics.log("capture-range chunks=$inspected captured=$captured refresh=$refresh snapshots=${snapshots.size} dirty=${dirtyChunks.size}")
+    }
+
     private fun snapshotFor(cx: Int, cz: Int): ChunkSnapshot? {
         val key = chunkKey(cx, cz)
+        if (key in dirtyChunks) {
+            if (reportedDirtySnapshots.add(key)) {
+                CacheDiagnostics.log("snapshot-refused-dirty chunk=$cx,$cz loaded=${isChunkLoaded(cx shl 4, cz shl 4)}")
+            }
+            if (!mc.isSameThread) return null
+            return captureAndStore(cx, cz)
+        }
         snapshots[key]?.let { return it }
+        if (!mc.isSameThread) return null
+        return captureAndStore(cx, cz)
+    }
+
+    private fun captureAndStore(cx: Int, cz: Int): ChunkSnapshot? {
+        val key = chunkKey(cx, cz)
         val world = mc.level ?: return null
-        if (!world.hasChunk(cx, cz)) return null
+        val chunk = world.chunkSource.getChunk(cx, cz, false) ?: return null
+        return captureAndStore(chunk)
+    }
+
+    fun freeze(): SnapshotView = SnapshotView(HashMap(snapshots), HashSet(passableOverride))
+
+    private fun captureAndStore(chunk: LevelChunk): ChunkSnapshot? {
+        val cx = chunk.pos.x
+        val cz = chunk.pos.z
+        val key = chunkKey(cx, cz)
+        if (chunk.isEmpty) {
+            CacheDiagnostics.log("capture-skip-empty chunk=$cx,$cz existing=${snapshots.containsKey(key)}")
+            return snapshots[key]
+        }
         val snapshot = try {
-            captureChunk(world.getChunk(cx, cz))
+            captureChunk(chunk)
         } catch (e: Exception) {
+            CacheDiagnostics.log("capture-failed chunk=$cx,$cz error=${e::class.simpleName}")
             return null
         }
-        if (snapshots.size >= MAX_SNAPSHOT_CHUNKS) snapshots.clear()
         snapshots[key] = snapshot
+        dirtyChunks.remove(key)
+        reportedMissingSnapshots.remove(key)
+        reportedDirtySnapshots.remove(key)
+        columnSurfacesCache.remove(key)
+        CacheDiagnostics.log("capture chunk=$cx,$cz sections=${snapshot.sections.count { it != null }} snapshots=${snapshots.size} dirty=${dirtyChunks.size}")
         return snapshot
     }
 
@@ -99,7 +178,39 @@ object BlockCache : ChunkScopedCache() {
     }
 
     fun isChunkAvailable(x: Int, z: Int): Boolean =
-        isChunkLoaded(x, z) || snapshots.containsKey(chunkKey(x shr 4, z shr 4))
+        isChunkLoaded(x, z) || hasSnapshot(x, z)
+
+    fun hasSnapshot(x: Int, z: Int): Boolean =
+        chunkKey(x shr 4, z shr 4) !in dirtyChunks && snapshots.containsKey(chunkKey(x shr 4, z shr 4))
+
+    fun debugChunk(x: Int, z: Int): String {
+        val cx = x shr 4
+        val cz = z shr 4
+        val key = chunkKey(cx, cz)
+        return "chunk=$cx,$cz loaded=${isChunkLoaded(x, z)} snapshot=${hasSnapshot(x, z)} dirty=${key in dirtyChunks} columns=${columnSurfacesCache[key]?.size ?: 0}"
+    }
+
+    fun writeState(reason: String) {
+        val lines = mutableListOf(
+            "reason=$reason",
+            "snapshots=${snapshots.size} dirty=${dirtyChunks.size} columns=${columnSurfacesCache.values.sumOf { it.size }}"
+        )
+        snapshots.entries.sortedBy { it.key }.forEach { (key, snapshot) ->
+            val cx = (key shr 32).toInt()
+            val cz = key.toInt()
+            lines.add("chunk=$cx,$cz snapshot=${key !in dirtyChunks} dirty=${key in dirtyChunks} sections=${snapshot.sections.count { it != null }} columns=${columnSurfacesCache[key]?.size ?: 0}")
+        }
+        dirtyChunks.asSequence()
+            .filter { !snapshots.containsKey(it) }
+            .sorted()
+            .forEach { key ->
+                lines.add("chunk=${(key shr 32).toInt()},${key.toInt()} snapshot=false dirty=true sections=0 columns=0")
+            }
+        CacheDiagnostics.writeState(lines)
+    }
+
+    fun reportMissingSnapshotChunk(chunkX: Int, chunkZ: Int): Boolean =
+        reportedMissingSnapshots.add(chunkKey(chunkX, chunkZ))
 
     fun getCollisionShape(pos: BlockPos): VoxelShape =
         getBlockState(pos).getCollisionShape(EmptyBlockGetter.INSTANCE, pos, CollisionContext.empty())
@@ -221,8 +332,12 @@ object BlockCache : ChunkScopedCache() {
     }
 
     fun isChunkLoaded(x: Int, z: Int): Boolean {
+        return isChunkLoadedChunk(x shr 4, z shr 4)
+    }
+
+    private fun isChunkLoadedChunk(cx: Int, cz: Int): Boolean {
         val world = mc.level ?: return false
-        return world.hasChunk(x shr 4, z shr 4)
+        return world.chunkSource.getChunk(cx, cz, false) != null
     }
 
     fun getStandableSurfaces(x: Int, z: Int, minFeetY: Double, maxFeetY: Double): List<StandSurface> {
@@ -261,6 +376,7 @@ object BlockCache : ChunkScopedCache() {
         return surfaces
     }
 
+
     fun isSweepClear(
         fromX: Double,
         fromFeetY: Double,
@@ -297,28 +413,43 @@ object BlockCache : ChunkScopedCache() {
 
     fun clear() {
         snapshots.clear()
+        dirtyChunks.clear()
+        reportedMissingSnapshots.clear()
+        reportedDirtySnapshots.clear()
         supportTopCache.clear()
         shapeAabbsCache.clear()
         columnSurfacesCache.clear()
-    }
-
-    fun invalidate(pos: BlockPos) {
-        invalidateChunk(pos.x shr 4, pos.z shr 4)
+        passableOverride.clear()
     }
 
     private fun invalidateChunk(cx: Int, cz: Int) {
         val key = chunkKey(cx, cz)
-        snapshots.remove(key)
+        if (!dirtyChunks.add(key)) return
         columnSurfacesCache.remove(key)
+        reportedMissingSnapshots.remove(key)
+        CacheDiagnostics.log("dirty chunk=$cx,$cz snapshots=${snapshots.containsKey(key)}")
     }
 
-    override fun onChunkLoaded(chunkX: Int, chunkZ: Int) {
-        invalidateChunk(chunkX, chunkZ)
+    override fun onChunkEvicted(chunkX: Int, chunkZ: Int) = Unit
+
+    override fun onLoadedChunk(chunk: LevelChunk) {
+        if (inDungeons) captureAndStore(chunk) else invalidateChunk(chunk.pos.x, chunk.pos.z)
     }
 
     override fun onPosEvicted(pos: BlockPos, newState: BlockState) {
-        invalidate(pos)
+        val cached = snapshots[chunkKey(pos.x shr 4, pos.z shr 4)]?.blockState(pos.x, pos.y, pos.z) ?: return
+        if (cached == newState) return
+        if (!isDoorBlock(newState) && !isDoorBlock(cached)) return
+        invalidateChunk(pos.x shr 4, pos.z shr 4)
     }
+
+    override fun onPosApplied(pos: BlockPos, newState: BlockState) {
+        if (!inDungeons) return
+        if (!isDoorBlock(newState) && !isDoorBlock(snapshots[chunkKey(pos.x shr 4, pos.z shr 4)]?.blockState(pos.x, pos.y, pos.z))) return
+        invalidateChunk(pos.x shr 4, pos.z shr 4)
+    }
+
+    private fun isDoorBlock(state: BlockState?): Boolean = state != null && state.block in DOOR_BLOCKS
 
     override fun onAllEvicted() {
         clear()

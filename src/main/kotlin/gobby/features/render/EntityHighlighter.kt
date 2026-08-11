@@ -7,6 +7,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.events.render.Render3DEvent
 import gobby.gui.click.Category
 import gobby.gui.click.Module
+import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.render.BlockRenderUtils.drawLine3D
 import gobby.utils.render.Interpolate
 import gobby.utils.render.Render3D.drawEntityModel
@@ -18,6 +19,8 @@ import java.awt.Color
 
 private const val LINE_MODE_FEET = 0
 private const val LINE_MODE_CROSSHAIR = 1
+
+enum class EspStyle { MODEL, BOX, FILLED_BOX }
 
 abstract class EntityHighlighter(
     name: String,
@@ -43,10 +46,17 @@ abstract class EntityHighlighter(
         } else null
 
         forEachHighlight { renderEntity, sourceEntity ->
-            drawEntityModel(poseStack, collector, camera, delta, renderEntity, getColorFor(sourceEntity), rendersArmor())
+            val color = getColorFor(sourceEntity)
+            when (espStyle()) {
+                EspStyle.MODEL -> drawEntityModel(poseStack, collector, camera, delta, renderEntity, color, rendersArmor())
+                EspStyle.BOX -> draw3DBox(poseStack, camera, renderEntity.boundingBox, color, filled = false)
+                EspStyle.FILLED_BOX -> draw3DBox(poseStack, camera, renderEntity.boundingBox, color, filled = true)
+            }
             lineStart?.let { drawLine3D(poseStack, camera, it, Interpolate.interpolateEntity(renderEntity), lineColor) }
         }
     }
+
+    open fun espStyle(): EspStyle = EspStyle.MODEL
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
@@ -119,6 +129,6 @@ abstract class EntityHighlighter(
     companion object {
         @JvmStatic
         fun isHighlightedByAny(entity: Entity): Boolean =
-            modules.any { it is EntityHighlighter && it.isHighlighting(entity) }
+            modules.any { it is EntityHighlighter && it.espStyle() == EspStyle.MODEL && it.isHighlighting(entity) }
     }
 }

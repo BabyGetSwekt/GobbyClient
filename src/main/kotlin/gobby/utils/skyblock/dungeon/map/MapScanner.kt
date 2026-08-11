@@ -15,11 +15,39 @@ object MapScanner {
 
     private const val WALL_HEIGHT = 85
     private const val DOOR_BLOCK_Y = 69
-    private val ENTRANCE_DOOR_BLOCKS = setOf(
+    val ENTRANCE_DOOR_BLOCKS = setOf(
         Blocks.INFESTED_STONE, Blocks.INFESTED_COBBLESTONE, Blocks.INFESTED_STONE_BRICKS,
         Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.INFESTED_CRACKED_STONE_BRICKS,
         Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.INFESTED_DEEPSLATE
     )
+
+    fun dumpDoors(grid: Array<MapTile>): List<String> {
+        val world = mc.level ?: return listOf("no-world")
+        return grid.indices.mapNotNull { index ->
+            val col = index % GRID_SIZE
+            val row = index / GRID_SIZE
+            if ((col and 1 == 1) == (row and 1 == 1)) return@mapNotNull null
+            val tile = grid[index]
+            val label = when (tile) {
+                is MapTile.Door -> "DOOR:${tile.type}"
+                is MapTile.Connection -> "CONN"
+                else -> "EMPTY"
+            }
+            val x = START_X + col * HALF_ROOM
+            val z = START_Z + row * HALF_ROOM
+            val column = (67..73).joinToString("") { y ->
+                when (world.getBlockState(BlockPos(x, y, z)).block) {
+                    Blocks.COAL_BLOCK -> "C"
+                    Blocks.DYED_TERRACOTTA.red() -> "R"
+                    Blocks.AIR, Blocks.CAVE_AIR -> "."
+                    else -> "#"
+                }
+            }
+            val mapByte = MapCheckmarks.doorByte(col, row)
+            if (label == "EMPTY" && !column.contains("C") && !column.contains("R") && mapByte?.toInt() != 119 && mapByte?.toInt() != 18) return@mapNotNull null
+            "gap col=$col row=$row $label pos=($x,$z) Y67-73=$column mapByte=$mapByte"
+        }
+    }
 
     /** Runs only inference + gap resolution on an existing grid (for testing). */
     fun runInference(grid: Array<MapTile>) {
@@ -29,7 +57,7 @@ object MapScanner {
             for (row in 0 until GRID_SIZE) {
                 if ((col and 1 == 0) && (row and 1 == 0)) continue
                 val index = row * GRID_SIZE + col
-                if (grid[index] !is MapTile.Empty) continue
+                if (!needsCoreScan(grid[index])) continue
                 grid[index] = resolveGapNoWorld(grid, col, row) ?: continue
             }
         }
@@ -77,8 +105,8 @@ object MapScanner {
 
                 val xPos = START_X + col * HALF_ROOM
                 val zPos = START_Z + row * HALF_ROOM
-                val chunk = world.getChunk(xPos shr 4, zPos shr 4)
-                if (chunk.isEmpty) { allLoaded = false; continue }
+                val chunk = world.chunkSource.getChunk(xPos shr 4, zPos shr 4, false)
+                if (chunk == null || chunk.isEmpty) { allLoaded = false; continue }
 
                 val height = ScanUtils.getTopLayerOfRoom(VecUtils.Vec2(xPos, zPos), chunk)
                 if (height == 0) continue
@@ -102,6 +130,9 @@ object MapScanner {
 
         return allLoaded
     }
+
+    private fun needsCoreScan(tile: MapTile): Boolean =
+        tile is MapTile.Empty || tile is MapTile.Room && tile.core == 0
 
     /**
      * Infers missing cells for multi-cell rooms by elimination.
@@ -295,7 +326,7 @@ object MapScanner {
             block in ENTRANCE_DOOR_BLOCKS -> return MapTile.Door(DoorType.ENTRANCE)
         }
 
-        val chunk = world.getChunk(x shr 4, z shr 4)
+        val chunk = world.chunkSource.getChunk(x shr 4, z shr 4, false) ?: return null
         val height = ScanUtils.getTopLayerOfRoom(VecUtils.Vec2(x, z), chunk)
         if (height == 0 || height >= WALL_HEIGHT) return null
         return MapTile.Door(DoorType.NORMAL)

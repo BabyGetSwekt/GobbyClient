@@ -166,7 +166,7 @@ object ScanUtils {
 
     fun getCore(vec2: Vec2): Int {
         val world = mc.level ?: return 0
-        val chunk = world.getChunk(vec2.x shr 4, vec2.z shr 4)
+        val chunk = world.chunkSource.getChunk(vec2.x shr 4, vec2.z shr 4, false) ?: return 0
         return getCoreAtHeight(vec2, getTopLayerOfRoom(vec2, chunk), chunk)
     }
 

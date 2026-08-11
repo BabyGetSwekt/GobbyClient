@@ -11,10 +11,11 @@ sealed class MapTile {
 
 enum class DoorType { NORMAL, WITHER, BLOOD, ENTRANCE }
 
-enum class MapCheckmark { NONE, WHITE, GREEN, FAILED }
+enum class MapCheckmark { NONE, UNKNOWN, WHITE, GREEN, FAILED }
 
 object MapConstants {
     const val GRID_SIZE = 11
+    const val CELL_STRIDE = 2
     const val HALF_ROOM = 16
     const val START_X = -185
     const val START_Z = -185

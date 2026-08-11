@@ -1,5 +1,6 @@
 package gobby.features.dungeons
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ChunkLoadEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
@@ -11,6 +12,7 @@ import gobby.gui.hud.HudSetting
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
+import gobby.pathfinder.world.BlockCache
 import gobby.utils.skyblock.dungeon.map.*
 import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
 import gobby.utils.skyblock.dungeon.tiles.RoomData
@@ -23,9 +25,35 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
         private set
     private var isScanning = false
 
+    private const val REFRESH_INTERVAL_MS = 500L
+
     val grid = Array<MapTile>(GRID_SIZE * GRID_SIZE) { MapTile.Empty }
     private val checkmarks = Array(GRID_SIZE * GRID_SIZE) { MapCheckmark.NONE }
-    private val checkmarkClock = Clock()
+    private val discovered = BooleanArray(GRID_SIZE * GRID_SIZE)
+    private val openedDoors = BooleanArray(GRID_SIZE * GRID_SIZE)
+    val checkmarksView: Array<MapCheckmark> get() = checkmarks
+    val discoveredView: BooleanArray get() = discovered
+    val openedDoorsView: BooleanArray get() = openedDoors
+    fun isDoorOpened(cell: Int): Boolean = openedDoors.getOrElse(cell) { false }
+    private val refreshClock = Clock()
+
+    fun refreshState() {
+        MapCheckmarks.update(grid, checkmarks, discovered)
+        MapDoors.updateFromMap(grid, openedDoors)
+        markLocalRoom()
+    }
+
+    private fun markLocalRoom() {
+        if (!hasScanned) return
+        val player = mc.player ?: return
+        val cell = DungeonRooms.containingRoomCell(grid, player.x, player.z) ?: return
+        DungeonRooms.component(grid, cell).forEach {
+            if (!discovered[it]) {
+                discovered[it] = true
+                println("[GobbyRoom] mark cell=$it ${(grid[it] as? MapTile.Room)?.data?.name} via playerCell=$cell pos=(${player.x.toInt()},${player.z.toInt()})")
+            }
+        }
+    }
 
     private val mapHud by HudSetting("Dungeon Map", "Shows the dungeon layout",
         visible = { inDungeons && !inBoss }
@@ -40,14 +68,14 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
     private val headScale by NumberSetting("Head Scale", 100, 50, 200, 10, desc = "Scale of player heads")
         .withDependency { renderHeads }
     private val renderCheckmarks by BooleanSetting("Checkmarks", true, desc = "Show room cleared status")
+    private val legitMode by BooleanSetting("Legit Mode", false, desc = "Mark undiscovered rooms grey instead of revealing their type")
 
     private fun HudSetting.drawMap() {
         if (!inDungeons || inBoss) return
         val ctx = drawContext ?: return
-        if (checkmarkClock.hasTimePassed(500L, setTime = true)) {
-            MapCheckmarks.update(grid, checkmarks)
-        }
-        MapRenderer.drawMap(ctx, grid, checkmarks, renderNames, nameScale, renderCheckmarks, renderHeads, headScale)
+        if (refreshClock.hasTimePassed(REFRESH_INTERVAL_MS, setTime = true)) refreshState()
+        markLocalRoom()
+        MapRenderer.drawMap(ctx, grid, checkmarks, discovered, openedDoors, legitMode, renderNames, nameScale, renderCheckmarks, renderHeads, headScale)
         setSize(MapRenderer.getMapSize(), MapRenderer.getMapSize())
     }
 
@@ -73,15 +101,22 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
         eg[GRID_SIZE * 2 + 4] = MapTile.Room(blood, 4)
 
         val ec = Array(GRID_SIZE * GRID_SIZE) { MapCheckmark.NONE }
-        MapRenderer.drawMap(ctx, eg, ec, true, 100, false, false, 100)
+        val ed = BooleanArray(GRID_SIZE * GRID_SIZE) { true }
+        val eo = BooleanArray(GRID_SIZE * GRID_SIZE)
+        MapRenderer.drawMap(ctx, eg, ec, ed, eo, false, true, 100, false, false, 100)
         setSize(MapRenderer.getMapSize(), MapRenderer.getMapSize())
     }
 
     @SubscribeEvent
     fun onChunkLoad(event: ChunkLoadEvent) {
-        if (!inDungeons || inBoss || isScanning || hasScanned) return
+        if (!inDungeons || inBoss || isScanning) return
         isScanning = true
-        hasScanned = MapScanner.scan(grid)
+        val scanComplete = MapScanner.scan(grid)
+        hasScanned = hasScanned || scanComplete
+        if (scanComplete) {
+            val bounds = MapGrid.dungeonChunkBounds()
+            BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
+        }
         isScanning = false
     }
 
@@ -105,6 +140,8 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
     fun onWorldLoad(event: WorldLoadEvent) {
         grid.fill(MapTile.Empty)
         checkmarks.fill(MapCheckmark.NONE)
+        discovered.fill(false)
+        openedDoors.fill(false)
         MapCheckmarks.reset()
         hasScanned = false
         isScanning = false

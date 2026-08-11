@@ -31,6 +31,9 @@ object PlayerUtils {
         }
     }
 
+    fun getEyeHeight(sneaking: Boolean): Double =
+        if (sneaking) SNEAK_EYE_HEIGHT else STANDING_EYE_HEIGHT
+
     fun getSyncedPos(): Vec3? {
         val player = mc.player ?: return null
         return Vec3(player.xo, player.yo, player.zo)
@@ -69,6 +72,7 @@ object PlayerUtils {
         }
         return true
     }
+
 
 
     fun isPlayerInBox(x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double): Boolean {

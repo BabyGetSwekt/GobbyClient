@@ -4,10 +4,19 @@ import gobby.utils.skyblock.dungeon.tiles.Rotations
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.Vec3i
+import kotlin.math.sqrt
 
 object VecUtils {
 
     data class Vec2(val x: Int, val z: Int)
+
+    fun lengthSq(dx: Double, dy: Double, dz: Double): Double = dx * dx + dy * dy + dz * dz
+
+    fun distanceSq(a: BlockPos, b: BlockPos): Double = lengthSq((a.x - b.x).toDouble(), (a.y - b.y).toDouble(), (a.z - b.z).toDouble())
+
+    fun distance(a: BlockPos, b: BlockPos): Double = sqrt(distanceSq(a, b))
+
+    fun centerDistanceSq(from: Vec3, to: BlockPos): Double = lengthSq(to.x + 0.5 - from.x, to.y + 0.5 - from.y, to.z + 0.5 - from.z)
 
     fun Vec3.addVec(
         x: Double = 0.0,
