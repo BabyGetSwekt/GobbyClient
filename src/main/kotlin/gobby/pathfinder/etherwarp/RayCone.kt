@@ -29,7 +29,7 @@ object RayCone {
         ((yaw / yawStep).roundToInt() % slots + slots) % slots
 
     fun spanOf(halfWidthDeg: Double, yawStep: Float, slots: Int): Int =
-        if (halfWidthDeg >= SPHERE_DEG) slots else (halfWidthDeg / yawStep).toInt()
+        minOf(if (halfWidthDeg >= SPHERE_DEG) slots else (halfWidthDeg / yawStep).toInt(), slots / 2)
 
     fun contains(slot: Int, center: Int, span: Int, slots: Int): Boolean {
         if (span < 0) return false

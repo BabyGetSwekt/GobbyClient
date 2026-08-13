@@ -5,22 +5,24 @@ import gobby.features.dungeons.RoomPathfinder
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.VecUtils
 import gobby.utils.skyblock.EtherwarpUtils
+import gobby.utils.skyblock.EtherwarpWorldAccess
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.asin
 import kotlin.math.atan2
-import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 object EtherwarpPathfinder {
 
-    private const val MIN_CONE_DEG = 50.0
+    private const val MIN_CONE_DEG = 60.0
+    private const val MID_CONE_FACTOR = 2.0
     private const val BACKTRACK_CONE_DEG = 45.0
+    private const val MID_STRIDE = 2
     private const val COARSE_STRIDE = 3
-    private const val HOP_TIE_BREAK = 0.001
     private const val MAX_LANDING_RISE = 4
 
     fun findPath(
@@ -39,22 +41,38 @@ object EtherwarpPathfinder {
         kind: EtherwarpKind,
         config: EtherwarpPathConfig = EtherwarpPathConfig(),
         reached: (BlockPos) -> Boolean = { it == goal },
-        cache: BlockCache.SnapshotView? = null
+        cache: BlockCache.SnapshotView? = null,
+        deadline: SearchDeadline = SearchDeadline(config.timeout)
     ): List<EtherwarpNode>? {
-        val cacheView = cache ?: BlockCache.freeze()
+        val access = EtherwarpUtils.cachedAccess(cache) ?: return null
+        return searchWith(from, goal, kind, config, reached, access, deadline)
+    }
+
+    fun searchWith(
+        from: Vec3,
+        goal: BlockPos,
+        kind: EtherwarpKind,
+        config: EtherwarpPathConfig,
+        reached: (BlockPos) -> Boolean,
+        access: EtherwarpWorldAccess,
+        deadline: SearchDeadline = SearchDeadline(config.timeout)
+    ): List<EtherwarpNode>? {
         val range = kind.searchRange(config)
         val raycasts = RaycastCache.get(range, config.pitchStep, config.yawStep)
         val start = BlockPos.containing(from)
         val maxLandingY = if (kind.sneak) max(goal.y, start.y) + MAX_LANDING_RISE else Int.MAX_VALUE
-        val ctx = EtherwarpContext(goal, range, config.hWeight, raycasts, config.timeout, reached, maxLandingY)
+        val ctx = EtherwarpContext(goal, range, config.hWeight, raycasts, deadline, reached, maxLandingY)
         ctx.offer(EtherwarpNode(from.x, from.y, from.z, start, 0.0, heuristic(VecUtils.distance(start, goal), range, config.hWeight), null, 0f, 0f))
-        val workers = List(config.threads - 1) { thread { worker(ctx, kind, cacheView) } }
-        worker(ctx, kind, cacheView)
+        val workers = List(config.threads - 1) { thread { worker(ctx, kind, access) } }
+        worker(ctx, kind, access)
         workers.forEach { it.join() }
+        if (RoomPathfinder.pathDebug) {
+            println("[GobbyPath] search processed=${ctx.processed.get()} elapsed=${ctx.elapsed}ms timedOut=${ctx.timedOut} hops=${ctx.result?.size ?: -1} range=$range")
+        }
         return ctx.result
     }
 
-    private fun worker(ctx: EtherwarpContext, kind: EtherwarpKind, cache: BlockCache.SnapshotView?) {
+    private fun worker(ctx: EtherwarpContext, kind: EtherwarpKind, access: EtherwarpWorldAccess) {
         while (!ctx.solved) {
             if (ctx.expired) {
                 ctx.timedOut = true
@@ -71,18 +89,18 @@ object EtherwarpPathfinder {
                 ctx.publish(reconstruct(current))
                 return
             }
-            expand(ctx, current, kind, cache)
+            expand(ctx, current, kind, access)
             ctx.finish()
         }
     }
 
-    private fun expand(ctx: EtherwarpContext, current: EtherwarpNode, kind: EtherwarpKind, cache: BlockCache.SnapshotView?) {
+    private fun expand(ctx: EtherwarpContext, current: EtherwarpNode, kind: EtherwarpKind, access: EtherwarpWorldAccess) {
         val eye = Vec3(current.x, current.y + kind.eyeHeight(), current.z)
         val rc = ctx.raycasts
         val seen = LongOpenHashSet()
 
         fun visit(index: Int) {
-            val hit = kind.hit(eye, rc.dx[index], rc.dy[index], rc.dz[index], ctx.goal, cache) ?: return
+            val hit = kind.hit(eye, rc.dx[index], rc.dy[index], rc.dz[index], ctx.goal, access) ?: return
             if (hit.y > ctx.maxLandingY || !seen.add(hit.asLong())) return
             val aim = kind.resolveAim(eye, hit, ctx.range, rc.yaws[index], rc.pitches[index]) ?: return
             val g = current.g + 1.0 + kind.landingCost(hit)
@@ -106,25 +124,36 @@ object EtherwarpPathfinder {
             val slots = rc.bandSize[band]
             val step = rc.bandYawStep[band]
             val first = rc.bandStart[band]
+            val pitch = rc.bandPitch[band]
             val goalCenter = RayCone.slotOf(goalYaw, step, slots)
-            val goalSpan = RayCone.yawHalfWidth(rc.bandPitch[band], goalPitch, cone).takeIf { it != RayCone.OUTSIDE }
-                ?.let { RayCone.spanOf(it, step, slots) } ?: -1
+            val innerSpan = spanFor(pitch, goalPitch, cone, step, slots)
+            val midSpan = spanFor(pitch, goalPitch, min(cone * MID_CONE_FACTOR, RayCone.SPHERE_DEG), step, slots)
             val backCenter = if (parent == null) 0 else RayCone.slotOf(backYaw, step, slots)
-            val backSpan = if (parent == null) -1 else
-                RayCone.yawHalfWidth(rc.bandPitch[band], backPitch, BACKTRACK_CONE_DEG).takeIf { it != RayCone.OUTSIDE }
-                    ?.let { RayCone.spanOf(it, step, slots) } ?: -1
+            val backSpan = if (parent == null) -1 else spanFor(pitch, backPitch, BACKTRACK_CONE_DEG, step, slots)
 
-            (-goalSpan..goalSpan).forEach { offset ->
-                val slot = ((goalCenter + offset) % slots + slots) % slots
+            fun visitSlot(rawSlot: Int) {
+                val slot = ((rawSlot % slots) + slots) % slots
                 if (!RayCone.contains(slot, backCenter, backSpan, slots)) visit(first + slot)
+            }
+
+            (-innerSpan..innerSpan).forEach { visitSlot(goalCenter + it) }
+            var offset = -midSpan
+            while (offset <= midSpan) {
+                if (offset < -innerSpan || offset > innerSpan) visitSlot(goalCenter + offset)
+                offset += MID_STRIDE
             }
             var slot = band % COARSE_STRIDE
             while (slot < slots) {
-                if (!RayCone.contains(slot, goalCenter, goalSpan, slots) && !RayCone.contains(slot, backCenter, backSpan, slots)) visit(first + slot)
+                if (!RayCone.contains(slot, goalCenter, midSpan, slots)) visitSlot(slot)
                 slot += COARSE_STRIDE
             }
         }
     }
+
+    private fun spanFor(bandPitch: Float, targetPitch: Double, coneDeg: Double, yawStep: Float, slots: Int): Int =
+        RayCone.yawHalfWidth(bandPitch, targetPitch, coneDeg)
+            .takeIf { it != RayCone.OUTSIDE }
+            ?.let { RayCone.spanOf(it, yawStep, slots) } ?: -1
 
     private fun yawOf(x: Double, z: Double): Double = Math.toDegrees(atan2(-x, z))
 
@@ -156,15 +185,16 @@ object EtherwarpPathfinder {
 
     fun revalidateLive(path: List<EtherwarpNode>, range: Double, kind: EtherwarpKind, snapshot: BlockCache.SnapshotView? = null): List<EtherwarpNode>? {
         if (kind != EtherwarpKind.ETHERWARP || path.size < 2) return path
+        val access = EtherwarpUtils.liveOrCachedAccess(snapshot) ?: return path
         val valid = mutableListOf(path[0])
         for (i in 0 until path.size - 1) {
             val cur = valid.last()
             val eye = Vec3(cur.x, cur.y + kind.eyeHeight(), cur.z)
             val target = path[i + 1].pos
             val storedAim = Aim(cur.yaw, cur.pitch)
-            val aim = EtherwarpUtils.validateAim(eye, target, range, storedAim.yaw to storedAim.pitch)
+            val aim = EtherwarpUtils.validateAim(eye, target, range, storedAim.yaw to storedAim.pitch, access)
                 .takeIf { it != EtherwarpUtils.EtherPos.NONE }?.let { storedAim }
-                ?: EtherwarpUtils.aimForBlock(target, eye, range, cached = false)?.let { Aim(it.first, it.second) }
+                ?: EtherwarpUtils.aimForBlock(target, eye, range, access)?.let { Aim(it.first, it.second) }
             if (aim == null) {
                 if (RoomPathfinder.pathDebug) {
                     println("[GobbyPath] revalidation failed hop=${i + 1}${EtherwarpUtils.hopDiagnostic(eye, target, storedAim.yaw to storedAim.pitch, range, snapshot)}")
@@ -187,13 +217,10 @@ object EtherwarpPathfinder {
         return collect(node.parent, acc)
     }
 
-    private fun heuristic(distance: Double, range: Double, weight: Double): Double {
-        val hops = distance / range
-        return (ceil(hops) + hops * HOP_TIE_BREAK) * weight
-    }
+    private fun heuristic(distance: Double, range: Double, weight: Double): Double = distance / range * weight
 }
 
-private object RaycastCache {
+internal object RaycastCache {
     private val cache = ConcurrentHashMap<Triple<Double, Float, Float>, Raycasts>()
 
     fun get(range: Double, pitchStep: Float, yawStep: Float): Raycasts =

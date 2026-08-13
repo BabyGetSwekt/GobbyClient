@@ -7,23 +7,26 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.findHotbarSlot
 import gobby.utils.isHoldingSkyblockItem
 import gobby.utils.skyblockID
-import gobby.utils.Utils
 import gobby.utils.managers.PacketOrderManager
 import gobby.utils.managers.SwapManager
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.skyblock.dungeon.map.DungeonRooms
 import gobby.utils.skyblock.dungeon.map.MapTile
 import net.minecraft.client.player.LocalPlayer
-import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import java.util.Locale
+import kotlin.math.abs
 
 object EtherwarpPathExecutor {
-
     private val TELEPORT_ITEMS = arrayOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")
     private const val TELEPORT_MIN_SQ = 1.0
     private const val LANDING_TOLERANCE_SQ = 2.25
     private const val LAND_TIMEOUT_TICKS = 15
+    private const val MISS_MIN_SQ = 9.0
+    private const val LANDING_HEIGHT_TOLERANCE = 1.5
+    private const val MAX_REANCHORS = 4
+    private const val MIN_SERVER_SLOT = 0
+    private const val MAX_SERVER_SLOT = 8
 
     private var nodes: List<EtherwarpNode> = emptyList()
     private var index = 0
@@ -32,12 +35,12 @@ object EtherwarpPathExecutor {
     private var predictedPosition: Vec3? = null
     private var pathGeneration = 0L
     private var requestedRoom: String? = null
-
-    private class Hop(val label: Int, val expected: Vec3, val block: BlockPos, val aim: Aim, val from: Vec3, val firedTick: Int, val sneakSent: Boolean, val crouching: Boolean, val onGround: Boolean)
-    private val inFlight = ArrayDeque<Hop>()
+    private var hopField: EtherwarpHopField.Handle? = null
+    private val inFlight = ArrayDeque<EtherwarpExecutionHop>()
     private var tickCounter = 0
     private var lastPos: Vec3? = null
     private var clipboardSet = false
+    private var reanchors = 0
 
     val active: Boolean get() = index in nodes.indices
     val forceSneak: Boolean get() = nodes.isNotEmpty() && kind.sneak
@@ -52,16 +55,17 @@ object EtherwarpPathExecutor {
         else -> Decision.CAST
     }
 
-    fun start(path: List<EtherwarpNode>, kind: EtherwarpKind, targetRoom: String? = null) {
+    fun start(path: List<EtherwarpNode>, kind: EtherwarpKind, targetRoom: String? = null, field: EtherwarpHopField.Handle? = null) {
         cancel()
         RoomPathfinder.missedNode = null
         if (path.size < 2) return
         nodes = path
         this.kind = kind
+        hopField = field
         index = 1
         predictedPosition = path.first().eye
         requestedRoom = targetRoom
-        modMessage("§aExecuting ${path.size - 1} ${kind.name.lowercase()} teleports")
+        modMessage("\u00A7aExecuting ${path.size - 1} ${kind.name.lowercase()} teleports")
     }
 
     fun cancel() {
@@ -71,15 +75,19 @@ object EtherwarpPathExecutor {
         inFlight.clear()
         lastPos = null
         clipboardSet = false
+        reanchors = 0
         predictedPosition = null
         pathGeneration++
         requestedRoom = null
+        hopField = null
     }
 
     fun tick() {
         if (nodes.isEmpty()) return
         val player = mc.player ?: return
         observeLandings(player)
+        if (nodes.isEmpty()) return
+        refreshHopField(player)
         if (nodes.isEmpty()) return
         if (finishing) {
             if (inFlight.isEmpty()) finish()
@@ -99,34 +107,73 @@ object EtherwarpPathExecutor {
     private fun cast(player: LocalPlayer, aim: Aim) {
         if (RoomPathfinder.pathDebug) {
             val clientSlot = player.inventory.selectedSlot
-            val srv = SwapManager.currentServerSlot
-            if (srv in 0..8 && srv != clientSlot) println("[GobbyTP] ITEM DESYNC at cast: clientSlot=$clientSlot serverSlot=$srv held=${player.mainHandItem.skyblockID}")
+            val serverSlot = SwapManager.currentServerSlot
+            if (serverSlot in MIN_SERVER_SLOT..MAX_SERVER_SLOT && serverSlot != clientSlot) println("[GobbyTP] ITEM DESYNC at cast: clientSlot=$clientSlot serverSlot=$serverSlot held=${player.mainHandItem.skyblockID}")
         }
         val generation = pathGeneration
-        PacketOrderManager.queueUseItem(aim.yaw, aim.pitch) {
-            generation == pathGeneration && nodes.isNotEmpty()
-        }
+        PacketOrderManager.queueUseItem(aim.yaw, aim.pitch) { generation == pathGeneration && nodes.isNotEmpty() }
         val target = nodes[index]
-        val origin = predictedPosition ?: nodes[index - 1].eye
-        inFlight.addLast(Hop(index, target.eye, target.pos, aim, origin, tickCounter,
-            player.lastSentInput?.shift() == true, player.isCrouching, player.onGround()))
+        val origin = (if (inFlight.isEmpty()) currentPosition() else null) ?: predictedPosition ?: nodes[index - 1].eye
+        inFlight.addLast(EtherwarpExecutionHop(index, target.eye, target.pos, aim, origin, tickCounter, player.lastSentInput?.shift() == true, player.isCrouching, player.onGround()))
         predictedPosition = target.eye
         index++
         if (index !in nodes.indices) finishing = true
     }
 
+    private fun currentPosition(): Vec3? = mc.player?.let { Vec3(it.x, it.y, it.z) }
+
+    private fun reanchor(from: Vec3): Boolean {
+        if (kind != EtherwarpKind.ETHERWARP || reanchors >= MAX_REANCHORS) return false
+        val eye = Vec3(from.x, from.y + kind.eyeHeight(), from.z)
+        val range = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: kind.defaultRange
+        hopField?.query(from, range)?.takeIf { it.size >= 2 }?.let {
+            inFlight.clear()
+            reanchors++
+            nodes = it
+            index = 1
+            predictedPosition = from
+            finishing = false
+            return true
+        }
+        val access = EtherwarpUtils.liveOrCachedAccess() ?: return false
+        val target = (nodes.size - 1 downTo 1).firstOrNull { EtherwarpUtils.quickAim(nodes[it].pos, eye, range, access) != null } ?: return false
+        if (RoomPathfinder.pathDebug) println("[GobbyTP] reanchored to node#$target from ${fmt(from)} (was #$index of ${nodes.size - 1})")
+        inFlight.clear()
+        reanchors++
+        index = target
+        predictedPosition = from
+        finishing = false
+        return true
+    }
+
+    private fun refreshHopField(player: LocalPlayer) {
+        val field = hopField ?: return
+        val refreshed = EtherwarpHopField.refresh(field)
+        hopField = refreshed
+        if (refreshed !== field) return
+        if (inFlight.isNotEmpty() || finishing) return
+        val range = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: kind.defaultRange
+        field.query(Vec3(player.x, player.y, player.z), range)?.takeIf { it.size >= 2 }?.let {
+            nodes = it
+            index = 1
+            predictedPosition = it.first().eye
+            reanchors = 0
+        }
+    }
+
     private fun liveAim(): Aim? {
         val target = nodes.getOrNull(index) ?: return null
         val source = nodes[index - 1]
-        val origin = predictedPosition ?: source.eye
+        val origin = (if (inFlight.isEmpty()) currentPosition() else null) ?: predictedPosition ?: source.eye
         val eye = Vec3(origin.x, origin.y + kind.eyeHeight(), origin.z)
         val range = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: kind.defaultRange
+        val access = EtherwarpUtils.liveOrCachedAccess() ?: return null
         if (kind == EtherwarpKind.ETHERWARP) {
             val storedAim = Pair(source.yaw, source.pitch)
-            return EtherwarpUtils.validateAim(eye, target.pos, range, storedAim)
+            return EtherwarpUtils.validateAim(eye, target.pos, range, storedAim, access)
                 .takeIf { it != EtherwarpUtils.EtherPos.NONE }
                 ?.let { Aim(storedAim.first, storedAim.second) }
-                ?: EtherwarpUtils.aimForBlock(target.pos, eye, range, cached = false)?.let { Aim(it.first, it.second) }
+                ?: EtherwarpUtils.aimForBlock(target.pos, eye, range, access)?.let { Aim(it.first, it.second) }
         }
         return kind.aimAt(eye, target.pos, range, cached = false)
     }
@@ -134,97 +181,57 @@ object EtherwarpPathExecutor {
     private fun observeLandings(player: LocalPlayer) {
         tickCounter++
         val cur = Vec3(player.x, player.y, player.z)
-        val prev = lastPos
+        val previous = lastPos
         lastPos = cur
         if (inFlight.isEmpty()) return
-        if (prev != null) {
-            val dx = cur.x - prev.x
-            val dy = cur.y - prev.y
-            val dz = cur.z - prev.z
-            if (dx * dx + dy * dy + dz * dz > TELEPORT_MIN_SQ) {
-                val matched = inFlight.indexOfFirst { hop ->
-                    val x = cur.x - hop.expected.x
-                    val z = cur.z - hop.expected.z
-                    x * x + z * z < LANDING_TOLERANCE_SQ
-                }
-                if (matched < 0) {
+        if (previous != null) {
+            val delta = cur.subtract(previous)
+            val movedSq = delta.lengthSqr()
+            if (movedSq > TELEPORT_MIN_SQ) {
+                val matched = inFlight.indexOfFirst { atExpected(cur, it) }
+                if (matched >= 0) {
+                    repeat(matched) { println("[GobbyTP] hop#${inFlight.removeFirst().label} UNOBSERVED") }
+                    if (!logLanding(inFlight.removeFirst(), cur) && !reanchor(cur)) return cancel()
+                } else if (movedSq >= MISS_MIN_SQ) {
                     logMiss(inFlight.first(), cur)
-                    cancel()
-                    return
-                }
-                repeat(matched) { inFlight.removeFirst() }
-                val hop = inFlight.removeFirst()
-                if (!logLanding(hop, cur)) {
-                    cancel()
-                    return
+                    if (!reanchor(cur)) return cancel()
                 }
             }
         }
         if (inFlight.isNotEmpty() && tickCounter - inFlight.first().firedTick > LAND_TIMEOUT_TICKS) {
             logDrop(inFlight.removeFirst())
-            cancel()
+            if (!reanchor(currentPosition() ?: cur)) cancel()
         }
     }
 
-    private fun logLanding(hop: Hop, landing: Vec3): Boolean {
-        val dx = landing.x - hop.expected.x
-        val dz = landing.z - hop.expected.z
-        if (dx * dx + dz * dz < LANDING_TOLERANCE_SQ)
-            println("[GobbyTP] hop#${hop.label} landed OK expected=${fmt(hop.expected)} actual=${fmt(landing)} room='${roomNameAt(landing)}' localSneakSent=${hop.sneakSent} crouch=${hop.crouching}")
-        else logMiss(hop, landing)
-        return dx * dx + dz * dz < LANDING_TOLERANCE_SQ
+    private fun atExpected(landing: Vec3, hop: EtherwarpExecutionHop): Boolean {
+        val delta = landing.subtract(hop.expected)
+        return delta.x * delta.x + delta.z * delta.z < LANDING_TOLERANCE_SQ && abs(delta.y) < LANDING_HEIGHT_TOLERANCE
     }
 
-    private fun logMiss(hop: Hop, landing: Vec3) {
-        val cmd = "/gobby setrotation ${f2(hop.aim.yaw)} ${f2(hop.aim.pitch)}"
-        val moved = hop.from.distanceTo(landing)
-        println("[GobbyTP] hop#${hop.label} MISS did not reach node")
-        println("[GobbyTP]  node=${hop.block} expected=${fmt(hop.expected)} actualLanding=${fmt(landing)} movedFromOrigin=${f2(moved)}")
-        println("[GobbyTP]  fireOrigin=${fmt(hop.from)} attemptedAim=(${f2(hop.aim.yaw)},${f2(hop.aim.pitch)}) eyeHeight=${kind.eyeHeight()}")
-        println("[GobbyTP]  sneakSent=${hop.sneakSent} crouching=${hop.crouching} onGround=${hop.onGround}")
-        if (kind == EtherwarpKind.ETHERWARP) {
-            val firedEye = Vec3(hop.from.x, hop.from.y + kind.eyeHeight(), hop.from.z)
-            val range = EtherwarpUtils.currentRange()
-            val dir = EtherwarpUtils.directionFromAngles(hop.aim.yaw, hop.aim.pitch)
-            val storedHit = EtherwarpUtils.etherwarpRaycast(firedEye, dir.scale(range))
-            val liveAim = EtherwarpUtils.aimForBlock(hop.block, firedEye)
-            println("[GobbyTP]  attemptedAimHits=${storedHit.pos} succeeded=${storedHit.succeeded} liveAimForBlock=$liveAim")
-            val struck = BlockPos.containing(landing.x - 0.5, landing.y - kind.landingY(0), landing.z - 0.5)
-            println("[GobbyTP]  serverStruck=$struck ${EtherwarpUtils.stateComparison(struck)} (client aimed ${storedHit.pos})")
-            println("[GobbyTP]  interpretation: ${if (storedHit.succeeded && storedHit.pos == hop.block) "aim is geometrically correct -> failure is sneak/cooldown (server did transmission or rejected)" else "aim does NOT hit target from fireOrigin -> aim/position computation is wrong"}")
+    private fun logLanding(hop: EtherwarpExecutionHop, landing: Vec3): Boolean {
+        if (!atExpected(landing, hop)) {
+            logMiss(hop, landing)
+            return false
         }
-        if (!clipboardSet) {
-            Utils.setClipboard(cmd)
-            RoomPathfinder.missedNode = hop.from
-            clipboardSet = true
-            modMessage("§c[TP] hop#${hop.label} missed — stand on the red node (fire origin) and run §e$cmd§c§l (copied)")
-        } else modMessage("§c[TP] hop#${hop.label} missed its node, see log")
+        println("[GobbyTP] hop#${hop.label} landed OK expected=${fmt(hop.expected)} actual=${fmt(landing)} room='${roomNameAt(landing)}' localSneakSent=${hop.sneakSent} crouch=${hop.crouching}")
+        return true
     }
 
-    private fun logDrop(hop: Hop) {
-        val player = mc.player
-        println("[GobbyTP] hop#${hop.label} DROP no teleport within ${LAND_TIMEOUT_TICKS}t")
-        println("[GobbyTP]  node=${hop.block} fireOrigin=${fmt(hop.from)} aim=(${f2(hop.aim.yaw)},${f2(hop.aim.pitch)}) sneakSent=${hop.sneakSent} crouching=${hop.crouching} onGround=${hop.onGround}")
-        println("[GobbyTP]  nowCrouch=${player?.isCrouching} nowShift=${player?.lastSentInput?.shift()} canUseAbility=${SwapManager.canUseAbility} clientSlot=${player?.inventory?.selectedSlot} serverSlot=${SwapManager.currentServerSlot} held=${player?.mainHandItem?.skyblockID}")
-        if (kind == EtherwarpKind.ETHERWARP) {
-            val firedEye = Vec3(hop.from.x, hop.from.y + kind.eyeHeight(), hop.from.z)
-            val range = EtherwarpUtils.currentRange()
-            val dir = EtherwarpUtils.directionFromAngles(hop.aim.yaw, hop.aim.pitch)
-            val storedHit = EtherwarpUtils.etherwarpRaycast(firedEye, dir.scale(range))
-            println("[GobbyTP]  aimFromOriginHits=${storedHit.pos} succeeded=${storedHit.succeeded} (true=aim valid live -> sneak/cooldown; false=position/prediction off)")
-            storedHit.pos?.let { println("[GobbyTP]  occluder $it ${EtherwarpUtils.stateComparison(it)}") }
-        }
-        modMessage("§c[TP] hop#${hop.label} dropped (no teleport), see log")
+    private fun logMiss(hop: EtherwarpExecutionHop, landing: Vec3) {
+        clipboardSet = EtherwarpExecutionDiagnostics.logMiss(hop, landing, kind, clipboardSet)
     }
 
-    private fun f2(v: Number): String = String.format(Locale.US, "%.2f", v.toDouble())
+    private fun logDrop(hop: EtherwarpExecutionHop) = EtherwarpExecutionDiagnostics.logDrop(hop, kind)
 
-    private fun fmt(v: Vec3): String = "(${f2(v.x)},${f2(v.y)},${f2(v.z)})"
+    private fun f2(value: Number): String = String.format(Locale.US, "%.2f", value.toDouble())
+
+    private fun fmt(value: Vec3): String = "(${f2(value.x)},${f2(value.y)},${f2(value.z)})"
 
     private fun finish() {
         val actualRoom = mc.player?.let { roomNameAt(Vec3(it.x, it.y, it.z)) }
         println("[GobbyTP] arrived requested='$requestedRoom' actual='$actualRoom' pos=${mc.player?.position()}")
-        modMessage("§aArrived")
+        modMessage("\u00A7aArrived")
         cancel()
     }
 
@@ -235,10 +242,10 @@ object EtherwarpPathExecutor {
 
     private fun abort(reason: String) {
         if (RoomPathfinder.pathDebug) {
-            val p = mc.player
-            println("[GobbyTP] abort ($reason): held=${p?.mainHandItem?.skyblockID} selectedSlot=${p?.inventory?.selectedSlot} idx=$index/${nodes.size}")
+            val player = mc.player
+            println("[GobbyTP] abort ($reason): held=${player?.mainHandItem?.skyblockID} selectedSlot=${player?.inventory?.selectedSlot} idx=$index/${nodes.size}")
         }
-        modMessage("§c$reason, stopping")
+        modMessage("\u00A7c$reason, stopping")
         cancel()
     }
 }

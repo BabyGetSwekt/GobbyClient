@@ -1,7 +1,9 @@
 package gobby.pathfinder.etherwarp
 
 import gobby.utils.rotation.AngleUtils.directionFromAngles
+import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.pow
 import kotlin.math.cos
 import kotlin.math.max
 
@@ -25,9 +27,12 @@ class Raycasts(
         private const val MAX_PITCH = 90f
         private const val FULL_TURN = 360f
         private const val MIN_YAW_COS = 0.01f
+        private const val EYE_ABOVE_TOP_FACE = 1.32
+        private const val SHALLOW_BAND_COUNT = 9
+        private const val NEAREST_SHALLOW_DISTANCE = 11.0
 
         fun generate(pitchStep: Float, yawStep: Float, scale: Double): Raycasts {
-            val bandPitch = pitches(pitchStep)
+            val bandPitch = pitches(pitchStep, scale)
             val bandYawStep = FloatArray(bandPitch.size) { yawStepAt(bandPitch[it], yawStep) }
             val bandSize = IntArray(bandPitch.size) { ceil(FULL_TURN / bandYawStep[it]).toInt() }
             val bandStart = IntArray(bandPitch.size)
@@ -56,9 +61,18 @@ class Raycasts(
             return Raycasts(dx, dy, dz, yaws, pitches, scale, bandStart, bandSize, bandYawStep, bandPitch)
         }
 
-        private fun pitches(step: Float): FloatArray {
+        private fun pitches(step: Float, scale: Double): FloatArray {
             val count = ceil((MAX_PITCH - MIN_PITCH) / step).toInt() + 1
-            return FloatArray(count) { (MIN_PITCH + it * step).coerceAtMost(MAX_PITCH) }
+            val uniform = List(count) { (MIN_PITCH + it * step).coerceAtMost(MAX_PITCH) }
+            return (uniform + shallowPitches(scale)).distinct().sorted().toFloatArray()
+        }
+
+        private fun shallowPitches(range: Double): List<Float> {
+            if (range <= NEAREST_SHALLOW_DISTANCE) return emptyList()
+            val growth = (range / NEAREST_SHALLOW_DISTANCE).pow(1.0 / (SHALLOW_BAND_COUNT - 1))
+            return (0 until SHALLOW_BAND_COUNT).map { band ->
+                Math.toDegrees(atan2(EYE_ABOVE_TOP_FACE, NEAREST_SHALLOW_DISTANCE * growth.pow(band))).toFloat()
+            }
         }
 
         private fun yawStepAt(pitch: Float, step: Float): Float =

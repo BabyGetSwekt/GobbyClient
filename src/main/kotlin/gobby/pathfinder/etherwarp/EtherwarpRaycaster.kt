@@ -2,6 +2,7 @@ package gobby.pathfinder.etherwarp
 
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.VecUtils
+import gobby.utils.skyblock.EtherwarpUtils
 import gobby.pathfinder.world.VoxelRay
 import gobby.utils.rotation.AngleUtils.calcAimAnglesBetween
 import net.minecraft.core.BlockPos
@@ -77,7 +78,8 @@ object EtherwarpRaycaster {
         val length = dir.length()
         if (length < MIN_AIM_LENGTH) return null
         val r = dir.scale(range / length)
-        val hit = kind.hit(from, r.x, r.y, r.z, to, snapshot)
+        val access = EtherwarpUtils.cachedAccess(snapshot) ?: return null
+        val hit = kind.hit(from, r.x, r.y, r.z, to, access)
         return if (hit == to) calcAimAnglesBetween(from, point).let { Aim(it.first, it.second) } else null
     }
 

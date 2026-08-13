@@ -1,6 +1,5 @@
 package gobby.pathfinder.etherwarp
 
-import gobby.utils.timer.Clock
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import net.minecraft.core.BlockPos
 import java.util.PriorityQueue
@@ -11,11 +10,10 @@ class EtherwarpContext(
     val range: Double,
     val hWeight: Double,
     val raycasts: Raycasts,
-    private val timeout: Long,
+    private val deadline: SearchDeadline,
     val reached: (BlockPos) -> Boolean = { it == goal },
     val maxLandingY: Int = Int.MAX_VALUE
 ) {
-    private val clock = Clock()
     private val openSet = PriorityQueue<EtherwarpNode>()
     private val nodeMap = Long2ObjectOpenHashMap<EtherwarpNode>()
     private var activeCount = 0
@@ -25,8 +23,8 @@ class EtherwarpContext(
     @Volatile var result: List<EtherwarpNode>? = null
     val processed = AtomicInteger(0)
 
-    val elapsed: Long get() = clock.getTime()
-    val expired: Boolean get() = clock.hasTimePassed(timeout)
+    val elapsed: Long get() = deadline.elapsed
+    val expired: Boolean get() = deadline.expired
 
     val done: Boolean
         @Synchronized get() = openSet.isEmpty() && activeCount == 0

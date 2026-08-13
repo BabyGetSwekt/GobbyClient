@@ -70,7 +70,7 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
         DungeonMap.refreshState()
         val playerCell = mc.player?.let { DungeonRooms.roomCellAt(grid, it.x, it.z) }
         reachable = playerCell?.let {
-            DungeonRoomPathfinder.reachableCellsFrom(grid, it, opened = { door -> DungeonEtherwarpPathfinder.doorOpen(door) { p -> mc.level?.getBlockState(p)?.isAir == true } })
+            DungeonRoomPathfinder.reachableCellsFrom(grid, it, opened = { door -> DungeonEtherwarpPathfinder.doorOpen(door) { p -> BlockCache.knownStateAt(p) } })
         }.orEmpty()
     }
 
@@ -127,26 +127,30 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
         val enterRoom = canTeleportInto(cell)
         val config = EtherwarpPathConfig(etherRange = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: EtherwarpKind.ETHERWARP.defaultRange)
         val bounds = MapGrid.dungeonChunkBounds()
-        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3], refresh = true)
+        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
         val goal = roomGoal(cell) ?: return modMessage("Â§cTarget room floor is not loaded yet")
-        BlockCache.writeState("click room=$clickedRoom cell=$cell goal=$goal")
+        if (RoomPathfinder.pathDebug) BlockCache.writeState("click room=$clickedRoom cell=$cell goal=$goal")
         val cacheSnapshot = BlockCache.freeze()
         println("[GobbyMap] requested room='$clickedRoom' goal=$goal enterRoom=$enterRoom")
         thread(name = "gobby-pathfind", isDaemon = true) {
             val clock = Clock()
             val path = DungeonEtherwarpPathfinder.findDungeonPath(from, goal, kind, config, enterRoom, mapSnapshot, { door ->
-                DungeonEtherwarpPathfinder.doorOpen(door) { p -> cacheSnapshot.getBlockState(p).isAir }
+                DungeonEtherwarpPathfinder.doorOpen(door) { p -> cacheSnapshot.getBlockState(p) }
             }, cacheSnapshot)
             mc.execute {
                 val live = path?.let { EtherwarpPathfinder.revalidateLive(it, kind.searchRange(config), kind, cacheSnapshot) }
                 if (live == null || live.size < 2) {
                     RoomPathfinder.pathPreview = emptyList()
-                    modMessage(if (path == null) "§cNo path to that room" else "§cPath invalid live (target not reachable), retry")
+                    modMessage(when {
+                        path != null -> "§cPath invalid live (target not reachable), retry"
+                        DungeonEtherwarpPathfinder.lastSearchTimedOut -> "§cSearch timed out before reaching that room, try again"
+                        else -> "§cNo path to that room"
+                    })
                 } else {
                     RoomPathfinder.pathPreview = live
                     val dropped = (path?.size ?: 0) - live.size
                     modMessage("§aPath found: ${live.size - 1} teleports in ${clock.getTime()}ms${if (dropped > 0) " §7(dropped $dropped stale hop${if (dropped > 1) "s" else ""})" else ""}")
-                    EtherwarpPathExecutor.start(live, kind, clickedRoom)
+                    EtherwarpPathExecutor.start(live, kind, clickedRoom, DungeonEtherwarpPathfinder.hopFieldFor(goal, kind, config))
                 }
             }
         }
@@ -179,7 +183,11 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
     private fun roomBounds(cells: Set<Int>): IntArray {
         val x = cells.map { MapGrid.worldX(MapGrid.col(it)) }
         val z = cells.map { MapGrid.worldZ(MapGrid.row(it)) }
-        return intArrayOf(x.minOrNull()!! - ROOM_HALF_EXTENT, x.maxOrNull()!! + ROOM_HALF_EXTENT, z.minOrNull()!! - ROOM_HALF_EXTENT, z.maxOrNull()!! + ROOM_HALF_EXTENT)
+        val minX = x.minOrNull() ?: return intArrayOf()
+        val maxX = x.maxOrNull() ?: return intArrayOf()
+        val minZ = z.minOrNull() ?: return intArrayOf()
+        val maxZ = z.maxOrNull() ?: return intArrayOf()
+        return intArrayOf(minX - ROOM_HALF_EXTENT, maxX + ROOM_HALF_EXTENT, minZ - ROOM_HALF_EXTENT, maxZ + ROOM_HALF_EXTENT)
     }
 
     private fun scannedCellOf(cell: Int): Int =

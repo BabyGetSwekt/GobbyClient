@@ -29,3 +29,5 @@ build/
 .vscode/
 run/
 .gradle
+logs/
+.gradle-local/

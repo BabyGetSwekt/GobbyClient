@@ -49,6 +49,8 @@ import net.minecraft.world.phys.Vec3
 import gobby.pathfinder.navmesh.WalkMeshScanner
 import gobby.pathfinder.navmesh.WalkPolygon
 import gobby.pathfinder.world.BlockCache
+import gobby.pathfinder.world.BlockCacheDump
+import gobby.utils.skyblock.dungeon.map.MapGrid
 import gobby.utils.StructureCopier
 import gobby.utils.MovementRecorder
 import gobby.utils.skyblock.dungeon.RoomCopier
@@ -58,6 +60,10 @@ import java.util.Locale
 import kotlin.math.abs
 
 object GobbyCommand {
+
+    private const val DUMP_FILE_NAME = "gobby-blockcache.dump"
+    private const val DUMP_MIN_Y = 40
+    private const val DUMP_MAX_Y = 140
 
     private fun openConfig(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommands.literal(name)
@@ -542,6 +548,25 @@ object GobbyCommand {
         event.register(copyRoomCommand())
         event.register(mapDebugCommand())
         event.register(setRotationCommand())
+        event.register(dumpCacheCommand())
+    }
+
+    private fun dumpCacheCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal("gobby")
+            .then(ClientCommands.literal("dumpcache").executes { runDumpCache() })
+    }
+
+    private fun runDumpCache(): Int {
+        val bounds = MapGrid.dungeonChunkBounds()
+        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
+        val target = mc.gameDirectory.toPath().resolve("logs").resolve(DUMP_FILE_NAME)
+        val written = runCatching { BlockCacheDump.write(BlockCache.freeze(), target, DUMP_MIN_Y, DUMP_MAX_Y) }.getOrNull()
+        if (written == null) {
+            errorMessage("Cache dump failed")
+            return 0
+        }
+        modMessage("§aDumped $written blocks to §e$target")
+        return 1
     }
 
     private fun setRotationCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {

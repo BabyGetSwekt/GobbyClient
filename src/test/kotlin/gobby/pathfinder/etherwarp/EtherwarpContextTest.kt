@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class EtherwarpContextTest {
 
     private fun context() =
-        EtherwarpContext(BlockPos(0, 0, 0), 12.0, 6.7, emptyRaycasts(), 1000L)
+        EtherwarpContext(BlockPos(0, 0, 0), 12.0, 6.7, emptyRaycasts(), SearchDeadline(1000L))
 
     private fun emptyRaycasts() = Raycasts(
         DoubleArray(0), DoubleArray(0), DoubleArray(0), FloatArray(0), FloatArray(0), 1.0,

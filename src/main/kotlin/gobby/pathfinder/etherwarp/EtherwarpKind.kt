@@ -3,6 +3,7 @@ package gobby.pathfinder.etherwarp
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.PlayerUtils
 import gobby.utils.skyblock.EtherwarpUtils
+import gobby.utils.skyblock.EtherwarpWorldAccess
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import kotlin.math.min
@@ -20,8 +21,8 @@ enum class EtherwarpKind(
     private val standOffset: Double
 ) {
     ETHERWARP(true, ETHERWARP_RANGE, ETHERWARP_STAND_OFFSET) {
-        override fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, snapshot: BlockCache.SnapshotView?): BlockPos? {
-            val result = EtherwarpUtils.etherwarpRaycast(eye, rayX, rayY, rayZ, cached = true, snapshot = snapshot)
+        override fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, access: EtherwarpWorldAccess): BlockPos? {
+            val result = EtherwarpUtils.etherwarpRaycast(eye, rayX, rayY, rayZ, access)
             val pos = result.pos ?: return null
             return if (result.succeeded && (pos == goal || !EtherwarpUtils.isEtherwarpBlacklisted(result.state))) pos else null
         }
@@ -34,7 +35,7 @@ enum class EtherwarpKind(
             EtherwarpUtils.quickAim(target, eye, range, cached = cached, snapshot = snapshot)?.let { Aim(it.first, it.second) }
     },
     TRANSMISSION(false, TRANSMISSION_RANGE, TRANSMISSION_STAND_OFFSET) {
-        override fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, snapshot: BlockCache.SnapshotView?): BlockPos? =
+        override fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, access: EtherwarpWorldAccess): BlockPos? =
             EtherwarpRaycaster.transmission(eye, Vec3(rayX, rayY, rayZ))
 
         override fun landingCost(hit: BlockPos): Double = if (BlockCache.isSolid(hit.below())) 0.0 else AIR_LANDING_PENALTY
@@ -42,7 +43,7 @@ enum class EtherwarpKind(
         override fun goal(to: BlockPos): BlockPos = to.above()
     };
 
-    abstract fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, snapshot: BlockCache.SnapshotView? = null): BlockPos?
+    abstract fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, access: EtherwarpWorldAccess): BlockPos?
 
     open fun searchRange(config: EtherwarpPathConfig): Double = defaultRange
 
