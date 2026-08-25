@@ -1,5 +1,6 @@
 package gobby.utils
 
+import gobby.Gobbyclient.Companion.logger
 import gobby.Gobbyclient.Companion.mc
 import gobby.mixin.accessor.CameraAccessor
 import net.fabricmc.loader.api.FabricLoader
@@ -11,27 +12,19 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.BlockPos
+import net.minecraft.util.Util
 import net.minecraft.world.phys.Vec3
-import java.awt.Desktop
-import java.awt.Toolkit
-import java.awt.datatransfer.DataFlavor
-import java.awt.datatransfer.StringSelection
 import java.util.Locale
 
 object Utils {
 
-    fun setClipboard(text: String) {
-        val clipboard = Toolkit.getDefaultToolkit().systemClipboard
-        clipboard.setContents(StringSelection(text), null)
-    }
+    fun setClipboard(text: String) { mc.keyboardHandler.clipboard = text }
 
-    fun getClipboard(): String = runCatching {
-        Toolkit.getDefaultToolkit().systemClipboard
-            .getData(DataFlavor.stringFlavor) as? String ?: ""
-    }.getOrDefault("")
+    fun getClipboard(): String = mc.keyboardHandler.clipboard
 
     fun openUrl(url: String) {
-        runCatching { Desktop.getDesktop().browse(java.net.URI(url)) }
+        runCatching { Util.getPlatform().openUri(url) }
+            .onFailure { logger.error("could not open {}", url, it) }
     }
 
     /**

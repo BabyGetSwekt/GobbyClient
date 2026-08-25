@@ -1,137 +1,146 @@
 package gobby.gui.click
 
+import gobby.utils.render.CursorStyle
 import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
+
+private const val SCROLL_STEP = 26f
+private const val SECTION_TEXT_PAD = 3
 
 object ModuleSettingsComponent {
 
-    private const val DESC_SCALE = 0.75f
-    private const val DESC_MAX_LINES = 6
-    private const val DESC_LEFT_PAD = 8
-    private const val DESC_LINE_GAP = 1
-    private const val TITLE_DESC_GAP = 4
-    private const val HEADER_TOP_PAD = 4
-    private const val HEADER_BOTTOM_PAD = 8
-    private const val TOGGLE_W = 26
-    private const val TOGGLE_H = 12
-    private const val TOGGLE_RIGHT_PAD = 14
-
-    fun settingHeight(s: Setting<*>): Int {
-        if (s is ColorSetting && s.expanded) return SH + COLOR_PICKER_H
-        if (s is DropDownSetting && s.expanded) return SH + s.children.filter { it.isVisible }.sumOf { settingHeight(it) }
-        if (s is StringSetting) return SH + SH
-        return SH
-    }
+    fun settingHeight(s: Setting<*>): Int = SettingsLayout.rowHeight(s)
 
     fun visibleSettings(mod: Module): List<Setting<*>> =
         mod.allSettings().filter { it.isVisible && it.parentDropdown == null }
 
-    private fun descLineHeight(): Int = TextWrap.scaledLineHeight(DESC_SCALE, DESC_LINE_GAP)
-
-    private fun descMaxWidth(gui: ClickGUI): Int {
-        val rightLimit = gui.panelX + (PANEL_W * 0.9f).toInt()
-        return (rightLimit - (gui.contentX + DESC_LEFT_PAD)).coerceAtLeast(40)
-    }
-
-    private fun descLines(mod: Module, gui: ClickGUI): List<String> =
-        if (mod.description.isEmpty()) emptyList()
-        else TextWrap.wrap(mod.description, descMaxWidth(gui), DESC_SCALE, DESC_MAX_LINES)
-
-    private fun headerBlockHeight(mod: Module, gui: ClickGUI): Int {
-        val descH = descLines(mod, gui).size.let { if (it == 0) 0 else TITLE_DESC_GAP + it * descLineHeight() }
-        return HEADER_TOP_PAD + tr.lineHeight + descH + HEADER_BOTTOM_PAD
-    }
+    fun columnX(gui: ClickGUI): Int = SettingsLayout.contentLeft(gui.frame)
 
     fun totalContentHeight(mod: Module, gui: ClickGUI): Int =
-        headerBlockHeight(mod, gui) + visibleSettings(mod).sumOf { settingHeight(it) + 2 }
-
-    fun columnX(gui: ClickGUI): Int = gui.contentX
+        SettingsLayout.contentHeight(gui.frame, SettingsLayout.build(gui.frame, mod))
 
     fun draw(ctx: GuiGraphics, gui: ClickGUI, mod: Module, mx: Int, my: Int) {
-        val clipTop = gui.contentY
-        val clipBot = gui.contentY + gui.contentH
-        ctx.enableScissor(gui.contentX - 4, clipTop, gui.panelX + PANEL_W - 4, clipBot)
+        SettingsHeader.draw(ctx, gui, mod, mx, my)
 
-        val baseY = gui.contentY + gui.scrollOffset.toInt()
-        val headerH = headerBlockHeight(mod, gui)
-        drawHeaderBlock(ctx, gui, mod, baseY, headerH)
+        val top = SettingsLayout.contentTop(gui.frame)
+        val bottom = SettingsLayout.contentBottom(gui.frame)
+        val shift = gui.scrollOffset.toInt()
+        val blocks = SettingsLayout.build(gui.frame, mod)
 
-        var y = baseY + headerH
-        val px = columnX(gui)
-        for (s in visibleSettings(mod)) {
-            val h = settingHeight(s)
-            if (y + h >= clipTop && y <= clipBot)
-                SettingRenderer.drawSettingRow(ctx, gui, px, y, s, mx, my, clipTop, clipBot)
-            y += h + 2
-        }
-
+        ctx.enableScissor(gui.panelX + SIDEBAR_W_SETTINGS, top, gui.panelX + PANEL_W, bottom)
+        blocks.forEach { block -> drawBlock(ctx, gui, block, shift, mx, my) }
         ctx.disableScissor()
-        Scrollbar.draw(ctx, gui, totalContentHeight(mod, gui))
+
+        Scrollbar.draw(ctx, gui, SettingsLayout.contentHeight(gui.frame, blocks), top, bottom - top)
+        drawExpandedPicker(ctx, gui, blocks, shift)
+        SelectorPopup.sync(gui)
+        revealedSelectorRow(blocks)?.let { SelectorPopup.draw(ctx, gui, it.copy(y = it.y + shift), mx, my) }
     }
 
-    private fun toggleRect(gui: ClickGUI, baseY: Int) = Rect(
-        gui.panelX + PANEL_W - TOGGLE_W - TOGGLE_RIGHT_PAD,
-        baseY + HEADER_TOP_PAD + (tr.lineHeight - TOGGLE_H) / 2,
-        TOGGLE_W, TOGGLE_H
-    )
+    private fun drawBlock(ctx: GuiGraphics, gui: ClickGUI, block: PlacedBlock, shift: Int, mx: Int, my: Int) {
+        val sectionH = (tr.lineHeight * SETTINGS_SECTION_SCALE).toInt()
+        drawTextScaled(
+            ctx, block.x + SECTION_TEXT_PAD, block.y + shift + (SETTINGS_SECTION_H - sectionH) / 2,
+            block.title, SETTINGS_SECTION_SCALE, cInkGhost, false
+        )
 
-    private fun drawHeaderBlock(ctx: GuiGraphics, gui: ClickGUI, mod: Module, baseY: Int, headerH: Int) {
-        val px = columnX(gui)
-        fill(ctx, px, baseY + 4, 2, headerH - 8, cAccent)
-        drawText(ctx, px + DESC_LEFT_PAD, baseY + HEADER_TOP_PAD, mod.name, cTextBright)
-
-        descLines(mod, gui).forEachIndexed { idx, line ->
-            val dy = baseY + HEADER_TOP_PAD + tr.lineHeight + TITLE_DESC_GAP + idx * descLineHeight()
-            drawTextScaled(ctx, px + DESC_LEFT_PAD, dy, line, DESC_SCALE, cTextGray)
+        if (block.title == SettingsPreview.SECTION_TITLE) {
+            SettingsPreview.draw(ctx, gui, block.x, block.cardY + shift, block.w, block.cardH, mx, my)
+            return
         }
 
-        if (mod.hasToggle && mod.toggled && !mod.isAlwaysEnabled) {
-            val t = toggleRect(gui, baseY)
-            fill(ctx, t.x, t.y, t.w, t.h, if (mod.enabled) cToggleOn else cToggleOff)
-            val knobX = if (mod.enabled) t.x + t.w - 9 else t.x + 1
-            fill(ctx, knobX, t.y + 1, 8, t.h - 2, cKnob)
-            val statusText = if (mod.enabled) "ON" else "OFF"
-            val statusCol = if (mod.enabled) cAccent else cTextGray
-            val sw = textWScaled(statusText, 0.75f)
-            drawTextScaled(ctx, t.x - sw - 6, t.y + 2, statusText, 0.75f, statusCol)
+        GobbyDraw.roundedBox(ctx, block.x, block.cardY + shift, block.w, block.cardH, SETTINGS_CARD_RADIUS, cCard, cCardEdge)
+
+        block.rows.forEach { row ->
+            val shifted = row.copy(y = row.y + shift)
+            val hovered = (mx to my) in Rect(shifted.x, shifted.y, shifted.w, shifted.h)
+            CursorStyle.requestHandIf(hovered)
+            SettingsControls.draw(ctx, gui, shifted, hovered)
+            if (hovered && row.setting.description.isNotEmpty()) {
+                gui.tooltipText = row.setting.description
+                gui.tooltipX = shifted.x + shifted.w + 6
+                gui.tooltipY = shifted.y
+            }
         }
     }
+
+    private fun drawExpandedPicker(ctx: GuiGraphics, gui: ClickGUI, blocks: List<PlacedBlock>, shift: Int) {
+        val row = expandedColorRow(blocks) ?: return
+        ColorPickerPopup.draw(ctx, gui, row.copy(y = row.y + shift))
+    }
+
+    internal fun handleHexDrag(gui: ClickGUI, mod: Module, mx: Int): Boolean {
+        val shift = gui.scrollOffset.toInt()
+        val row = SettingsLayout.build(gui.frame, mod).flatMap { it.rows }
+            .firstOrNull { (it.setting as? ColorSetting)?.expanded == true } ?: return false
+        gui.hexField.placeCaret(ColorPickerPopup.caretIndexAt(gui, row.copy(y = row.y + shift), mx), extend = true)
+        return true
+    }
+
+    internal fun previewRect(gui: ClickGUI, mod: Module): Rect? {
+        val shift = gui.scrollOffset.toInt()
+        val block = SettingsLayout.build(gui.frame, mod).firstOrNull { it.title == SettingsPreview.SECTION_TITLE }
+            ?: return null
+        return Rect(block.x, block.cardY + shift, block.w, block.cardH)
+    }
+
+    private fun openSelectorRow(gui: ClickGUI, blocks: List<PlacedBlock>): PlacedRow? =
+        gui.openSelector?.let { open -> blocks.flatMap { it.rows }.firstOrNull { it.setting === open } }
+
+    private fun revealedSelectorRow(blocks: List<PlacedBlock>): PlacedRow? =
+        SelectorPopup.visible()?.let { open -> blocks.flatMap { it.rows }.firstOrNull { it.setting === open } }
+
+    private fun expandedColorRow(blocks: List<PlacedBlock>): PlacedRow? =
+        blocks.flatMap { it.rows }.firstOrNull { (it.setting as? ColorSetting)?.expanded == true }
 
     fun handleClick(gui: ClickGUI, mod: Module, mx: Int, my: Int, button: Int): Boolean {
-        val baseY = gui.contentY + gui.scrollOffset.toInt()
-        if (mod.hasToggle && mod.toggled && !mod.isAlwaysEnabled && (mx to my) in toggleRect(gui, baseY)) {
-            mod.enabled = !mod.enabled
-            ConfigManager.save()
+        val shift = gui.scrollOffset.toInt()
+        val blocks = SettingsLayout.build(gui.frame, mod)
+
+        openSelectorRow(gui, blocks)?.let { row ->
+            if (SelectorPopup.handleClick(gui, row.copy(y = row.y + shift), mx, my)) return true
+        }
+
+        expandedColorRow(blocks)?.let { row ->
+            val shifted = row.copy(y = row.y + shift)
+            if (ColorPickerPopup.handleClick(gui, shifted, mx, my)) return true
+        }
+
+        if ((mx to my) in SettingsHeader.backRect(gui)) {
+            gui.closeSettings()
             return true
         }
 
-        val px = columnX(gui)
-        var y = baseY + headerBlockHeight(mod, gui)
-        for (s in visibleSettings(mod)) {
-            val h = settingHeight(s)
-            if (s is DropDownSetting && s.expanded) {
-                if (mx in px..(px + PW) && my in y until (y + SH))
-                    return InputHandler.dispatchSettingClick(gui, s, px, y, mx, my, button)
-                var cy = y + SH
-                for (child in s.children.filter { it.isVisible }) {
-                    val ch = settingHeight(child)
-                    if (mx in px..(px + PW) && my in cy until (cy + ch))
-                        return InputHandler.dispatchSettingClick(gui, child, px, cy, mx, my, button)
-                    cy += ch
-                }
-            } else if (mx in px..(px + PW) && my in y..(y + h)) {
-                return InputHandler.dispatchSettingClick(gui, s, px, y, mx, my, button)
+        if (my < SettingsLayout.contentTop(gui.frame)) return false
+
+        previewRect(gui, mod)?.let { r ->
+            if ((mx to my) in r) {
+                if ((mx to my) in SettingsPreview.resetRect(r.x, r.y, r.w, r.h)) SettingsPreview.reset()
+                else gui.draggingPreview = true
+                return true
             }
-            y += h + 2
+        }
+
+        blocks.flatMap { it.rows }.forEach { row ->
+            val shifted = row.copy(y = row.y + shift)
+            if ((mx to my) in Rect(shifted.x, shifted.y, shifted.w, shifted.h)) {
+                return InputHandler.dispatchSettingClick(gui, shifted, mx, my, button)
+            }
         }
         return false
     }
 
     fun handleScroll(gui: ClickGUI, mod: Module, mx: Int, my: Int, vAmt: Double): Boolean {
-        if (mx !in gui.contentX..(gui.panelX + PANEL_W)) return false
-        if (my !in gui.contentY..(gui.contentY + gui.contentH)) return false
-        val maxOffset = (totalContentHeight(mod, gui) - gui.contentH).coerceAtLeast(0).toFloat()
-        gui.scrollTarget = (gui.scrollTarget + vAmt.toFloat() * 24f).coerceIn(-maxOffset, 0f)
+        previewRect(gui, mod)?.let { r ->
+            if ((mx to my) in r) {
+                SettingsPreview.zoom(vAmt)
+                return true
+            }
+        }
+        if (mx !in (gui.panelX + SIDEBAR_W_SETTINGS)..(gui.panelX + PANEL_W)) return false
+        if (my !in SettingsLayout.contentTop(gui.frame)..SettingsLayout.contentBottom(gui.frame)) return false
+        val viewport = SettingsLayout.contentBottom(gui.frame) - SettingsLayout.contentTop(gui.frame)
+        val maxOffset = (totalContentHeight(mod, gui) - viewport).coerceAtLeast(0).toFloat()
+        gui.scrollTarget = (gui.scrollTarget + vAmt.toFloat() * SCROLL_STEP).coerceIn(-maxOffset, 0f)
         return true
     }
-
 }

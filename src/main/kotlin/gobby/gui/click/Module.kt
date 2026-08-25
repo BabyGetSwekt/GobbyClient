@@ -16,6 +16,8 @@ open class Module(
 
     val isAlwaysEnabled: Boolean get() = this::class.java.isAnnotationPresent(AlwaysEnabled::class.java)
 
+    fun canToggle(): Boolean = hasToggle && toggled && !isAlwaysEnabled
+
     val keybindSetting: KeybindSetting? by lazy {
         if (hasToggle && toggled && !isAlwaysEnabled) {
             KeybindSetting()

@@ -10,11 +10,8 @@ object ColorPickerInput {
     private const val BAR_GAP = 4
     private const val HEX_GAP = 5
     private const val HEX_ROW_H = 14
-    private const val HEX_RGBA_LENGTH = 8
-    private const val HEX_RGB_LENGTH = 6
     private const val MIN_ALPHA = 1
     private const val MAX_ALPHA = 255
-    private const val BYTE_MASK = 0xFF
     private const val RGB_MASK = 0x00FFFFFF
     private const val ALPHA_SHIFT = 24
 
@@ -82,7 +79,7 @@ object ColorPickerInput {
 
     private fun beginHexEdit(gui: ClickGUI, s: ColorSetting) {
         gui.hexEditSetting = s
-        gui.hexInput = String.format("%02X%02X%02X%02X", s.value.red, s.value.green, s.value.blue, s.value.alpha)
+        gui.hexField.reset(HexColor.format(s.value))
     }
 
     private fun rememberPickerBounds(gui: ClickGUI, padX: Int, areaW: Int) {
@@ -116,11 +113,7 @@ object ColorPickerInput {
     }
 
     fun applyHexInput(gui: ClickGUI, s: ColorSetting) {
-        val packed = gui.hexInput.toLongOrNull(16)?.toInt() ?: return
-        when (gui.hexInput.length) {
-            HEX_RGBA_LENGTH -> s.applyRgb(packed.byteAt(3), packed.byteAt(2), packed.byteAt(1), packed.byteAt(0).coerceAtLeast(MIN_ALPHA))
-            HEX_RGB_LENGTH -> s.applyRgb(packed.byteAt(2), packed.byteAt(1), packed.byteAt(0), s.value.alpha)
-        }
+        HexColor.parse(gui.hexField.text)?.let { s.value = it }
     }
 
     private fun applyHue(s: ColorSetting, hue: Float) {
@@ -139,7 +132,6 @@ object ColorPickerInput {
 
     private fun scaleToAlpha(fraction: Float): Int = (fraction * MAX_ALPHA).toInt().coerceIn(MIN_ALPHA, MAX_ALPHA)
 
-    private fun Int.byteAt(index: Int): Int = (this ushr (index * Byte.SIZE_BITS)) and BYTE_MASK
 
     private fun Color.withAlpha(alpha: Int): Color = Color(red, green, blue, alpha)
 

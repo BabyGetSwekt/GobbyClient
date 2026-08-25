@@ -9,12 +9,14 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-sealed class Setting<T>(val name: String, val description: String, default: T, val hidden: Boolean = false) {
-    var value: T = default
+sealed class Setting<T>(val name: String, val description: String, val defaultValue: T, val hidden: Boolean = false) {
+    var value: T = defaultValue
     protected var dependency: (() -> Boolean)? = null
     internal var parentDropdown: DropDownSetting? = null
 
     val isVisible: Boolean get() = !hidden && (dependency?.invoke() != false)
+
+    fun recordsUndo(): Boolean = this !is ActionSetting && this !is HudButton && this !is DropDownSetting
 }
 
 class BooleanSetting(

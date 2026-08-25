@@ -37,7 +37,7 @@ object TextWrap {
     private fun maxFit(text: String, maxWidth: Int, scale: Float): Int =
         (text.length downTo 1).firstOrNull { textWScaled(text.substring(0, it), scale) <= maxWidth } ?: 1
 
-    private fun truncateToFit(text: String, maxWidth: Int, scale: Float): String =
+    fun truncateToFit(text: String, maxWidth: Int, scale: Float): String =
         if (textWScaled("$text…", scale) <= maxWidth) "$text…"
         else generateSequence(text) { it.dropLast(1).takeIf(String::isNotEmpty) }
             .first { textWScaled("$it…", scale) <= maxWidth } + "…"
