@@ -23,10 +23,10 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.Relative
 import net.minecraft.world.level.block.Blocks
 import org.slf4j.LoggerFactory
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object DungeonMapSaver : RegionBlockCopier() {
-    private val configFile = File("./config/gobbyclientFabric/schematics/roomMap.json")
+    private val configFile = ConfigUtils.jsonFile("roomMap", "schematics")
     private val logger = LoggerFactory.getLogger("DungeonMapSaver")
     private const val MIN_X = -200
     private const val MAX_X = 0

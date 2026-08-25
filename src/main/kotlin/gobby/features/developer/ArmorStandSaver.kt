@@ -15,6 +15,7 @@ import net.minecraft.util.ProblemReporter
 import net.minecraft.world.level.storage.TagValueOutput
 import org.slf4j.LoggerFactory
 import java.io.File
+import gobby.utils.ConfigUtils
 
 object ArmorStandSaver : Module(
     "ArmorStand Saver",
@@ -25,7 +26,7 @@ object ArmorStandSaver : Module(
     private val radius by NumberSetting("Radius", default = 16, min = 1, max = 128, step = 1, desc = "Block radius around player to scan")
     private val saveKey by KeybindSetting("Save", desc = "Press to save nearby armor stands")
 
-    private val outputDir = File("./config/gobbyclientFabric/armorstands").apply { mkdirs() }
+    private val outputDir = ConfigUtils.directory("armorstands")
     private val gson = Gson()
     private val logger = LoggerFactory.getLogger("ArmorStandSaver")
 

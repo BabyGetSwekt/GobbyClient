@@ -1,61 +1,48 @@
 package gobby.features.skyblock
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import gobby.Gobbyclient.Companion.logger
 import net.fabricmc.loader.api.ModContainer
 import net.fabricmc.loader.impl.FabricLoaderImpl
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object ModIdHider {
 
-    private val configFile = File("./config/gobbyclientFabric/hidden_mods.json")
-    private val gson = Gson()
-    private val hiddenMods = mutableListOf<String>()
-    private val stringListType = object : TypeToken<List<String>>() {}.type
+    private val config = ConfigUtils.makeConfig("hidden_mods") { mutableListOf<String>() }
+    private val modIds get() = config.data
 
     init {
-        load()
+        if (config.isNew) {
+            addDefaults()
+            save()
+        }
     }
 
     @JvmStatic
-    fun getHiddenMods(): List<String> = hiddenMods.toList()
+    fun getHiddenMods(): List<String> = modIds.toList()
 
     fun addMod(id: String) {
         val trimmed = id.trim().lowercase()
-        if (trimmed.isNotEmpty() && trimmed !in hiddenMods) {
-            hiddenMods.add(trimmed)
+        if (trimmed.isNotEmpty() && trimmed !in modIds) {
+            modIds.add(trimmed)
         }
     }
 
     fun removeMod(id: String) {
-        hiddenMods.remove(id)
+        modIds.remove(id)
     }
 
     fun replaceAll(ids: List<String>) {
-        hiddenMods.clear()
+        modIds.clear()
         ids.forEach { addMod(it) }
     }
 
     fun save() {
-        configFile.parentFile.mkdirs()
-        configFile.writeText(gson.toJson(hiddenMods))
+        config.save()
         applyToLoader()
     }
 
     fun load() {
-        hiddenMods.clear()
-        if (configFile.exists()) {
-            try {
-                val loaded: List<String> = gson.fromJson(configFile.readText(), stringListType)
-                hiddenMods.addAll(loaded)
-            } catch (_: Exception) {
-                addDefaults()
-            }
-        } else {
-            addDefaults()
-            save()
-        }
+        config.reload()
     }
 
     /**
@@ -72,7 +59,7 @@ object ModIdHider {
 
             @Suppress("UNCHECKED_CAST")
             val mods = modsField.get(loader) as MutableList<ModContainer>
-            val removed = mods.removeAll { it.metadata.id in hiddenMods }
+            val removed = mods.removeAll { it.metadata.id in modIds }
 
             if (removed) {
                 logger.info("Successfully hid mods from loader")
@@ -83,7 +70,7 @@ object ModIdHider {
     }
 
     private fun addDefaults() {
-        hiddenMods.add("gobbyclient")
-        hiddenMods.add("devoniandoogan") // shoutout to devoniandoogan
+        modIds.add("gobbyclient")
+        modIds.add("devoniandoogan") // shoutout to devoniandoogan
     }
 }

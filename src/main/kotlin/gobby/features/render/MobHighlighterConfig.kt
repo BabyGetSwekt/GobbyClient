@@ -1,10 +1,7 @@
 package gobby.features.render
 
-import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
-import gobby.Gobbyclient.Companion.logger
 import java.awt.Color
-import java.io.File
+import gobby.utils.ConfigUtils
 
 val DEFAULT_MOB_COLOR: Color = Color(255, 0, 0, 160)
 
@@ -33,45 +30,25 @@ data class MobEntry(
 
 object MobHighlighterConfig {
 
-    private val configFile = File("./config/gobbyclientFabric/mobHighlighter.json")
-    private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val listType = object : TypeToken<List<MobEntry>>() {}.type
-    private val entries = mutableListOf<MobEntry>()
+    private val config = ConfigUtils.makeConfig("mobHighlighter") { mutableListOf<MobEntry>() }
+    private val mobs get() = config.data
 
-    init {
-        load()
-    }
+    fun getEntries(): List<MobEntry> = mobs.map { it.copy() }
 
-    fun getEntries(): List<MobEntry> = entries.map { it.copy() }
+    fun hasActiveEntries(): Boolean = mobs.any { it.isActive }
 
-    fun hasActiveEntries(): Boolean = entries.any { it.isActive }
+    fun matches(candidate: String): Boolean = mobs.any { it.matches(candidate) }
 
-    fun matches(candidate: String): Boolean = entries.any { it.matches(candidate) }
-
-    fun colorFor(candidate: String): Int? = entries.firstOrNull { it.matches(candidate) }?.color
+    fun colorFor(candidate: String): Int? = mobs.firstOrNull { it.matches(candidate) }?.color
 
     fun replaceAll(newEntries: List<MobEntry>) {
-        entries.clear()
-        entries.addAll(newEntries.filter { it.name.isNotBlank() }.map { it.copy() })
+        mobs.clear()
+        mobs.addAll(newEntries.filter { it.name.isNotBlank() }.map { it.copy() })
     }
 
-    fun save() {
-        try {
-            configFile.parentFile.mkdirs()
-            configFile.writeText(gson.toJson(entries))
-        } catch (e: Exception) {
-            logger.error("Failed to save mob highlighter config", e)
-        }
-    }
+    fun save() = config.save()
 
     fun load() {
-        entries.clear()
-        if (!configFile.exists()) return
-        try {
-            val loaded: List<MobEntry> = gson.fromJson(configFile.readText(), listType) ?: emptyList()
-            entries.addAll(loaded)
-        } catch (e: Exception) {
-            logger.error("Failed to load mob highlighter config", e)
-        }
+        config.reload()
     }
 }

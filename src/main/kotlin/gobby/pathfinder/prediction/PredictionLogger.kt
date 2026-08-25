@@ -1,11 +1,11 @@
 package gobby.pathfinder.prediction
 
 import net.minecraft.world.phys.Vec3
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object PredictionLogger {
 
-    private val file = File("./config/gobbyclientFabric/pathfinder/debug.txt")
+    private val file = ConfigUtils.file("debug.txt", "pathfinder")
 
     fun startRoute(goal: Vec3) {
         runCatching {

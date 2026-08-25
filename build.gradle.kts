@@ -114,8 +114,33 @@ val verifyPathfinderStructure by tasks.registering {
 
 fun isUtilFile(file: File): Boolean = file.path.contains("\\utils\\") || file.path.contains("/utils/")
 
+fun withoutLiterals(source: List<String>): List<String> {
+	var insideRawString = false
+	return source.map { line ->
+		var text = line
+		if (insideRawString) {
+			val close = text.indexOf("\"\"\"")
+			if (close < 0) return@map ""
+			text = text.substring(close + 3)
+			insideRawString = false
+		}
+		while (true) {
+			val open = text.indexOf("\"\"\"")
+			if (open < 0) break
+			val close = text.indexOf("\"\"\"", open + 3)
+			if (close < 0) {
+				text = text.substring(0, open)
+				insideRawString = true
+				break
+			}
+			text = text.substring(0, open) + text.substring(close + 3)
+		}
+		text.replace(Regex("\"(?:\\\\.|[^\"\\\\])*\""), "").replace(Regex("'(?:\\\\.|[^'\\\\])'"), "").substringBefore("//")
+	}
+}
+
 fun oversizedFunctions(file: File): List<String> {
-	val lines = file.readLines()
+	val lines = withoutLiterals(file.readLines())
 	val result = mutableListOf<String>()
 	val declaration = Regex("^\\s*(?:(?:public|private|internal|protected|override|tailrec|suspend|inline|operator|infix|open)\\s+)*fun\\s+[A-Za-z_][A-Za-z0-9_]*")
 	lines.forEachIndexed { index, line ->

@@ -26,10 +26,11 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import gobby.utils.ConfigUtils
 
 object StructureCopier : RegionBlockCopier() {
 
-    private val schematicsDir = File("./config/gobbyclientFabric/schematics")
+    private val schematicsDir = ConfigUtils.directory("schematics")
     private val LOGGER = LoggerFactory.getLogger("StructureCopier")
 
     private const val PASTE_BATCH_SIZE = 500

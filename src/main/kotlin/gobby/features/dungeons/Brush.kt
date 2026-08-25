@@ -24,7 +24,7 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.state.BlockState
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and lets you place or remove them", Category.DUNGEONS) {
 
@@ -34,16 +34,17 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     private var wasInBoss = false
     private var wasInGui = false
 
-    private val favoritesFile = File("./config/gobbyclientFabric/favorites.json")
-    var favoriteBlocks: MutableSet<String> = mutableSetOf()
-        private set
-    var showFavoritesOnOpen = false
+    private val favoritesConfig = ConfigUtils.makeConfig("favorites") { FavoriteBlocks() }
+    private val brushConfig = ConfigUtils.makeConfig("brush") { blockDataMap() }
+    private val bossConfig = ConfigUtils.makeConfig("bossConfig") { blockDataMap() }
 
-    private val configFile = File("./config/gobbyclientFabric/brush.json")
-    private var brushData: MutableMap<String, MutableMap<String, MutableList<String>>> = mutableMapOf()
+    val favoriteBlocks: MutableSet<String> get() = favoritesConfig.data.favorites
+    var showFavoritesOnOpen: Boolean
+        get() = favoritesConfig.data.showFavorites
+        set(value) = favoritesConfig.edit { showFavorites = value }
 
-    private val bossConfigFile = File("./config/gobbyclientFabric/bossConfig.json")
-    private var bossData: MutableMap<String, MutableMap<String, MutableList<String>>> = mutableMapOf()
+    private val brushData get() = brushConfig.data
+    private val bossData get() = bossConfig.data
 
     private val originalStates: MutableMap<BlockPos, BlockState> = mutableMapOf()
 
@@ -54,11 +55,6 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     )
 
     init {
-        brushData = BrushPersistence.loadData(configFile, "brush")
-        bossData = BrushPersistence.loadData(bossConfigFile, "boss brush")
-        val favorites = BrushPersistence.loadFavorites(favoritesFile)
-        favoriteBlocks = favorites.first
-        showFavoritesOnOpen = favorites.second
     }
 
     private fun coordStr(pos: BlockPos): String = "${pos.x}, ${pos.y}, ${pos.z}"
@@ -98,15 +94,15 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         val added = if (blockId in favoriteBlocks) { favoriteBlocks.remove(blockId)
         false }
                     else { favoriteBlocks.add(blockId); true }
-        BrushPersistence.saveFavorites(favoritesFile, favoriteBlocks, showFavoritesOnOpen)
+        favoritesConfig.save()
         return added
     }
 
     fun isFavorite(blockId: String): Boolean = blockId in favoriteBlocks
 
-    private fun save() = BrushPersistence.saveData(configFile, "brush", brushData)
+    private fun save() = brushConfig.save()
 
-    private fun saveBoss() = BrushPersistence.saveData(bossConfigFile, "boss brush", bossData)
+    private fun saveBoss() = bossConfig.save()
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {

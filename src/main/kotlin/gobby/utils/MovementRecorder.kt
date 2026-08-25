@@ -11,6 +11,7 @@ import java.awt.Color
 import java.io.File
 import java.util.Locale
 import kotlin.math.floor
+import gobby.utils.ConfigUtils
 
 object MovementRecorder {
 
@@ -71,7 +72,7 @@ object MovementRecorder {
         targetPos?.let { RenderBlock.removeBlock(it) }
         targetPos = null
         val endPos = player?.let { Triple(it.x, it.y, it.z) }
-        val dir = File("./config/gobbyclientFabric/")
+        val dir = ConfigUtils.directory()
         dir.mkdirs()
         val file = File(dir, "movement_${System.currentTimeMillis()}.json")
         file.writeText(buildJson(endPos))

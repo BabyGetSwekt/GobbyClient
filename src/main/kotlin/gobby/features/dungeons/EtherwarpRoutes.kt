@@ -1,14 +1,12 @@
 package gobby.features.dungeons
 
-import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.utils.skyblock.dungeon.tiles.Room
 import net.minecraft.core.BlockPos
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object EtherwarpRoutes {
 
@@ -25,21 +23,10 @@ object EtherwarpRoutes {
 
     private data class LastAction(val type: String, val room: String, val positions: List<String>)
 
-    private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val file = File("./config/gobbyclientFabric/routes/etherwarpTriggerbot.json")
-    private val fileType = object : TypeToken<RouteFile>() {}.type
-    private var data = load()
+    private val config = ConfigUtils.makeConfig("etherwarpTriggerbot", "routes") { RouteFile() }
+    private val data get() = config.data
 
-    private fun load(): RouteFile = runCatching {
-        gson.fromJson<RouteFile>(file.readText(), fileType)
-    }.getOrNull() ?: RouteFile()
-
-    private fun save() {
-        runCatching {
-            file.parentFile.mkdirs()
-            file.writeText(gson.toJson(data))
-        }
-    }
+    private fun save() = config.save()
 
     fun coordStr(pos: BlockPos): String = "${pos.x}, ${pos.y}, ${pos.z}"
 

@@ -5,9 +5,10 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import org.slf4j.LoggerFactory
 import java.io.File
+import gobby.utils.ConfigUtils
 
 object RoomCopier {
-    private val roomsDir = File("./config/gobbyclientFabric/rooms").apply { mkdirs() }
+    private val roomsDir = ConfigUtils.directory("rooms")
     private val logger = LoggerFactory.getLogger("RoomCopier")
 
     fun copyCurrentRoom() {

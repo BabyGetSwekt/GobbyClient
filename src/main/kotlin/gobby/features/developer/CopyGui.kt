@@ -16,12 +16,13 @@ import net.minecraft.nbt.NbtOps
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.ChatFormatting
 import java.io.File
+import gobby.utils.ConfigUtils
 
 object CopyGui : Module("Copy GUI", "Press the keybind in a GUI to dump its contents to /schematics", Category.DEVELOPER) {
 
     private val copyKey by KeybindSetting("Copy GUI", desc = "Press in any container GUI to copy its contents to a JSON file in /schematics")
 
-    private val schematicsDir = File("./config/gobbyclientFabric/schematics").apply { mkdirs() }
+    private val schematicsDir = ConfigUtils.directory("schematics")
 
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {

@@ -6,11 +6,11 @@ import com.google.gson.JsonObject
 import gobby.Gobbyclient
 import gobby.gui.hud.HudManager
 import java.awt.Color
-import java.io.File
+import gobby.utils.ConfigUtils
 
 object ConfigManager {
 
-    private val configFile = File("./config/gobbyclientFabric/config.json")
+    private val configFile = ConfigUtils.jsonFile("config")
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     fun save() {
