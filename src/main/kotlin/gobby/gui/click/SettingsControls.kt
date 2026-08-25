@@ -15,12 +15,16 @@ private const val INPUT_PAD = 4
 private const val KEY_PAD = 4
 private const val SWATCH = 11
 private const val ACTION_RADIUS = 4
+private const val ROW_HOVER_RADIUS = 4
+private const val SWATCH_RADIUS = 3
+private const val SWATCH_EDGE = 1
 
 internal object SettingsControls {
 
-    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, row: PlacedRow, hovered: Boolean) {
-        if (hovered) GobbyDraw.roundedRect(ctx, row.x, row.y, row.w, row.h, 4, cRowHover)
+    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, row: PlacedRow, hovered: Boolean, mx: Int, my: Int) {
+        if (hovered) GobbyDraw.roundedRect(ctx, row.x, row.y, row.w, row.h, ROW_HOVER_RADIUS, cRowHover)
         when (val s = row.setting) {
+            is ModelPreviewSetting -> SettingsPreview.draw(ctx, gui, s, Rect(row.x, row.y, row.w, row.h), mx, my)
             is BooleanSetting -> booleanRow(ctx, row, s)
             is NumberSetting -> numberRow(ctx, gui, row, s)
             is RangeSetting -> rangeRow(ctx, row, s)
@@ -136,8 +140,11 @@ internal object SettingsControls {
     private fun colorRow(ctx: GuiGraphicsExtractor, row: PlacedRow, s: ColorSetting) {
         label(ctx, row, s.name)
         val r = swatchRect(row)
-        GobbyDraw.roundedRect(ctx, r.x - 1, r.y - 1, r.w + 2, r.h + 2, 4, cCardEdge)
-        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, 3, s.value.rgb or (0xFF shl 24))
+        GobbyDraw.roundedRect(
+            ctx, r.x - SWATCH_EDGE, r.y - SWATCH_EDGE, r.w + SWATCH_EDGE * 2, r.h + SWATCH_EDGE * 2,
+            ACTION_RADIUS, cCardEdge
+        )
+        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, SWATCH_RADIUS, s.value.rgb or OPAQUE_BITS)
     }
 
     fun keyBoxRect(row: PlacedRow, text: String): Rect {

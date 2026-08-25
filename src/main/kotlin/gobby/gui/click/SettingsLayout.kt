@@ -1,12 +1,15 @@
 package gobby.gui.click
 
-private const val GENERAL_SECTION = "GENERAL"
 private const val STRING_EXTRA_H = 16
 private const val COLUMN_COUNT = 2
 
 internal data class PanelFrame(val x: Int, val y: Int)
 
-internal data class PlacedRow(val setting: Setting<*>, val x: Int, val y: Int, val w: Int, val h: Int)
+internal data class PlacedRow(val setting: Setting<*>, val x: Int, val y: Int, val w: Int, val h: Int) {
+    val rect: Rect get() = Rect(x, y, w, h)
+}
+
+internal data class SettingGroup(val title: String, val align: SettingAlign, val settings: List<Setting<*>>)
 
 internal data class PlacedBlock(
     val title: String,
@@ -20,8 +23,11 @@ internal data class PlacedBlock(
 
 internal object SettingsLayout {
 
-    fun rowHeight(setting: Setting<*>): Int =
-        if (setting is StringSetting) SETTINGS_ROW_H + STRING_EXTRA_H else SETTINGS_ROW_H
+    fun rowHeight(setting: Setting<*>): Int = when (setting) {
+        is StringSetting -> SETTINGS_ROW_H + STRING_EXTRA_H
+        is ModelPreviewSetting -> SettingsPreview.cardHeight()
+        else -> SETTINGS_ROW_H
+    }
 
     fun contentLeft(frame: PanelFrame): Int = frame.x + SIDEBAR_W_SETTINGS + SETTINGS_SIDE_PAD
 
@@ -39,13 +45,16 @@ internal object SettingsLayout {
         val top = contentTop(frame)
         val columnX = listOf(left, left + columnW + SETTINGS_COLUMN_GAP)
         val columnY = IntArray(COLUMN_COUNT) { top }
-        val placed = groups(mod).map { group ->
-            val target = columnY.indices.minBy { columnY[it] }
+        return groups(mod).map { group ->
+            val target = columnFor(group.align, columnY)
             place(group, columnX[target], columnY[target], columnW).also { columnY[target] = it.bottom() }
         }
-        if (!SettingsPreview.appliesTo(mod)) return placed
-        val target = columnY.indices.minBy { columnY[it] }
-        return placed + previewBlock(columnX[target], columnY[target], columnW)
+    }
+
+    private fun columnFor(align: SettingAlign, columnY: IntArray): Int = when (align) {
+        SettingAlign.LEFT -> 0
+        SettingAlign.RIGHT -> COLUMN_COUNT - 1
+        SettingAlign.AUTO -> columnY.indices.minBy { columnY[it] }
     }
 
     fun contentHeight(frame: PanelFrame, blocks: List<PlacedBlock>): Int =
@@ -53,41 +62,29 @@ internal object SettingsLayout {
 
     private fun PlacedBlock.bottom(): Int = cardY + cardH + SETTINGS_SECTION_GAP
 
-    private fun previewBlock(x: Int, y: Int, w: Int) = PlacedBlock(
-        SettingsPreview.SECTION_TITLE, x, y, w, y + SETTINGS_SECTION_H, SettingsPreview.cardHeight(), emptyList()
-    )
-
-    private fun place(group: Pair<String, List<Setting<*>>>, x: Int, y: Int, w: Int): PlacedBlock {
+    private fun place(group: SettingGroup, x: Int, y: Int, w: Int): PlacedBlock {
         val cardY = y + SETTINGS_SECTION_H
         var rowY = cardY + SETTINGS_CARD_PAD
-        val rows = group.second.map { setting ->
+        val rows = group.settings.map { setting ->
             val h = rowHeight(setting)
             PlacedRow(setting, x + SETTINGS_CARD_PAD, rowY, w - SETTINGS_CARD_PAD * 2, h).also { rowY += h }
         }
-        return PlacedBlock(group.first, x, y, w, cardY, rowY - cardY + SETTINGS_CARD_PAD, rows)
+        return PlacedBlock(group.title, x, y, w, cardY, rowY - cardY + SETTINGS_CARD_PAD, rows)
     }
 
-    private fun groups(mod: Module): List<Pair<String, List<Setting<*>>>> {
-        val result = mutableListOf<Pair<String, List<Setting<*>>>>()
-        val loose = mutableListOf<Setting<*>>()
+    internal fun groups(mod: Module): List<SettingGroup> {
+        val bySection = LinkedHashMap<SettingSection, MutableList<Setting<*>>>()
         topLevel(mod).forEach { setting ->
-            if (setting !is DropDownSetting) {
-                loose += setting
-                return@forEach
-            }
-            flushLoose(loose, result)
-            val children = setting.children.filter { it.isVisible }
-            if (children.isNotEmpty()) result += setting.name.uppercase() to children
+            val members = if (setting is DropDownSetting) setting.children.filter { it.isVisible } else listOf(setting)
+            if (members.isNotEmpty()) bySection.getOrPut(sectionOf(setting)) { mutableListOf() } += members
         }
-        flushLoose(loose, result)
-        return result
+        return bySection.map { (section, settings) ->
+            SettingGroup(section.title.uppercase(), section.align, settings)
+        }
     }
 
-    private fun flushLoose(loose: MutableList<Setting<*>>, into: MutableList<Pair<String, List<Setting<*>>>>) {
-        if (loose.isEmpty()) return
-        into += GENERAL_SECTION to loose.toList()
-        loose.clear()
-    }
+    private fun sectionOf(setting: Setting<*>): SettingSection =
+        setting.section ?: if (setting is DropDownSetting) setting.ownSection else MAIN_SECTION
 
     private fun topLevel(mod: Module): List<Setting<*>> =
         mod.allSettings().filter { it.isVisible && it.parentDropdown == null }

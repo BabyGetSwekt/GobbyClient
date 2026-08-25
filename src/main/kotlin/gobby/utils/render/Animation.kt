@@ -45,7 +45,7 @@ class Animations(private val durationMs: Long) {
 
     private val byKey = HashMap<Any, Animation>()
 
-    fun of(key: Any): Animation = byKey.getOrPut(key) { Animation(durationMs) }
+    private fun of(key: Any): Animation = byKey.getOrPut(key) { Animation(durationMs) }
 
     fun toward(key: Any, on: Boolean): Animation = of(key).also { it.set(on) }
 }

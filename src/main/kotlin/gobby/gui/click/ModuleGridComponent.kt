@@ -62,12 +62,11 @@ object ModuleGridComponent {
         Rect(card.x + card.w - CARD_PAD - PILL_W, card.y + (card.h - PILL_H) / 2, PILL_W, PILL_H)
 
     fun draw(ctx: GuiGraphics, gui: ClickGUI, mx: Int, my: Int) {
+        gui.clampScroll(totalContentHeight(gui), gui.contentH)
         val top = gui.contentY
         val bottom = gui.contentY + gui.contentH
         ctx.enableScissor(gui.contentX, top, gui.contentX + gui.contentW, bottom)
-        val rects = layout(gui)
-        gui.visibleModules().forEachIndexed { index, mod ->
-            val r = rects[index]
+        gui.visibleModules().zip(layout(gui)).forEach { (mod, r) ->
             if (r.y + r.h >= top && r.y <= bottom) drawCard(ctx, mod, r, mx, my)
         }
         ctx.disableScissor()
@@ -103,26 +102,23 @@ object ModuleGridComponent {
 
     fun handleClick(gui: ClickGUI, mx: Int, my: Int, button: Int): Boolean {
         if (my !in gui.contentY..(gui.contentY + gui.contentH)) return false
-        val rects = layout(gui)
-        gui.visibleModules().forEachIndexed { index, mod ->
-            val r = rects[index]
-            if ((mx to my) !in r) return@forEachIndexed
-            if (mod.canToggle() && (mx to my) in togglePill(r)) {
-                mod.enabled = !mod.enabled
-                ConfigManager.save()
-            } else {
-                gui.openSettings(mod)
-            }
-            return true
+        val hit = gui.visibleModules().zip(layout(gui)).firstOrNull { (_, r) -> (mx to my) in r } ?: return false
+        val (mod, card) = hit
+        if (mod.canToggle() && (mx to my) in togglePill(card)) {
+            mod.enabled = !mod.enabled
+            ConfigManager.save()
+        } else {
+            gui.openSettings(mod)
         }
-        return false
+        return true
     }
 
     fun handleScroll(gui: ClickGUI, mx: Int, my: Int, vAmt: Double): Boolean {
         if (mx !in gui.contentX..(gui.contentX + gui.contentW)) return false
         if (my !in gui.contentY..(gui.contentY + gui.contentH)) return false
-        val maxOffset = (totalContentHeight(gui) - gui.contentH).coerceAtLeast(0).toFloat()
-        gui.scrollTarget = (gui.scrollTarget + vAmt.toFloat() * SCROLL_STEP).coerceIn(-maxOffset, 0f)
+        gui.scrollTarget = ScrollBounds.clamp(
+            gui.scrollTarget + vAmt.toFloat() * SCROLL_STEP, totalContentHeight(gui), gui.contentH
+        )
         return true
     }
 }

@@ -82,6 +82,7 @@ object InputHandler {
             is ActionSetting -> setting.action()
             is HudButton -> setting.onClick()
             is DropDownSetting -> setting.expanded = !setting.expanded
+            is ModelPreviewSetting -> {}
         }
         return true
     }

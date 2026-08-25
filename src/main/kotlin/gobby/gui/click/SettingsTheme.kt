@@ -2,6 +2,7 @@ package gobby.gui.click
 
 import java.awt.Color
 
+const val OPAQUE_BITS = 0xFF shl 24
 const val SETTINGS_HEADER_H = 34
 const val SETTINGS_ICON = 22
 const val SETTINGS_SIDE_PAD = 12

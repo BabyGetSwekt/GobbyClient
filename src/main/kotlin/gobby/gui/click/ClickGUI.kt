@@ -37,10 +37,30 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
 
     private val flips = Animations(FLIP_MS)
 
-    internal fun flip(key: Any, open: Boolean): Float = flips.toward(key, open).value
+    internal fun flip(key: Setting<*>, open: Boolean): Float = flips.toward(key, open).value
 
     internal var scrollOffset = 0f
     internal var scrollTarget = 0f
+
+    private var shownQuery = ""
+    private var shownCategory: Category? = null
+
+    internal fun resetScroll() {
+        scrollOffset = 0f
+        scrollTarget = 0f
+    }
+
+    internal fun clampScroll(totalHeight: Int, viewport: Int) {
+        scrollTarget = ScrollBounds.clamp(scrollTarget, totalHeight, viewport)
+        scrollOffset = ScrollBounds.clamp(scrollOffset, totalHeight, viewport)
+    }
+
+    private fun followModuleList() {
+        if (SearchBar.query == shownQuery && currentCategory == shownCategory) return
+        shownQuery = SearchBar.query
+        shownCategory = currentCategory
+        resetScroll()
+    }
 
     internal var listeningKeybind: KeybindSetting? = null
     internal var draggingSlider: NumberSetting? = null
@@ -56,7 +76,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     internal var colorPickerSBTop = 0
     internal var colorPickerSBH = 0
     internal var openSelector: SelectorSetting? = null
-    internal var draggingPreview = false
+    internal var draggingPreview: ModelPreviewSetting? = null
     internal var hexEditSetting: ColorSetting? = null
     internal val hexField = TextField(HexColor::sanitize, HexColor.MAX_LENGTH)
     internal var draggingHex = false
@@ -98,6 +118,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     }
 
     fun openSettings(module: Module) {
+        shownQuery = ""
         SearchBar.close()
         SelectorPopup.forget()
         settingsModule = module
@@ -107,7 +128,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         numberEditSetting = null
         hexEditSetting = null
         openSelector = null
-        draggingPreview = false
+        draggingPreview = null
         draggingHex = false
         stringEditSetting = null
     }
@@ -121,7 +142,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         numberEditSetting = null
         hexEditSetting = null
         openSelector = null
-        draggingPreview = false
+        draggingPreview = null
         draggingHex = false
         stringEditSetting = null
     }
@@ -158,6 +179,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
             SettingsSidebar.draw(context, this, gmx, gmy)
             ModuleSettingsComponent.draw(context, this, mod, gmx, gmy)
         } else {
+            followModuleList()
             drawSettingsShell(context)
             SettingsSidebar.draw(context, this, gmx, gmy)
             SettingsHeader.drawGrid(context, this, gmx, gmy)
@@ -192,8 +214,8 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
             settingsModule?.let { ModuleSettingsComponent.handleHexDrag(this, it, toGuiX(click.x())) }
             return true
         }
-        if (draggingPreview) {
-            SettingsPreview.rotate(offsetX / guiScale, offsetY / guiScale)
+        draggingPreview?.let {
+            it.rotate(offsetX / guiScale, offsetY / guiScale)
             return true
         }
         if (InputHandler.handleMouseDrag(this, toGuiX(click.x()).toDouble(), toGuiY(click.y()).toDouble())) return true
@@ -201,7 +223,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     }
 
     override fun mouseReleased(click: MouseButtonEvent): Boolean {
-        draggingPreview = false
+        draggingPreview = null
         draggingHex = false
         draggingSearch = false
         InputHandler.handleMouseRelease(this)

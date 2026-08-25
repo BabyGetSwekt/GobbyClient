@@ -23,8 +23,9 @@ object ModuleSettingsComponent {
 
         val top = SettingsLayout.contentTop(gui.frame)
         val bottom = SettingsLayout.contentBottom(gui.frame)
-        val shift = gui.scrollOffset.toInt()
         val blocks = SettingsLayout.build(gui.frame, mod)
+        gui.clampScroll(SettingsLayout.contentHeight(gui.frame, blocks), bottom - top)
+        val shift = gui.scrollOffset.toInt()
 
         ctx.enableScissor(gui.panelX + SIDEBAR_W_SETTINGS, top, gui.panelX + PANEL_W, bottom)
         blocks.forEach { block -> drawBlock(ctx, gui, block, shift, mx, my) }
@@ -43,18 +44,14 @@ object ModuleSettingsComponent {
             block.title, SETTINGS_SECTION_SCALE, cInkGhost, false
         )
 
-        if (block.title == SettingsPreview.SECTION_TITLE) {
-            SettingsPreview.draw(ctx, gui, block.x, block.cardY + shift, block.w, block.cardH, mx, my)
-            return
-        }
-
         GobbyDraw.roundedBox(ctx, block.x, block.cardY + shift, block.w, block.cardH, SETTINGS_CARD_RADIUS, cCard, cCardEdge)
 
         block.rows.forEach { row ->
             val shifted = row.copy(y = row.y + shift)
-            val hovered = (mx to my) in Rect(shifted.x, shifted.y, shifted.w, shifted.h)
+            val clickable = row.setting !is ModelPreviewSetting
+            val hovered = clickable && (mx to my) in shifted.rect
             CursorStyle.requestHandIf(hovered)
-            SettingsControls.draw(ctx, gui, shifted, hovered)
+            SettingsControls.draw(ctx, gui, shifted, hovered, mx, my)
             if (hovered && row.setting.description.isNotEmpty()) {
                 gui.tooltipText = row.setting.description
                 gui.tooltipX = shifted.x + shifted.w + 6
@@ -76,11 +73,11 @@ object ModuleSettingsComponent {
         return true
     }
 
-    internal fun previewRect(gui: ClickGUI, mod: Module): Rect? {
+    private fun previewRowAt(gui: ClickGUI, mod: Module, mx: Int, my: Int): PlacedRow? {
         val shift = gui.scrollOffset.toInt()
-        val block = SettingsLayout.build(gui.frame, mod).firstOrNull { it.title == SettingsPreview.SECTION_TITLE }
-            ?: return null
-        return Rect(block.x, block.cardY + shift, block.w, block.cardH)
+        return SettingsLayout.build(gui.frame, mod).flatMap { it.rows }
+            .map { it.copy(y = it.y + shift) }
+            .firstOrNull { it.setting is ModelPreviewSetting && (mx to my) in it.rect }
     }
 
     private fun openSelectorRow(gui: ClickGUI, blocks: List<PlacedBlock>): PlacedRow? =
@@ -112,35 +109,28 @@ object ModuleSettingsComponent {
 
         if (my < SettingsLayout.contentTop(gui.frame)) return false
 
-        previewRect(gui, mod)?.let { r ->
-            if ((mx to my) in r) {
-                if ((mx to my) in SettingsPreview.resetRect(r.x, r.y, r.w, r.h)) SettingsPreview.reset()
-                else gui.draggingPreview = true
-                return true
-            }
+        previewRowAt(gui, mod, mx, my)?.let { row ->
+            val preview = row.setting as ModelPreviewSetting
+            if ((mx to my) in SettingsPreview.resetRect(row.rect)) preview.resetView() else gui.draggingPreview = preview
+            return true
         }
 
-        blocks.flatMap { it.rows }.forEach { row ->
-            val shifted = row.copy(y = row.y + shift)
-            if ((mx to my) in Rect(shifted.x, shifted.y, shifted.w, shifted.h)) {
-                return InputHandler.dispatchSettingClick(gui, shifted, mx, my, button)
-            }
-        }
-        return false
+        val row = blocks.flatMap { it.rows }.map { it.copy(y = it.y + shift) }
+            .firstOrNull { (mx to my) in it.rect } ?: return false
+        return InputHandler.dispatchSettingClick(gui, row, mx, my, button)
     }
 
     fun handleScroll(gui: ClickGUI, mod: Module, mx: Int, my: Int, vAmt: Double): Boolean {
-        previewRect(gui, mod)?.let { r ->
-            if ((mx to my) in r) {
-                SettingsPreview.zoom(vAmt)
-                return true
-            }
+        previewRowAt(gui, mod, mx, my)?.let { row ->
+            (row.setting as ModelPreviewSetting).zoomBy(vAmt)
+            return true
         }
         if (mx !in (gui.panelX + SIDEBAR_W_SETTINGS)..(gui.panelX + PANEL_W)) return false
         if (my !in SettingsLayout.contentTop(gui.frame)..SettingsLayout.contentBottom(gui.frame)) return false
         val viewport = SettingsLayout.contentBottom(gui.frame) - SettingsLayout.contentTop(gui.frame)
-        val maxOffset = (totalContentHeight(mod, gui) - viewport).coerceAtLeast(0).toFloat()
-        gui.scrollTarget = (gui.scrollTarget + vAmt.toFloat() * SCROLL_STEP).coerceIn(-maxOffset, 0f)
+        gui.scrollTarget = ScrollBounds.clamp(
+            gui.scrollTarget + vAmt.toFloat() * SCROLL_STEP, totalContentHeight(mod, gui), viewport
+        )
         return true
     }
 }

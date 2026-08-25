@@ -13,6 +13,7 @@ import org.joml.Vector3f
 import net.minecraft.world.entity.EntitySpawnReason
 import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.LivingEntity
+import java.awt.Color
 import kotlin.math.roundToInt
 
 private const val PREVIEW_H = 96
@@ -23,16 +24,6 @@ private const val PARTIAL_TICK = 1f
 private const val BODY_ROT_BASE = 180f
 private const val HEAD_ALIGNED = 0f
 private const val PREVIEW_ENTITY_ID = -1
-
-private const val DEFAULT_YAW = 0f
-private const val DEFAULT_PITCH = 0f
-private const val DEFAULT_ZOOM = 1f
-private const val MIN_ZOOM = 0.55f
-private const val MAX_ZOOM = 2.6f
-private const val ZOOM_STEP = 0.12f
-private const val YAW_PER_PIXEL = 2.2f
-private const val PITCH_PER_PIXEL = 1.4f
-private const val PITCH_LIMIT = 35f
 
 private const val LIMB_POSITION = 1.0f
 private const val LIMB_AMOUNT = 0.3f
@@ -47,34 +38,12 @@ private const val BOX_RADIUS = 0
 
 internal object SettingsPreview {
 
-    const val SECTION_TITLE = "MODEL PREVIEW"
-
     private var subject: LivingEntity? = null
-    private var yaw = DEFAULT_YAW
-    private var pitch = DEFAULT_PITCH
-    private var zoom = DEFAULT_ZOOM
-
-    fun appliesTo(mod: Module): Boolean = mod is EntityHighlighter
 
     fun cardHeight(): Int = PREVIEW_H
 
-    fun reset() {
-        yaw = DEFAULT_YAW
-        pitch = DEFAULT_PITCH
-        zoom = DEFAULT_ZOOM
-    }
-
-    fun rotate(dx: Double, dy: Double) {
-        yaw -= dx.toFloat() * YAW_PER_PIXEL
-        pitch = (pitch - dy.toFloat() * PITCH_PER_PIXEL).coerceIn(-PITCH_LIMIT, PITCH_LIMIT)
-    }
-
-    fun zoom(amount: Double) {
-        zoom = (zoom + amount.toFloat() * ZOOM_STEP).coerceIn(MIN_ZOOM, MAX_ZOOM)
-    }
-
-    fun resetRect(x: Int, y: Int, w: Int, h: Int) =
-        Rect(x + w - RESET_MARGIN - RESET_SIZE, y + h - RESET_MARGIN - RESET_SIZE, RESET_SIZE, RESET_SIZE)
+    fun resetRect(r: Rect) =
+        Rect(r.x + r.w - RESET_MARGIN - RESET_SIZE, r.y + r.h - RESET_MARGIN - RESET_SIZE, RESET_SIZE, RESET_SIZE)
 
     private fun subject(): LivingEntity? {
         val level = mc.level ?: return null
@@ -90,29 +59,26 @@ internal object SettingsPreview {
         }
     }
 
-    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) {
-        GobbyDraw.roundedRect(ctx, x, y, w, h, SETTINGS_CARD_RADIUS, cCard)
-        GobbyDraw.roundedOutline(ctx, x, y, w, h, SETTINGS_CARD_RADIUS, cCardEdge)
+    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, setting: ModelPreviewSetting, r: Rect, mx: Int, my: Int) {
+        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, SETTINGS_CARD_RADIUS, cCard)
+        GobbyDraw.roundedOutline(ctx, r.x, r.y, r.w, r.h, SETTINGS_CARD_RADIUS, cCardEdge)
 
-        val entity = subject() ?: return drawUnavailable(ctx, x, y, w, h)
-        val state = renderState(entity) ?: return drawUnavailable(ctx, x, y, w, h)
-        val stageX = x + STAGE_PAD
-        val stageY = y + STAGE_PAD
-        val stageW = w - STAGE_PAD * 2
-        val stageH = h - STAGE_PAD * 2
-        val localScale = (stageH / BASE_SCALE_DIVISOR).coerceAtLeast(MIN_MODEL_SCALE) * zoom
+        val entity = subject() ?: return drawUnavailable(ctx, r)
+        val state = renderState(entity, setting) ?: return drawUnavailable(ctx, r)
+        val stage = Rect(r.x + STAGE_PAD, r.y + STAGE_PAD, r.w - STAGE_PAD * 2, r.h - STAGE_PAD * 2)
+        val localScale = (stage.h / BASE_SCALE_DIVISOR).coerceAtLeast(MIN_MODEL_SCALE) * setting.zoom
+        val tint = setting.color.value
 
-        highlighter(gui)?.takeIf { it.espStyle() == EspStyle.MODEL }
-            ?.let { PreviewModelTint.expect(state, entity, it.getColor()) } ?: PreviewModelTint.clear()
-        drawModel(ctx, gui, state, stageX, stageY, stageW, stageH, localScale)
-        drawHighlight(ctx, gui, state, stageX, stageY, stageW, stageH, localScale)
-        drawReset(ctx, x, y, w, h, mx, my)
+        if (style(gui) == EspStyle.MODEL) PreviewModelTint.expect(state, entity, tint) else PreviewModelTint.clear()
+        drawModel(ctx, gui, state, stage, localScale, setting.pitch)
+        drawHighlight(ctx, gui, state, stage, localScale, tint)
+        drawReset(ctx, r, mx, my)
     }
 
-    private fun renderState(entity: LivingEntity): LivingEntityRenderState? {
+    private fun renderState(entity: LivingEntity, setting: ModelPreviewSetting): LivingEntityRenderState? {
         val renderer = mc.entityRenderDispatcher.getRenderer(entity) ?: return null
         val state = renderer.createRenderState(entity, PARTIAL_TICK) as? LivingEntityRenderState ?: return null
-        state.bodyRot = BODY_ROT_BASE + yaw
+        state.bodyRot = BODY_ROT_BASE + setting.yaw
         state.yRot = HEAD_ALIGNED
         state.xRot = HEAD_ALIGNED
         state.boundingBoxWidth /= state.scale
@@ -123,16 +89,16 @@ internal object SettingsPreview {
 
     private fun drawModel(
         ctx: GuiGraphicsExtractor, gui: ClickGUI, state: LivingEntityRenderState,
-        stageX: Int, stageY: Int, stageW: Int, stageH: Int, localScale: Float
+        stage: Rect, localScale: Float, pitch: Float
     ) {
         val cameraAngle = Quaternionf().rotateX(Math.toRadians(pitch.toDouble()).toFloat())
         val rotation = Quaternionf().rotateZ(Math.PI.toFloat()).mul(cameraAngle)
         val translation = Vector3f(0f, state.boundingBoxHeight / 2f, 0f)
 
-        val absX = (gui.drawOffsetX + stageX * gui.guiScale).toInt()
-        val absY = (gui.drawOffsetY + stageY * gui.guiScale).toInt()
-        val absX1 = (gui.drawOffsetX + (stageX + stageW) * gui.guiScale).toInt()
-        val absY1 = (gui.drawOffsetY + (stageY + stageH) * gui.guiScale).toInt()
+        val absX = (gui.drawOffsetX + stage.x * gui.guiScale).toInt()
+        val absY = (gui.drawOffsetY + stage.y * gui.guiScale).toInt()
+        val absX1 = (gui.drawOffsetX + (stage.x + stage.w) * gui.guiScale).toInt()
+        val absY1 = (gui.drawOffsetY + (stage.y + stage.h) * gui.guiScale).toInt()
 
         ctx.pose().pushMatrix()
         ctx.pose().identity()
@@ -142,46 +108,44 @@ internal object SettingsPreview {
 
     private fun highlighter(gui: ClickGUI): EntityHighlighter? = gui.settingsModule as? EntityHighlighter
 
+    private fun style(gui: ClickGUI): EspStyle = highlighter(gui)?.espStyle() ?: EspStyle.MODEL
+
     private fun drawHighlight(
         ctx: GuiGraphicsExtractor, gui: ClickGUI, state: LivingEntityRenderState,
-        stageX: Int, stageY: Int, stageW: Int, stageH: Int, localScale: Float
+        stage: Rect, localScale: Float, tint: Color
     ) {
-        val mod = highlighter(gui) ?: return
-        val color = mod.getColor().rgb
-        val centerX = stageX + stageW / 2
-        val centerY = stageY + stageH / 2
+        val style = style(gui)
+        if (style == EspStyle.MODEL) return
+        val color = tint.rgb
+        val centerX = stage.x + stage.w / 2
+        val centerY = stage.y + stage.h / 2
         val halfW = (state.boundingBoxWidth * localScale / 2f).roundToInt() + BOX_PAD
         val halfH = (state.boundingBoxHeight * localScale / 2f).roundToInt() + BOX_PAD
 
-        val left = (centerX - halfW).coerceAtLeast(stageX)
-        val right = (centerX + halfW).coerceAtMost(stageX + stageW)
-        val top = (centerY - halfH).coerceAtLeast(stageY)
-        val bottom = (centerY + halfH).coerceAtMost(stageY + stageH)
+        val left = (centerX - halfW).coerceAtLeast(stage.x)
+        val right = (centerX + halfW).coerceAtMost(stage.x + stage.w)
+        val top = (centerY - halfH).coerceAtLeast(stage.y)
+        val bottom = (centerY + halfH).coerceAtMost(stage.y + stage.h)
 
-        when (mod.espStyle()) {
-            EspStyle.MODEL -> return
-            EspStyle.FILLED_BOX -> {
-                ctx.fill(left, top, right, bottom, color)
-                GobbyDraw.roundedOutline(ctx, left, top, right - left, bottom - top, BOX_RADIUS, color)
-            }
-            EspStyle.BOX -> GobbyDraw.roundedOutline(ctx, left, top, right - left, bottom - top, BOX_RADIUS, color)
-        }
+        if (style == EspStyle.FILLED_BOX) ctx.fill(left, top, right, bottom, color)
+        GobbyDraw.roundedOutline(ctx, left, top, right - left, bottom - top, BOX_RADIUS, color)
 
-        if (mod.shouldDrawLines()) ctx.fill(centerX, bottom, centerX + 1, stageY + stageH, mod.getLineColor().rgb)
+        val mod = highlighter(gui) ?: return
+        if (mod.shouldDrawLines()) ctx.fill(centerX, bottom, centerX + 1, stage.y + stage.h, mod.getLineColor().rgb)
     }
 
-    private fun drawReset(ctx: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) {
-        val r = resetRect(x, y, w, h)
+    private fun drawReset(ctx: GuiGraphicsExtractor, card: Rect, mx: Int, my: Int) {
+        val r = resetRect(card)
         val hovered = (mx to my) in r
         CursorStyle.requestHandIf(hovered)
         GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, RESET_RADIUS, if (hovered) cSidebarActive else cIconTile)
         GobbyTextures.reset(ctx, r.x + (r.w - RESET_ICON) / 2, r.y + (r.h - RESET_ICON) / 2, RESET_ICON, if (hovered) cInk else cInkSoft)
     }
 
-    private fun drawUnavailable(ctx: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int) {
+    private fun drawUnavailable(ctx: GuiGraphicsExtractor, r: Rect) {
         val text = "Join a world to preview"
         val tw = textWScaled(text, SETTINGS_VALUE_SCALE)
         val th = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
-        drawTextScaled(ctx, x + (w - tw) / 2, y + (h - th) / 2, text, SETTINGS_VALUE_SCALE, cInkGhost, false)
+        drawTextScaled(ctx, r.x + (r.w - tw) / 2, r.y + (r.h - th) / 2, text, SETTINGS_VALUE_SCALE, cInkGhost, false)
     }
 }

@@ -18,7 +18,6 @@ private const val HEX_SWATCH = 9
 private const val HEX_RADIUS = 4
 private const val HEX_PAD = 5
 private const val SWATCH_RADIUS = 2
-private const val OPAQUE_BITS = 0xFF shl 24
 private const val HASH = "#"
 
 internal object ColorPickerPopup {
