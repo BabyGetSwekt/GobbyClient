@@ -20,7 +20,7 @@ import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
 
 object Relics : Module(
-    "Relics", "Quality of life features for relics on F7/M7.",
+    "Relics", "Quality of life features for relics on M7.",
     Category.FLOOR7
 ) {
 

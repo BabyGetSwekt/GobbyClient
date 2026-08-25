@@ -7,7 +7,7 @@ import gobby.gui.hud.HudSetting
 import java.awt.Color
 import kotlin.math.roundToInt
 
-object SpeedHud : Module("Speed HUD", "Displays your current Skyblock ✦ Speed", Category.SKYBLOCK) {
+object SpeedHud : Module("Speed HUD", "Displays your current Skyblock Speed", Category.SKYBLOCK) {
 
     private val speedHud by HudSetting("Speed", "Shows current Skyblock walk speed") { example ->
         val ctx = drawContext ?: return@HudSetting
