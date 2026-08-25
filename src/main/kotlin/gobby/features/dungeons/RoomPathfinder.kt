@@ -2,17 +2,31 @@ package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
+import gobby.pathfinder.etherwarp.EtherwarpKind
+import gobby.pathfinder.etherwarp.EtherwarpPathfinder
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.BooleanSetting
-import gobby.pathfinder.world.CacheDiagnostics
+import gobby.gui.click.NumberSetting
 import gobby.gui.click.Category
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
 import gobby.events.render.NewRender3DEvent
 import gobby.gui.map.InteractiveMapScreen
 import gobby.pathfinder.etherwarp.EtherwarpNode
+import gobby.pathfinder.etherwarp.EtherwarpExecutionMode
+import gobby.pathfinder.etherwarp.EtherwarpExecutionSettings
 import gobby.pathfinder.etherwarp.EtherwarpPathExecutor
+import gobby.pathfinder.etherwarp.DungeonPathPlanningExecutor
+import gobby.pathfinder.etherwarp.DungeonRoomRoutePreparation
+import gobby.pathfinder.navigation.PreparedDungeonRouteCache
+import gobby.pathfinder.navigation.RoomGraphCache
+import gobby.pathfinder.navigation.PreparedSegmentCache
+import gobby.pathfinder.navigation.SnapshotLandingCandidateCache
+import gobby.pathfinder.navigation.AtlasRoomPreparationCache
+import gobby.pathfinder.navigation.AtlasRoomQueryCache
+import gobby.pathfinder.world.BlockCache
+import gobby.utils.rotation.ServerRotationLeaseManager
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.Utils.executeLater
@@ -24,8 +38,15 @@ import java.awt.Color
 object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when the keybind is pressed. It will pathfind into the selected dungeon room if possible", Category.DUNGEONS) {
 
     private val openKey = KeybindSetting("Open Map", desc = "Opens the interactive map on screen").also { settings.add(it) }
-    val pathDebug by BooleanSetting("Path Debug", true, desc = "Logs per teleport where it landed + whether it was server-side sneaked (no delay)")
-    private val cacheDebug by BooleanSetting("Cache Debug", false, desc = "Logs every block cache capture to console and disk, costs FPS")
+    val pathDebug by BooleanSetting("Path Debug", false, desc = "Logs per teleport where it landed + whether it was server-side sneaked (no delay)")
+    private val zeroPing by BooleanSetting("Zero Ping", false, desc = "Sends rapid Etherwarp casts without waiting for teleport acknowledgement")
+    private val rotateInstead by BooleanSetting("Rotate Instead", false, desc = "Rotates the client view during rapid casts").withDependency { zeroPing }
+    private val serverRotate by BooleanSetting("Server Rotate", false, desc = "Sends rapid casts through the server rotation lease").withDependency { zeroPing && !rotateInstead }
+    private val rotateWaitServerTick by BooleanSetting("Wait For Server Tick", true, desc = "Waits for a fresh server tick before rotation-mode casts").withDependency { zeroPing && (rotateInstead || serverRotate) }
+    private val zeroPingDelay by NumberSetting("Zero Ping Delay", 0, 0, 200, 1, desc = "Delay between rapid casts in milliseconds").withDependency { zeroPing }
+    private val rotationVariance by BooleanSetting("Rotation Variance", false, desc = "Uses safe per-hop aim variance during execution")
+    private val teleportSmoothing by BooleanSetting("Teleport Smoothing", false, desc = "Smooths the visual transition after authoritative teleports").withDependency { zeroPing }
+    private val keepLastServerRotation by BooleanSetting("Keep Last Server Rotation", false, desc = "Keeps the final server rotation after a server-rotate route").withDependency { serverRotate }
     private var keyWasDown = false
 
     @Volatile
@@ -36,9 +57,24 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
-        CacheDiagnostics.enabled = cacheDebug
         pollOpenKey()
+        updateExecutionSettings()
+        BlockCache.flushDirtyLoadedChunks()
         EtherwarpPathExecutor.tick()
+    }
+
+    private fun updateExecutionSettings() {
+        EtherwarpPathExecutor.configuredMode = when {
+            !zeroPing -> EtherwarpExecutionMode.AWAIT_TELEPORT
+            rotateInstead -> EtherwarpExecutionMode.ROTATE
+            serverRotate -> EtherwarpExecutionMode.SERVER_ROTATE
+            else -> EtherwarpExecutionMode.PACKET
+        }
+        EtherwarpExecutionSettings.rotationVarianceEnabled = rotationVariance
+        EtherwarpExecutionSettings.teleportSmoothingEnabled = teleportSmoothing
+        EtherwarpExecutionSettings.keepLastServerRotationEnabled = keepLastServerRotation
+        EtherwarpExecutionSettings.rotateWaitServerTickEnabled = rotateWaitServerTick
+        EtherwarpExecutionSettings.setRapidCastSpacingMillis(zeroPingDelay.toLong())
     }
 
     @SubscribeEvent
@@ -68,7 +104,17 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
 
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
+        DungeonPathPlanningExecutor.cancel()
+        DungeonRoomRoutePreparation.cancel()
+        EtherwarpPathfinder.cancelPreload()
         EtherwarpPathExecutor.cancel()
+        PreparedDungeonRouteCache.clear()
+        RoomGraphCache.clear()
+        PreparedSegmentCache.clear()
+        SnapshotLandingCandidateCache.clear()
+        AtlasRoomPreparationCache.clear()
+        AtlasRoomQueryCache.clear()
+        ServerRotationLeaseManager.reset()
         pathPreview = emptyList()
         missedNode = null
         keyWasDown = false

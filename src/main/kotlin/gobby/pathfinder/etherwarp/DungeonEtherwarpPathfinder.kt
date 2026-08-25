@@ -1,32 +1,38 @@
 package gobby.pathfinder.etherwarp
 
 import gobby.features.dungeons.DungeonMap
-import gobby.features.dungeons.RoomPathfinder
+import gobby.pathfinder.navigation.PreparedDungeonRouteCache
+import gobby.pathfinder.navigation.DirectRouteCache
+import gobby.pathfinder.navigation.AtlasRoomRoutePlanner
+import gobby.pathfinder.navigation.DungeonLandingBlacklist
+import gobby.pathfinder.navigation.DungeonRoomCoordinates
+import gobby.pathfinder.navigation.RoomGraphCache
+import gobby.pathfinder.navigation.PlannerMemo
+import gobby.pathfinder.navigation.PlannerMemoScope
+import gobby.pathfinder.search.SearchLane
 import gobby.pathfinder.world.BlockCache
-import gobby.utils.VecUtils
-import gobby.utils.skyblock.EtherwarpUtils
-import gobby.utils.skyblock.dungeon.map.DoorType
-import gobby.utils.skyblock.dungeon.map.DungeonRooms
 import gobby.utils.skyblock.dungeon.map.MapGrid
 import gobby.utils.skyblock.dungeon.map.MapTile
 import gobby.utils.skyblock.dungeon.map.RoomGraph
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
-import kotlin.math.abs
 
 object DungeonEtherwarpPathfinder {
+    private val searchTimedOut = ThreadLocal.withInitial { false }
+    var lastSearchTimedOut: Boolean
+        get() = searchTimedOut.get()
+        private set(value) { searchTimedOut.set(value) }
+    private const val ATLAS_BUDGET_SHARE = 0.15
+    private const val FIELD_WAIT_FACTOR = 2L
+    private const val NANOS_PER_MILLISECOND = 1_000_000L
+    private const val DIRECT_ATTEMPT_BUDGET_SHARE = 0.1
+    private const val GRAPH_BUDGET_MS = 2_000L
 
-    @Volatile
-    var lastSearchTimedOut = false
-        private set
-
-    private const val DOOR_Y = 68
-    private const val DOOR_BLOCK_SAMPLE_Y = DOOR_Y + 1
-    private const val DOOR_RADIUS = 3.0
-    private const val NEXT_ROOM_Y_TOLERANCE = 3
-    private const val DOOR_APPROACH_OFFSET = 2
-    private const val DIRECT_ATTEMPT_BUDGET_SHARE = 0.2
+    fun preload(grid: Array<MapTile>, mapRevision: Long) {
+        PreparedDungeonRouteCache.preload()
+        RoomGraphCache.preload(grid, mapRevision)
+    }
 
     fun findDungeonPath(
         from: Vec3,
@@ -35,187 +41,169 @@ object DungeonEtherwarpPathfinder {
         config: EtherwarpPathConfig = EtherwarpPathConfig(),
         enterRoom: Boolean = true,
         grid: Array<MapTile> = DungeonMap.grid,
-        opened: (Int) -> Boolean = DungeonMap::isDoorOpened,
-        snapshot: BlockCache.SnapshotView? = null
-    ): List<EtherwarpNode>? {
-        val cache = snapshot ?: BlockCache.freeze()
-        val deadline = SearchDeadline(config.timeout)
+        opened: (Int) -> Boolean = DungeonMap::isDoorOpened, snapshot: BlockCache.SnapshotView? = null,
+        mapRevision: Long = DungeonMap.revision, deadline: SearchDeadline? = null
+    ): List<EtherwarpNode>? = PathPlanDiagnostics.withPlan {
         lastSearchTimedOut = false
-        val graph = RoomGraph.build(grid)
-        val goalBlock = kind.goal(to)
-        val startCell = DungeonRooms.roomCellAt(grid, from.x, from.z)
-        val goalCell = DungeonRooms.containingRoomCell(grid, to.x + 0.5, to.z + 0.5)
-            ?: DungeonRooms.roomCellAt(grid, to.x + 0.5, to.z + 0.5)
-        val goalRoom = goalCell?.let { graph.canonical(it) }
-        val goalCells = goalRoom?.let { graph.component(it) }.orEmpty()
-        val reachGoal = goalReached(goalBlock, goalCells)
-        EtherwarpGraphService.pathTo(from, goalBlock, kind.searchRange(config), reachGoal)?.let {
-            log("graph hit: ${it.size - 1} hops")
-            return it
+        val setup = prepareDungeonSearch(from, to, kind, config, enterRoom, grid, snapshot, mapRevision, deadline) {
+            lastSearchTimedOut = true
+        } ?: return@withPlan null
+        searchPreparedPath(setup, grid, opened).also { route ->
+            pathLog { "plan result hops=${route?.let { it.size - 1 } ?: -1} timedOut=$lastSearchTimedOut ${PathPlanDiagnostics.describeBudget(setup.deadline)}" }
         }
-        val startRoom = startCell?.let { graph.canonical(it) }
-        val goalCached = BlockCache.isChunkAvailable(to.x, to.z)
-        val goalName = (grid.getOrNull(goalCell ?: -1) as? MapTile.Room)?.data?.name
-        log("from=(${from.x.toInt()},${from.z.toInt()}) startCell=$startCell startRoom=$startRoom | to=$to goalBlock=$goalBlock goalCell=$goalCell goalRoom=$goalRoom goal='$goalName' goalCells=${goalCells.size} enterRoom=$enterRoom goalChunkCached=$goalCached range=${kind.searchRange(config)}")
+    }
 
-        if (startCell == null || goalCell == null || startRoom == null || goalRoom == null || startRoom == goalRoom) {
-            if (enterRoom && startRoom != null && goalRoom != null) {
-                requestHopField(goalBlock, kind, config, cache, graph.component(goalRoom))
+    private fun searchPreparedPath(setup: DungeonSearchSetup, grid: Array<MapTile>, opened: (Int) -> Boolean): List<EtherwarpNode>? {
+        val context = DungeonPathSearchContext(setup.from, setup.goalBlock, setup.kind, setup.config, setup.enterRoom, setup.cache, setup.deadline, setup.fallbackDeadline, setup.goalCell, setup.mapRevision, setup.exactGoal, DungeonLandingBlacklist.forGrid(grid))
+        cachedRoute(setup, context)?.let { return it }
+        if (hasCachedFailure(setup)) {
+            pathLog { "cache preparedRoute failure hit -> abort" }
+            return context.fail()
+        }
+        if (setup.enterRoom) {
+            EtherwarpPathfinder.exactDirect(setup.from, setup.goalBlock, setup.kind, setup.config, DungeonSegmentGoals.goalReached(setup.goalBlock, emptySet()), setup.cache)?.let {
+                context.completeDirect(it)?.let { route ->
+                    pathLog { "shortcut exactDirect hops=${route.size - 1}" }
+                    return route
+                }
             }
-            val r = singleSegment(from, goalBlock, kind, config, reachGoal, cache, deadline)
-            log("degenerate(startCell=$startCell goalCell=$goalCell startRoom=$startRoom goalRoom=$goalRoom sameRoom=${startRoom == goalRoom}) -> singleSegment ${if (r == null) "FAILED" else "ok(${r.size})"}")
-            return r
+        }
+        if (setup.enterRoom) DungeonSameRoomRoute.find(setup.from, setup.goalBlock, setup.kind, setup.config, setup.startCell, setup.goalCell, grid, setup.cache)
+            ?.takeIf { !setup.exactGoal || it.lastOrNull()?.pos == setup.goalBlock }
+            ?.takeUnless(context::landsOnBlacklistedTile)
+            ?.let {
+                pathLog { "shortcut sameRoom hops=${it.size - 1}" }
+                return it
+            }
+        setup.startCell?.let { (grid.getOrNull(it) as? MapTile.Room)?.data }?.takeIf(::canHaveCustomEgress)?.let { DungeonCustomEgressRoute.find(setup.from, setup.goalBlock, setup.kind, setup.config, setup.enterRoom, setup.startCell, setup.goalCell, grid, opened, setup.cache, setup.mapRevision, setup.deadline)
+            ?.takeUnless(context::landsOnBlacklistedTile)?.let {
+                pathLog { "shortcut customEgress hops=${it.size - 1}" }
+                return it
+            } }
+        val graph = RoomGraphCache.get(grid, setup.mapRevision)
+        val search = { findFromGraph(context, setup.startCell, setup.goalCell, setup.target, grid, opened, graph) }
+        return PlannerMemoScope.current()?.let { search() } ?: PlannerMemoScope.with(PlannerMemo(), search)
+    }
+
+    private fun cachedRoute(setup: DungeonSearchSetup, context: DungeonPathSearchContext): List<EtherwarpNode>? {
+        val targetCell = setup.goalCell ?: return null
+        DirectRouteCache.take(setup.from, setup.goalBlock, targetCell, setup.enterRoom, setup.kind, setup.config, setup.cache, setup.mapRevision)
+            ?.takeUnless(context::landsOnBlacklistedTile)?.let {
+                pathLog { "cache directRoute hit hops=${it.size - 1}" }
+                return it
+            }
+        return PreparedDungeonRouteCache.take(setup.from, setup.goalBlock, targetCell, setup.enterRoom, setup.kind, setup.config, setup.cache, setup.mapRevision)
+            ?.takeUnless(context::landsOnBlacklistedTile)?.also {
+                pathLog { "cache preparedRoute hit hops=${it.size - 1}" }
+            }
+    }
+
+    private fun hasCachedFailure(setup: DungeonSearchSetup): Boolean = setup.goalCell?.let { targetCell ->
+        PreparedDungeonRouteCache.hasFailure(setup.from, setup.goalBlock, targetCell, setup.enterRoom, setup.kind, setup.config, setup.cache, setup.mapRevision)
+    } == true
+
+    private fun findFromGraph(context: DungeonPathSearchContext, startCell: Int?, goalCell: Int?, target: BlockPos, grid: Array<MapTile>, opened: (Int) -> Boolean, graph: RoomGraph): List<EtherwarpNode>? {
+        val goalRoom = goalCell?.let(graph::canonical)
+        val goalCells = goalRoom?.let(graph::component).orEmpty()
+        val startRoom = startCell?.let(graph::canonical)
+        pathLog { "plan from=${PathPlanDiagnostics.describeVec(context.from)} startCell=$startCell startRoom=$startRoom to=${PathPlanDiagnostics.describeBlock(target)} goalBlock=${PathPlanDiagnostics.describeBlock(context.goalBlock)} goalCell=$goalCell goalRoom=$goalRoom goalCells=${goalCells.size} enterRoom=${context.enterRoom} exactGoal=${context.exactGoal} range=${context.kind.searchRange(context.config)} ${PathPlanDiagnostics.describeBudget(context.deadline)}" }
+        if (startCell == null || goalCell == null || startRoom == null || goalRoom == null || startRoom == goalRoom) {
+            return findDegenerate(context, startRoom, goalRoom, goalCells, startCell, goalCell)
         }
         val rooms = DungeonRoomPathfinder.findPath(grid, graph, startCell, goalCell, opened = opened)
         if (rooms == null) {
-            log("room-graph NO path (locked/disconnected doors) -> abort")
-            return null
+            pathLog { "room graph has no path from $startCell to $goalCell" }
+            return context.fail()
         }
-        if (enterRoom) {
-            val allowedCells = rooms.asSequence()
-                .flatMap { graph.component(it.cellIndex).asSequence() }
-                .toSet()
-            requestHopField(goalBlock, kind, config, cache, allowedCells)
+        return findAcrossRooms(context, rooms, graph, goalCells, grid)
+    }
+
+    private fun findDegenerate(context: DungeonPathSearchContext, startRoom: Int?, goalRoom: Int?, goalCells: Set<Int>, startCell: Int?, goalCell: Int?): List<EtherwarpNode>? {
+        if (context.enterRoom && !context.exactGoal && startRoom != null && goalRoom != null) EtherwarpHopField.forGoal(context.goalBlock, context.kind.searchRange(context.config))?.query(context.from, context.kind.searchRange(context.config))?.let { return context.complete(it) }
+        val reached = if (context.exactGoal || startRoom != null && startRoom == goalRoom) {
+            { position: BlockPos -> position == context.goalBlock }
+        } else DungeonSegmentGoals.goalReached(context.goalBlock, goalCells)
+        val route = context.complete(singleSegment(context.from, context.goalBlock, context.kind, context.config, reached, context.cache, context.deadline, landingFilter = context.landingFilter))
+            ?: context.fail()
+        pathLog { "degenerate startCell=$startCell goalCell=$goalCell startRoom=$startRoom goalRoom=$goalRoom sameRoom=${startRoom == goalRoom} -> ${route?.let { "ok(${it.size})" } ?: "FAILED"}" }
+        return route
+    }
+
+    private fun findAcrossRooms(context: DungeonPathSearchContext, rooms: List<RoomStep>, graph: RoomGraph, goalCells: Set<Int>, grid: Array<MapTile>): List<EtherwarpNode>? {
+        val allowedCells = rooms.asSequence().flatMap { graph.component(it.cellIndex).asSequence() }.toSet()
+        preparedFieldRoute(context, allowedCells)?.let { return it }
+        requestHopField(context, allowedCells, grid)
+        val atlasRoute = atlasRoute(context, rooms, grid)
+        val lowerBound = EtherwarpHopLowerBound.forRoute(context.from, context.goalBlock, context.kind.searchRange(context.config))
+        atlasRoute?.takeIf { context.exactGoal || it.completenessCertified || it.compatiblePreparedRoute || it.nodes.lastIndex <= lowerBound }?.let {
+            return DungeonAtlasRouteAcceptance.accept(it, context, allowedCells, grid)
         }
-        log("room path (${rooms.size}): ${rooms.joinToString(" -> ") { "${it.data.name}${it.doorCell?.let { d -> "[door=${(grid.getOrNull(d) as? MapTile.Door)?.type},open=${doorOpen(d) { p -> cache.getBlockState(p) }}]" } ?: ""}" }}")
-        rooms.forEach { step ->
-            log("cache ${step.data.name} ${BlockCache.debugChunk(MapGrid.worldX(MapGrid.col(step.cellIndex)), MapGrid.worldZ(MapGrid.row(step.cellIndex)))}")
+        findRoomFallback(context, rooms, graph, goalCells, grid)?.let { return it }
+        atlasRoute?.let { return DungeonAtlasRouteAcceptance.accept(it, context, allowedCells, grid) }
+        return preparedFieldRoute(context, allowedCells, fieldWaitNanos(context))
+    }
+
+    private fun atlasRoute(context: DungeonPathSearchContext, rooms: List<RoomStep>, grid: Array<MapTile>) =
+        AtlasRoomRoutePlanner.findValidated(context.from, context.goalBlock, context.kind, context.config, rooms, grid, context.cache, context.deadline.slice(ATLAS_BUDGET_SHARE, GRAPH_BUDGET_MS))
+            ?.takeIf { !context.exactGoal || it.nodes.lastOrNull()?.pos == context.goalBlock }
+            ?.takeUnless { context.landsOnBlacklistedTile(it.nodes) }
+            .also { pathLog { "atlas route ${it?.let { route -> "hops=${route.nodes.size - 1} certified=${route.completenessCertified}" } ?: "unavailable"} ${PathPlanDiagnostics.describeBudget(context.deadline)}" } }
+
+    private fun fieldWaitNanos(context: DungeonPathSearchContext): Long =
+        context.config.timeout * FIELD_WAIT_FACTOR * NANOS_PER_MILLISECOND
+
+    private fun preparedFieldRoute(context: DungeonPathSearchContext, allowedCells: Set<Int>, awaitNanos: Long = 0L): List<EtherwarpNode>? {
+        if (!context.enterRoom || context.exactGoal) return null
+        val range = context.kind.searchRange(context.config)
+        val field = EtherwarpHopField.forGoal(context.goalBlock, range, allowedCells)
+            ?: EtherwarpHopField.awaitForGoal(context.goalBlock, range, allowedCells, awaitNanos)
+        val route = field?.query(context.from, range)
+        pathLog { "hop field ${if (field == null) "absent" else route?.let { "hit hops=${it.size - 1}" } ?: "built but no visible node"} ${PathPlanDiagnostics.describeBudget(context.deadline)}" }
+        return route?.let { context.complete(it) }
+    }
+
+    private fun findRoomFallback(context: DungeonPathSearchContext, rooms: List<RoomStep>, graph: RoomGraph, goalCells: Set<Int>, grid: Array<MapTile>): List<EtherwarpNode>? {
+        logRoomPath(rooms, grid, context.cache)
+        val reached = DungeonSegmentGoals.goalReached(context.goalBlock, goalCells, context.exactGoal)
+        if (context.enterRoom) {
+            val directDeadline = context.deadline.slice(DIRECT_ATTEMPT_BUDGET_SHARE)
+            val direct = singleSegment(context.from, context.goalBlock, context.kind, context.config, reached, context.cache, directDeadline, SearchLane.PRIMITIVE_ONLY, context.landingFilter)
+            pathLog { "direct attempt ${direct?.let { "ok(${it.size}) skipped stitch" } ?: "failed"} ${PathPlanDiagnostics.describeBudget(context.deadline)}" }
+            direct?.let { return context.complete(it) }
         }
-        if (enterRoom) {
-            val directDeadline = SearchDeadline((config.timeout * DIRECT_ATTEMPT_BUDGET_SHARE).toLong())
-            singleSegment(from, goalBlock, kind, config, reachGoal, cache, directDeadline)?.let {
-                log("direct ok(${it.size}) — skipped stitch")
-                return it
-            }
+        DungeonRouteStitcher.stitch(context, rooms, graph, goalCells, grid, context.fallbackDeadline)?.let {
+            pathLog { "stitch ok(${it.size})" }
+            return context.complete(it)
         }
-        val stitched = stitch(from, goalBlock, rooms, graph, goalCells, kind, config, enterRoom, grid, cache, deadline)
-        if (stitched != null) {
-            log("stitch ok(${stitched.size})")
-            return stitched
+        if (context.enterRoom) singleSegment(context.from, context.goalBlock, context.kind, context.config, reached, context.cache, context.fallbackDeadline, landingFilter = context.landingFilter)?.let {
+            pathLog { "unrestricted direct ok(${it.size})" }
+            return context.complete(it)
         }
-        lastSearchTimedOut = deadline.expired
-        log("stitch FAILED -> abort timedOut=$lastSearchTimedOut")
-        return null
+        lastSearchTimedOut = context.fallbackDeadline.expired && !Thread.currentThread().isInterrupted
+        pathLog { "stitch FAILED -> abort timedOut=$lastSearchTimedOut ${PathPlanDiagnostics.describeBudget(context.deadline)}" }
+        return context.fail()
+    }
+
+    private fun logRoomPath(rooms: List<RoomStep>, grid: Array<MapTile>, cache: BlockCache.SnapshotView) {
+        if (!PathPlanDiagnostics.enabled) return
+        pathLog { "room path (${rooms.size}): ${rooms.joinToString(" -> ") { "${it.data.name}${it.doorCell?.let { cell -> "[${PathPlanDiagnostics.describeDoor(cell, grid, doorOpen(cell) { position -> cache.getBlockState(position) })}]" } ?: ""}" }}" }
+        rooms.forEach { step -> pathLog { "  room ${PathPlanDiagnostics.describeRoom(step.cellIndex, grid, cache)}" } }
+    }
+
+    private fun requestHopField(context: DungeonPathSearchContext, allowedCells: Set<Int>, grid: Array<MapTile>) {
+        if (context.kind != EtherwarpKind.ETHERWARP) return
+        EtherwarpHopField.request(context.goalBlock, context.kind.searchRange(context.config), context.cache, allowedCells, grid)
     }
 
     fun hopFieldFor(to: BlockPos, kind: EtherwarpKind, config: EtherwarpPathConfig): EtherwarpHopField.Handle? =
         EtherwarpHopField.forGoal(kind.goal(to), kind.searchRange(config))
 
-    private fun requestHopField(
-        goal: BlockPos,
-        kind: EtherwarpKind,
-        config: EtherwarpPathConfig,
-        cache: BlockCache.SnapshotView,
-        allowedCells: Set<Int>
-    ) {
-        if (kind == EtherwarpKind.ETHERWARP) {
-            EtherwarpHopField.request(goal, kind.searchRange(config), cache, allowedCells)
-        }
-    }
-
-    private fun log(msg: String) {
-        if (RoomPathfinder.pathDebug) println("[GobbyPath] $msg")
-    }
-
     fun doorOpen(doorCell: Int, stateAt: (BlockPos) -> BlockState?): Boolean =
         stateAt(doorSamplePos(doorCell))?.isAir == true
 
     private fun doorSamplePos(doorCell: Int): BlockPos =
-        BlockPos(MapGrid.worldX(MapGrid.col(doorCell)), DOOR_BLOCK_SAMPLE_Y, MapGrid.worldZ(MapGrid.row(doorCell)))
+        BlockPos(MapGrid.worldX(MapGrid.col(doorCell)), DungeonRoomCoordinates.DOOR_BLOCK_SAMPLE_Y, MapGrid.worldZ(MapGrid.row(doorCell)))
 
-    private fun goalReached(goalBlock: BlockPos, goalCells: Set<Int>): (BlockPos) -> Boolean =
-        { it == goalBlock || MapGrid.cellOf(it.x + 0.5, it.z + 0.5) in goalCells }
-
-    private fun singleSegment(from: Vec3, goalBlock: BlockPos, kind: EtherwarpKind, config: EtherwarpPathConfig, reachGoal: (BlockPos) -> Boolean, cache: BlockCache.SnapshotView, deadline: SearchDeadline): List<EtherwarpNode>? =
-        EtherwarpPathfinder.search(from, goalBlock, kind, config, reachGoal, cache, deadline)?.let { EtherwarpPathfinder.smooth(it, kind.searchRange(config), kind, cache) }
-
-    private fun stitch(
-        from: Vec3,
-        goalBlock: BlockPos,
-        rooms: List<RoomStep>,
-        graph: RoomGraph,
-        goalCells: Set<Int>,
-        kind: EtherwarpKind,
-        config: EtherwarpPathConfig,
-        enterRoom: Boolean,
-        grid: Array<MapTile>,
-        cache: BlockCache.SnapshotView,
-        deadline: SearchDeadline
-    ): List<EtherwarpNode>? {
-        val full = mutableListOf<EtherwarpNode>()
-        var origin = from
-        val steps = if (enterRoom || rooms.size < 2) rooms.size else rooms.size - 1
-        for (i in 0 until steps) {
-            val allowEnter = enterRoom || i < steps - 1
-            val next = rooms.getOrNull(i + 1)
-            val segment = searchSegment(origin, rooms[i], next, graph, goalCells, goalBlock, kind, config, allowEnter, grid, cache, deadline)
-            if (segment == null) {
-                    log("  segment $i FAILED: ${rooms[i].data.name} -> ${next?.data?.name ?: "goal"} allowEnter=$allowEnter origin=(${origin.x.toInt()},${origin.z.toInt()}) door=${rooms[i].doorCell?.let { c -> doorWorld(c, rooms[i].cellIndex, grid) }}")
-                return null
-            }
-            if (full.isEmpty()) full.addAll(segment) else full.addAll(segment.drop(1))
-            origin = (full.lastOrNull() ?: return null).eye
-        }
-        return EtherwarpPathfinder.smooth(full, kind.searchRange(config), kind, cache)
-    }
-
-    private fun searchSegment(
-        origin: Vec3,
-        step: RoomStep,
-        next: RoomStep?,
-        graph: RoomGraph,
-        goalCells: Set<Int>,
-        goalBlock: BlockPos,
-        kind: EtherwarpKind,
-        config: EtherwarpPathConfig,
-        allowEnter: Boolean,
-        grid: Array<MapTile>,
-        cache: BlockCache.SnapshotView,
-        deadline: SearchDeadline
-    ): List<EtherwarpNode>? {
-        if (step.doorCell == null || next == null) {
-            return EtherwarpPathfinder.search(origin, goalBlock, kind, config, goalReached(goalBlock, goalCells), cache, deadline)
-        }
-        val door = doorWorld(step.doorCell, step.cellIndex, grid)
-        val nextCells = graph.component(next.cellIndex)
-        if (!allowEnter) return EtherwarpPathfinder.search(origin, door, kind, config, doorOnlyReached(door), cache, deadline)
-        val entryGoal = roomEntryGoal(step.doorCell, nextCells, grid, cache) ?: door
-        return EtherwarpPathfinder.search(origin, entryGoal, kind, config, doorReached(door, nextCells), cache, deadline)
-    }
-
-    private fun roomEntryGoal(doorCell: Int, nextCells: Set<Int>, grid: Array<MapTile>, cache: BlockCache.SnapshotView): BlockPos? {
-        val entryCell = entryCellOf(doorCell, nextCells) ?: return null
-        val center = BlockPos(MapGrid.worldX(MapGrid.col(entryCell)), DOOR_BLOCK_SAMPLE_Y, MapGrid.worldZ(MapGrid.row(entryCell)))
-        return EtherwarpUtils.nearestEtherwarpable(center, cached = true, snapshot = cache) {
-            DungeonRooms.containingRoomCell(grid, it.x + 0.5, it.z + 0.5) in nextCells
-        }
-    }
-
-    private fun entryCellOf(doorCell: Int, nextCells: Set<Int>): Int? {
-        val col = MapGrid.col(doorCell)
-        val row = MapGrid.row(doorCell)
-        val neighbours = if (col and 1 == 1) listOf(MapGrid.index(col - 1, row), MapGrid.index(col + 1, row))
-            else listOf(MapGrid.index(col, row - 1), MapGrid.index(col, row + 1))
-        return neighbours.firstOrNull { it in nextCells }
-    }
-
-    private fun doorOnlyReached(door: BlockPos): (BlockPos) -> Boolean = { pos ->
-        VecUtils.distanceSq(pos, door) <= DOOR_RADIUS * DOOR_RADIUS
-    }
-
-    private fun doorReached(door: BlockPos, nextCells: Set<Int>): (BlockPos) -> Boolean = { pos ->
-        MapGrid.cellOf(pos.x + 0.5, pos.z + 0.5) in nextCells &&
-            abs(pos.y - door.y) <= NEXT_ROOM_Y_TOLERANCE
-    }
-
-    private fun doorWorld(doorCell: Int, approachCell: Int, grid: Array<MapTile>): BlockPos {
-        val x = MapGrid.worldX(MapGrid.col(doorCell))
-        val z = MapGrid.worldZ(MapGrid.row(doorCell))
-        val door = grid.getOrNull(doorCell) as? MapTile.Door
-        if (door == null || (door.type != DoorType.WITHER && door.type != DoorType.BLOOD)) return BlockPos(x, DOOR_Y, z)
-        val dx = (MapGrid.col(approachCell) - MapGrid.col(doorCell)).coerceIn(-1, 1)
-        val dz = (MapGrid.row(approachCell) - MapGrid.row(doorCell)).coerceIn(-1, 1)
-        return BlockPos(x + dx * DOOR_APPROACH_OFFSET, DOOR_Y, z + dz * DOOR_APPROACH_OFFSET)
-    }
-
+    private fun singleSegment(from: Vec3, goalBlock: BlockPos, kind: EtherwarpKind, config: EtherwarpPathConfig, reachGoal: (BlockPos) -> Boolean, cache: BlockCache.SnapshotView, deadline: SearchDeadline, lane: SearchLane = SearchLane.HYBRID, landingFilter: (BlockPos) -> Boolean = LandingPolicy.ACCEPT_ALL): List<EtherwarpNode>? =
+        EtherwarpPathfinder.search(from, goalBlock, kind, config, reachGoal, cache, deadline, lane, landingFilter)?.let { EtherwarpPathfinder.smooth(it, kind.searchRange(config), kind, cache) }
 }

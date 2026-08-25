@@ -36,6 +36,7 @@ import java.io.FileNotFoundException
  * License: https://github.com/odtheking/OdinFabric/blob/main/LICENSE
  * Original source: https://github.com/odtheking/OdinFabric/blob/main/src/main/kotlin/com/odtheking/odin/utils/skyblock/dungeon/ScanUtils.kt
  */
+
 object ScanUtils {
 
     private const val ROOM_SIZE_SHIFT = 5
@@ -59,6 +60,7 @@ object ScanUtils {
                 .registerTypeAdapter(RoomData::class.java, RoomDataDeserializer())
                 .create().fromJson(
                     (ScanUtils::class.java.getResourceAsStream("/rooms.json") ?: throw FileNotFoundException()).bufferedReader(),
+
                     object : TypeToken<Set<RoomData>>() {}.type
                 )
         } catch (e: Exception) {
@@ -125,7 +127,6 @@ object ScanUtils {
         } ?: Rotations.NONE
     }
 
-
     fun scanRoom(vec2: Vec2): Room? {
         val world = mc.level ?: return null
         val chunk = world.getChunk(vec2.x shr 4, vec2.z shr 4)
@@ -136,7 +137,6 @@ object ScanUtils {
             }?.apply { updateRotation(this, roomHeight) }
         }
     }
-
 
     private fun findRoomComponentsRecursively(vec2: Vec2, cores: List<Int>, roomHeight: Int, world: ClientLevel, visited: MutableSet<Vec2> = mutableSetOf(), tiles: MutableSet<RoomComponent> = mutableSetOf()): MutableSet<RoomComponent> {
         if (vec2 in visited) return tiles else visited.add(vec2)
@@ -162,7 +162,6 @@ object ScanUtils {
         val roomZ = (posZ - START + (1 shl (ROOM_SIZE_SHIFT - 1))) shr ROOM_SIZE_SHIFT
         return Vec2((roomX shl ROOM_SIZE_SHIFT) + START, (roomZ shl ROOM_SIZE_SHIFT) + START)
     }
-
 
     fun getCore(vec2: Vec2): Int {
         val world = mc.level ?: return 0
@@ -202,8 +201,6 @@ object ScanUtils {
         }
         return 0
     }
-
-
 
     @SubscribeEvent
     fun enterDungeonRoom(event: RoomEnterEvent) {

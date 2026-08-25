@@ -15,7 +15,6 @@ import net.minecraft.world.entity.Pose
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 
-
 object PlayerUtils {
 
     const val STANDING_EYE_HEIGHT = 1.62
@@ -72,8 +71,6 @@ object PlayerUtils {
         }
         return true
     }
-
-
 
     fun isPlayerInBox(x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double): Boolean {
         val playerX = posX

@@ -13,6 +13,7 @@ object PathBlacklist {
 
     private data class Entry(val center: Vec3, val radius: Double, val expiryTick: Long) {
         fun isExpired(now: Long): Boolean = now >= expiryTick
+
         fun contains(x: Double, z: Double): Boolean {
             val dx = x - center.x
             val dz = z - center.z

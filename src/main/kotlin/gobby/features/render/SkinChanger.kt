@@ -27,6 +27,7 @@ object SkinChanger : Module("Skin Changer", "Copy someones skin visually", Categ
     private val UUID_DASHES = Regex("(.{8})(.{4})(.{4})(.{4})(.{12})")
 
     @Volatile private var cachedSkin: PlayerSkin? = null
+
     @Volatile private var lastApplied = ""
 
     fun getSkinFor(player: AbstractClientPlayer): PlayerSkin? =

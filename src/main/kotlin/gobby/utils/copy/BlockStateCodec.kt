@@ -32,6 +32,7 @@ object BlockStateCodec {
 
     private fun applyProperty(state: BlockState, key: String, value: String): BlockState? {
         val property = state.block.stateDefinition.getProperty(key) ?: return null
+
         @Suppress("UNCHECKED_CAST")
         val parsed = (property as Property<Comparable<Any>>).getValue(value)
         return if (parsed.isPresent) state.setValue(property, parsed.get()) else null

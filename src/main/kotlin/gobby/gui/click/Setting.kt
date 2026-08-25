@@ -24,8 +24,11 @@ class BooleanSetting(
     hidden: Boolean = false
 ) : Setting<Boolean>(name, desc, default, hidden), ReadWriteProperty<Any?, Boolean> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Boolean) { value = v }
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): BooleanSetting {
@@ -52,12 +55,17 @@ class NumberSetting(
     val progress: Float get() = ((value - min) / (max - min)).coerceIn(0f, 1f)
 
     fun display(): String = if (decimals <= 0) value.roundToInt().toString() else String.format(Locale.US, "%.${decimals}f", value)
+
     fun setSnapped(v: Float) { value = snap(v, min, max, step) }
+
     fun setFromProgress(fraction: Float) = setSnapped(min + (max - min) * fraction)
 
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value.roundToInt()
+
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { setSnapped(v.toFloat()) }
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): NumberSetting {
@@ -112,6 +120,7 @@ class RangeSetting(
     private fun snap(v: Float): Float = (min + ((v - min) / increment).roundToInt() * increment).coerceIn(min, max)
 
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): RangeSetting {
@@ -129,7 +138,9 @@ class StringSetting(
     val onCommit: (String) -> Unit = {}
 ) : Setting<String>(name, desc, default, hidden), ReadOnlyProperty<Any?, String> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): StringSetting {
@@ -146,8 +157,11 @@ class SelectorSetting(
     hidden: Boolean = false
 ) : Setting<Int>(name, desc, default, hidden), ReadWriteProperty<Any?, Int> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v.coerceIn(0, options.lastIndex) }
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): SelectorSetting {
@@ -165,7 +179,9 @@ class ColorSetting(
     var cachedHue: Float = -1f
 ) : Setting<Color>(name, desc, default, hidden), ReadWriteProperty<Any?, Color> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Color) { value = v }
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): ColorSetting {
@@ -181,6 +197,7 @@ class ActionSetting(
     val action: () -> Unit
 ) : Setting<Unit>(name, desc, Unit, hidden), ReadOnlyProperty<Any?, Unit> {
     override fun getValue(thisRef: Any?, property: KProperty<*>) {}
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): ActionSetting {
@@ -198,9 +215,13 @@ class KeybindSetting(
     companion object { const val MOUSE_OFFSET = 1000 }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>) = value
+
     override fun setValue(thisRef: Any?, property: KProperty<*>, v: Int) { value = v }
+
     fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
     fun withDependency(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
+
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): KeybindSetting {
         thisRef.settings.add(this)
         return this

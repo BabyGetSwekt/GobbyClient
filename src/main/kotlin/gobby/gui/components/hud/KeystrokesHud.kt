@@ -54,8 +54,14 @@ object KeystrokesHud {
     }
 
     private fun subtractRect(a: IntArray, b: IntArray): List<IntArray> {
-        val ax1 = a[0]; val ay1 = a[1]; val ax2 = a[2]; val ay2 = a[3]
-        val bx1 = b[0]; val by1 = b[1]; val bx2 = b[2]; val by2 = b[3]
+        val ax1 = a[0]
+        val ay1 = a[1]
+        val ax2 = a[2]
+        val ay2 = a[3]
+        val bx1 = b[0]
+        val by1 = b[1]
+        val bx2 = b[2]
+        val by2 = b[3]
         if (ax2 <= bx1 || bx2 <= ax1 || ay2 <= by1 || by2 <= ay1) return listOf(a)
         val out = mutableListOf<IntArray>()
         if (ay1 < by1) out.add(intArrayOf(ax1, ay1, ax2, by1))

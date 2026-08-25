@@ -15,10 +15,13 @@ abstract class TerminalSolver {
     private var stuckLogged = false
 
     abstract val isEnabled: Boolean
+
     abstract fun matchesTitle(title: String): Boolean
+
     abstract fun solve(screen: ContainerScreen): TerminalClick?
 
     open fun onActivate(screen: ContainerScreen) {}
+
     open fun onDeactivate() {}
 
     open fun onStuck(screen: ContainerScreen) {}

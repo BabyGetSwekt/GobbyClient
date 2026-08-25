@@ -7,6 +7,7 @@ import net.minecraft.world.item.Items
 object RedGreenTerminal : TerminalSolver() {
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = title.contains("Correct all the panes!")
 
     override fun solve(screen: ContainerScreen) =

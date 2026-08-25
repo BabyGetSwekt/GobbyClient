@@ -7,105 +7,27 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.skyblock.dungeon.TerminalUtils
-import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
-import net.minecraft.world.item.Items
 import net.minecraft.world.inventory.ContainerInput
-import net.minecraft.ChatFormatting
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
 
-object TerminalOverlay : Module(
-    "Terminal Overlay", "Custom terminal overlay",
-    Category.FLOOR7
-) {
+object TerminalOverlay : Module("Terminal Overlay", "Custom terminal overlay", Category.FLOOR7) {
     val scale by NumberSetting("Scale", 150, 100, 300, 10, desc = "Scale of the overlay UI (percent)")
-
-    private const val CELL = 16
     private const val STRIDE = 18
     private const val BG_PAD = 2
     private const val BORDER_W = 2
-    private const val CHEST_ROW_WIDTH = 9
-    private const val PLAYER_INV_SLOTS = 36
     private const val SCALE_BASE = 100f
     private const val SCALE_MULT = 1.5f
-    private const val NUM_HIGHLIGHT_COUNT = 3
-    private const val MELODY_BTN_CHEST_COL = 7
-    private const val MELODY_BTN_COMPACT_COL = 6
-    private const val MELODY_GAP_COMPACT_COL = 5
-    private const val MELODY_LANE_START = 1
-    private const val MELODY_LANE_END = 5
-    private const val MELODY_ROW_START = 1
-    private const val MELODY_ROW_END = 4
-
     private val cOverlay = Color(0, 0, 0, 140).rgb
     private val cBg = Color(15, 15, 22, 220).rgb
     private val cBorder = Color(0, 170, 0, 255).rgb
-    private val cSolution = Color(0, 170, 0, 200).rgb
-    private val cNum1 = Color(0, 255, 0, 200).rgb
-    private val cNum2 = Color(0, 180, 0, 200).rgb
-    private val cNum3 = Color(0, 110, 0, 200).rgb
-    private val cRubixL = Color(0, 200, 0, 200).rgb
-    private val cRubixR = Color(200, 50, 50, 200).rgb
-    private val cTxtMain = Color(220, 220, 230).rgb
-    private val cMelodyCol = Color(80, 150, 255, 80).rgb
-    private val cMelodyBtnOn = Color(0, 230, 0, 200).rgb
-    private val cMelodyBtnOff = Color(90, 90, 100, 150).rgb
-    private val cMelodyPane = Color(0, 200, 80, 180).rgb
-    private val cMelodyIndicator = Color(180, 50, 180, 200).rgb
-
     private var mouseWasDown = false
     private var rightMouseWasDown = false
     private var gridOffX = 0
     private var gridOffY = 0
     private var gridCols = 0
     private var gridRows = 0
-
-    private enum class Terminal {
-        NUMBERS, COLORS, STARTS_WITH, RED_GREEN, RUBIX, MELODY
-    }
-
-    private data class GridConfig(val cols: Int, val rows: Int, val rowStart: Int, val colStart: Int)
-
-    private fun gridConfig(type: Terminal) = when (type) {
-        Terminal.NUMBERS     -> GridConfig(7, 2, 1, 1)
-        Terminal.COLORS      -> GridConfig(7, 4, 1, 1)
-        Terminal.STARTS_WITH -> GridConfig(7, 3, 1, 1)
-        Terminal.RED_GREEN   -> GridConfig(5, 3, 1, 2)
-        Terminal.RUBIX       -> GridConfig(3, 3, 1, 3)
-        Terminal.MELODY      -> GridConfig(7, 5, 0, 1)
-    }
-
-    private fun compactToSlot(type: Terminal, cx: Int, cy: Int): Int {
-        val cfg = gridConfig(type)
-        if (type == Terminal.MELODY) {
-            val chestRow = cy + cfg.rowStart
-            val chestCol = if (cx == MELODY_BTN_COMPACT_COL) MELODY_BTN_CHEST_COL else cx + cfg.colStart
-            return chestRow * CHEST_ROW_WIDTH + chestCol
-        }
-        val chestRow = cy + cfg.rowStart
-        val chestCol = cx + cfg.colStart
-        return chestRow * CHEST_ROW_WIDTH + chestCol
-    }
-
-    private fun slotToCompact(type: Terminal, slot: Int): Pair<Int, Int>? {
-        val cfg = gridConfig(type)
-        val chestRow = slot / CHEST_ROW_WIDTH
-        val chestCol = slot % CHEST_ROW_WIDTH
-        val cy = chestRow - cfg.rowStart
-        if (cy < 0 || cy >= cfg.rows) return null
-        if (type == Terminal.MELODY) {
-            val cx = if (chestCol == MELODY_BTN_CHEST_COL) MELODY_BTN_COMPACT_COL else chestCol - cfg.colStart
-            if (cx < 0 || cx > MELODY_BTN_COMPACT_COL || cx == MELODY_GAP_COMPACT_COL) return null
-            return cx to cy
-        }
-        val cx = chestCol - cfg.colStart
-        if (cx < 0 || cx >= cfg.cols) return null
-        return cx to cy
-    }
-
-    private fun compactPos(cx: Int, cy: Int): Pair<Int, Int> =
-        (cx * STRIDE + gridOffX) to (cy * STRIDE + gridOffY)
 
     fun isOverlayActive(): Boolean {
         if (!enabled) return false
@@ -115,260 +37,87 @@ object TerminalOverlay : Module(
 
     fun shouldBlockClicks(): Boolean = isOverlayActive()
 
-    private val COLORS_REGEX = Regex("Select all the [\\w ]+ items!")
-    private val STARTS_WITH_REGEX = Regex("What starts with: \\W\\w\\W")
-
-    private fun detect(title: String): Terminal? = when {
-        title.contains("Click in order!") -> Terminal.NUMBERS
-        COLORS_REGEX.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "") -> Terminal.COLORS
-        STARTS_WITH_REGEX.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "") -> Terminal.STARTS_WITH
-        title.contains("Correct all the panes!") -> Terminal.RED_GREEN
-        title.contains("Change all to same color!") -> Terminal.RUBIX
-        title.contains("Click the button on time!") -> Terminal.MELODY
-        else -> null
-    }
-
     @SubscribeEvent
     fun onScreenRender(event: ScreenRenderEvent) {
         if (!enabled) return
         val screen = event.screen as? ContainerScreen ?: return
         val type = detect(screen.title.string) ?: return
-
-        val ctx = event.drawContext
-        val sw = mc.window.guiScaledWidth
-        val sh = mc.window.guiScaledHeight
         val uiScale = scale / SCALE_BASE * SCALE_MULT
-
-        val cfg = gridConfig(type)
-        gridCols = cfg.cols
-        gridRows = cfg.rows
-        val gridW = gridCols * STRIDE
-        val gridH = gridRows * STRIDE
-        val logW = (sw / uiScale).toInt()
-        val logH = (sh / uiScale).toInt()
-        gridOffX = logW / 2 - gridW / 2
-        gridOffY = logH / 2 - gridH / 2
-
-        val lmx = (event.mouseX / uiScale).toInt()
-        val lmy = (event.mouseY / uiScale).toInt()
-        handleMouse(lmx, lmy, screen, type)
-
-        ctx.fill(0, 0, sw, sh, cOverlay)
-
+        configureLayout(type, mc.window.guiScaledWidth, mc.window.guiScaledHeight, uiScale)
+        handleMouse((event.mouseX / uiScale).toInt(), (event.mouseY / uiScale).toInt(), screen, type)
+        val ctx = event.drawContext
+        ctx.fill(0, 0, mc.window.guiScaledWidth, mc.window.guiScaledHeight, cOverlay)
         ctx.pose().pushMatrix()
         ctx.pose().scale(uiScale, uiScale)
-
-        val bx0 = gridOffX - BG_PAD - BORDER_W
-        val by0 = gridOffY - BG_PAD - BORDER_W
-        val bx1 = gridOffX + gridW + BG_PAD + BORDER_W
-        val by1 = gridOffY + gridH + BG_PAD + BORDER_W
-
-        ctx.fill(bx0, by0, bx1, by0 + BORDER_W, cBorder)
-        ctx.fill(bx0, by1 - BORDER_W, bx1, by1, cBorder)
-        ctx.fill(bx0, by0 + BORDER_W, bx0 + BORDER_W, by1 - BORDER_W, cBorder)
-        ctx.fill(bx1 - BORDER_W, by0 + BORDER_W, bx1, by1 - BORDER_W, cBorder)
-
-        ctx.fill(bx0 + BORDER_W, by0 + BORDER_W, bx1 - BORDER_W, by1 - BORDER_W, cBg)
-
-        when (type) {
-            Terminal.NUMBERS -> drawNumbers(ctx, screen)
-            Terminal.COLORS -> drawColors(ctx, screen)
-            Terminal.STARTS_WITH -> drawStartsWith(ctx, screen)
-            Terminal.RED_GREEN -> drawRedGreen(ctx, screen)
-            Terminal.RUBIX -> drawRubix(ctx, screen)
-            Terminal.MELODY -> drawMelody(ctx, screen)
-        }
-
+        drawPanel(ctx, type, screen)
         ctx.pose().popMatrix()
     }
 
-    private fun handleMouse(lmx: Int, lmy: Int, screen: ContainerScreen, type: Terminal) {
+    private fun configureLayout(type: TerminalType, screenWidth: Int, screenHeight: Int, uiScale: Float) {
+        val config = TerminalOverlayLayout.gridConfig(type)
+        gridCols = config.cols
+        gridRows = config.rows
+        val width = gridCols * STRIDE
+        val height = gridRows * STRIDE
+        val logicalWidth = (screenWidth / uiScale).toInt()
+        val logicalHeight = (screenHeight / uiScale).toInt()
+        gridOffX = logicalWidth / 2 - width / 2
+        gridOffY = logicalHeight / 2 - height / 2
+    }
+
+    private fun drawPanel(ctx: net.minecraft.client.gui.GuiGraphicsExtractor, type: TerminalType, screen: ContainerScreen) {
+        val width = gridCols * STRIDE
+        val height = gridRows * STRIDE
+        val left = gridOffX - BG_PAD - BORDER_W
+        val top = gridOffY - BG_PAD - BORDER_W
+        val right = gridOffX + width + BG_PAD + BORDER_W
+        val bottom = gridOffY + height + BG_PAD + BORDER_W
+        ctx.fill(left, top, right, top + BORDER_W, cBorder)
+        ctx.fill(left, bottom - BORDER_W, right, bottom, cBorder)
+        ctx.fill(left, top + BORDER_W, left + BORDER_W, bottom - BORDER_W, cBorder)
+        ctx.fill(right - BORDER_W, top + BORDER_W, right, bottom - BORDER_W, cBorder)
+        ctx.fill(left + BORDER_W, top + BORDER_W, right - BORDER_W, bottom - BORDER_W, cBg)
+        TerminalOverlayRenderer.draw(type, ctx, screen, gridOffX, gridOffY, gridRows)
+    }
+
+    private fun handleMouse(lmx: Int, lmy: Int, screen: ContainerScreen, type: TerminalType) {
         val leftDown = GLFW.glfwGetMouseButton(mc.window.handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS
         val rightDown = GLFW.glfwGetMouseButton(mc.window.handle(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS
         val leftReleased = mouseWasDown && !leftDown
         val rightReleased = rightMouseWasDown && !rightDown
-
-        if (AutoTerminals.enabled || (!leftReleased && !rightReleased)) {
-            mouseWasDown = leftDown
-            rightMouseWasDown = rightDown
-            return
-        }
-
-        val cx = if (lmx >= gridOffX) (lmx - gridOffX) / STRIDE else -1
-        val cy = if (lmy >= gridOffY) (lmy - gridOffY) / STRIDE else -1
-
-        if (cx in 0 until gridCols && cy in 0 until gridRows) {
-            val slot = compactToSlot(type, cx, cy)
-            val syncId = screen.menu.containerId
-
-            if (type == Terminal.RUBIX) {
-                val idx = TerminalUtils.RUBIX_SLOTS.indexOf(slot)
-                if (idx != -1) {
-                    val solution = RubixTerminal.getFullSolution(screen)
-                    if (solution != null) {
-                        val clicks = solution[idx]
-                        val button = when {
-                            leftReleased && clicks > 0 -> 0
-                            rightReleased && clicks < 0 -> 1
-                            leftReleased && clicks < 0 -> 1
-                            rightReleased && clicks > 0 -> 0
-                            else -> -1
-                        }
-                        if (button >= 0) {
-                            val player = mc.player ?: return
-                            mc.gameMode?.handleContainerInput(syncId, slot, button, ContainerInput.PICKUP, player)
-                        }
-                    }
-                }
-            } else {
-                val player = mc.player ?: return
-                mc.gameMode?.handleContainerInput(syncId, slot, 2, ContainerInput.CLONE, player)
-            }
-        }
-
         mouseWasDown = leftDown
         rightMouseWasDown = rightDown
+        if (AutoTerminals.enabled || (!leftReleased && !rightReleased)) return
+        val cx = if (lmx >= gridOffX) (lmx - gridOffX) / STRIDE else -1
+        val cy = if (lmy >= gridOffY) (lmy - gridOffY) / STRIDE else -1
+        if (cx !in 0 until gridCols || cy !in 0 until gridRows) return
+        val slot = TerminalOverlayLayout.compactToSlot(type, cx, cy)
+        val player = mc.player ?: return
+        if (type == TerminalType.RUBIX) clickRubix(screen, slot, leftReleased, rightReleased, player)
+        else mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, 2, ContainerInput.CLONE, player)
     }
 
-    private fun drawNumbers(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val handler = screen.menu
-        val slots = TerminalUtils.NUMBERS_SLOTS
-
-        val solution = slots.filter { s ->
-            val st = handler.slots[s].item
-            !st.isEmpty && !TerminalUtils.isTerminalItemDone(st) && st.item == Items.STAINED_GLASS_PANE.red()
-        }.sortedBy { handler.slots[it].item.count }
-
-        val colors = intArrayOf(cNum1, cNum2, cNum3)
-        for ((rank, slot) in solution.withIndex()) {
-            if (rank >= NUM_HIGHLIGHT_COUNT) break
-            val (cx, cy) = slotToCompact(Terminal.NUMBERS, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            ctx.fill(x, y, x + CELL, y + CELL, colors[rank])
+    private fun clickRubix(screen: ContainerScreen, slot: Int, leftReleased: Boolean, rightReleased: Boolean, player: net.minecraft.client.player.LocalPlayer) {
+        val index = TerminalUtils.RUBIX_SLOTS.indexOf(slot)
+        val clicks = RubixTerminal.getFullSolution(screen)?.getOrNull(index) ?: return
+        val button = when {
+            leftReleased && clicks > 0 || rightReleased && clicks < 0 -> 0
+            leftReleased && clicks < 0 || rightReleased && clicks > 0 -> 1
+            else -> -1
         }
-
-        val fullOrder = slots.filter { !handler.slots[it].item.isEmpty }
-            .sortedBy { handler.slots[it].item.count }
-        for (slot in fullOrder) {
-            val stack = handler.slots[slot].item
-            val (cx, cy) = slotToCompact(Terminal.NUMBERS, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            val num = "${stack.count}"
-            val tw = mc.font.width(num)
-            ctx.text(mc.font, num, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
-        }
+        if (button >= 0) mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, button, ContainerInput.PICKUP, player)
     }
 
-    private fun drawColors(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val handler = screen.menu
-        val stripped = ChatFormatting.stripFormatting(screen.title.string) ?: return
-        val color = Regex("Select all the ([\\w ]+) items!").find(stripped)
-            ?.groupValues?.get(1)?.lowercase()?.trim() ?: return
-
-        for (slot in TerminalUtils.COLORS_SLOTS) {
-            val stack = handler.slots[slot].item
-            if (stack.isEmpty || TerminalUtils.isTerminalItemDone(stack)) continue
-            val name = TerminalUtils.normalizeItemName(ChatFormatting.stripFormatting(stack.hoverName.string)?.lowercase()?.trim() ?: "")
-            if (!name.startsWith(color)) continue
-            val (cx, cy) = slotToCompact(Terminal.COLORS, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            ctx.fill(x, y, x + CELL, y + CELL, cSolution)
-        }
+    private fun detect(title: String): TerminalType? = when {
+        title.contains("Click in order!") -> TerminalType.NUMBERS
+        COLORS_REGEX.containsMatchIn(net.minecraft.ChatFormatting.stripFormatting(title) ?: "") -> TerminalType.COLORS
+        STARTS_WITH_REGEX.containsMatchIn(net.minecraft.ChatFormatting.stripFormatting(title) ?: "") -> TerminalType.STARTS_WITH
+        title.contains("Correct all the panes!") -> TerminalType.RED_GREEN
+        title.contains("Change all to same color!") -> TerminalType.RUBIX
+        title.contains("Click the button on time!") -> TerminalType.MELODY
+        else -> null
     }
 
-    private fun drawStartsWith(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val handler = screen.menu
-        val stripped = ChatFormatting.stripFormatting(screen.title.string) ?: return
-        val letter = Regex("What starts with: \\W(\\w)\\W").find(stripped)
-            ?.groupValues?.get(1)?.lowercase() ?: return
-
-        for (slot in TerminalUtils.STARTS_WITH_SLOTS) {
-            val stack = handler.slots[slot].item
-            if (stack.isEmpty || TerminalUtils.isTerminalItemDone(stack)) continue
-            val name = ChatFormatting.stripFormatting(stack.hoverName.string)?.trim()?.lowercase() ?: ""
-            if (name.isEmpty() || !name.startsWith(letter)) continue
-            val (cx, cy) = slotToCompact(Terminal.STARTS_WITH, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            ctx.fill(x, y, x + CELL, y + CELL, cSolution)
-        }
-    }
-
-    private fun drawRedGreen(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val handler = screen.menu
-        for (slot in TerminalUtils.RED_GREEN_SLOTS) {
-            if (handler.slots[slot].item.item != Items.STAINED_GLASS_PANE.red()) continue
-            val (cx, cy) = slotToCompact(Terminal.RED_GREEN, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            ctx.fill(x, y, x + CELL, y + CELL, cSolution)
-        }
-    }
-
-    private fun drawRubix(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val solution = RubixTerminal.getFullSolution(screen) ?: return
-
-        for ((idx, slot) in TerminalUtils.RUBIX_SLOTS.withIndex()) {
-            val clicks = solution[idx]
-            if (clicks == 0) continue
-            val (cx, cy) = slotToCompact(Terminal.RUBIX, slot) ?: continue
-            val (x, y) = compactPos(cx, cy)
-            ctx.fill(x, y, x + CELL, y + CELL, if (clicks > 0) cRubixL else cRubixR)
-            val text = "$clicks"
-            val tw = mc.font.width(text)
-            ctx.text(mc.font, text, x + (CELL - tw) / 2, y + (CELL - mc.font.lineHeight) / 2, cTxtMain, true)
-        }
-    }
-
-    private fun drawMelody(ctx: GuiGraphicsExtractor, screen: ContainerScreen) {
-        val handler = screen.menu
-        val containerSlots = handler.slots.size - PLAYER_INV_SLOTS
-
-        val targetChestCol = (MELODY_LANE_START..MELODY_LANE_END).firstOrNull {
-            handler.slots[it].item.item == Items.STAINED_GLASS_PANE.magenta()
-        } ?: -1
-        val targetCompact = if (targetChestCol in MELODY_LANE_START..MELODY_LANE_END) targetChestCol - MELODY_LANE_START else -1
-
-        var correctBtnRow = -1
-        var currentPaneSlot = -1
-
-        if (targetChestCol >= 0) {
-            for (slot in CHEST_ROW_WIDTH until containerSlots) {
-                if (handler.slots[slot].item.item == Items.STAINED_GLASS_PANE.lime()) {
-                    val col = slot % CHEST_ROW_WIDTH
-                    if (col == targetChestCol) {
-                        correctBtnRow = slot / CHEST_ROW_WIDTH
-                    }
-                    currentPaneSlot = slot
-                }
-            }
-        }
-
-        val laneRange = 0..(MELODY_LANE_END - MELODY_LANE_START)
-
-        if (targetCompact in laneRange) {
-            val (ix, iy) = compactPos(targetCompact, 0)
-            ctx.fill(ix, iy, ix + CELL, iy + CELL, cMelodyIndicator)
-        }
-
-        if (targetCompact in laneRange) {
-            val (hx, _) = compactPos(targetCompact, MELODY_ROW_START)
-            val (_, topY) = compactPos(0, MELODY_ROW_START)
-            val bottomY = gridOffY + gridRows * STRIDE - BG_PAD
-            ctx.fill(hx, topY, hx + CELL, bottomY, cMelodyCol)
-        }
-
-        for (row in MELODY_ROW_START..MELODY_ROW_END) {
-            val (bx, by) = compactPos(MELODY_BTN_COMPACT_COL, row)
-            ctx.fill(bx, by, bx + CELL, by + CELL, if (row == correctBtnRow) cMelodyBtnOn else cMelodyBtnOff)
-        }
-
-        if (currentPaneSlot >= 0) {
-            val paneChestCol = currentPaneSlot % CHEST_ROW_WIDTH
-            val paneRow = currentPaneSlot / CHEST_ROW_WIDTH
-            val paneCompact = paneChestCol - MELODY_LANE_START
-            if (paneCompact in laneRange && paneRow in MELODY_ROW_START..MELODY_ROW_END) {
-                val (px, py) = compactPos(paneCompact, paneRow)
-                ctx.fill(px, py, px + CELL, py + CELL, cMelodyPane)
-            }
-        }
-    }
+    private val COLORS_REGEX = Regex("Select all the [\\w ]+ items!")
+    private val STARTS_WITH_REGEX = Regex("What starts with: \\W\\w\\W")
 }

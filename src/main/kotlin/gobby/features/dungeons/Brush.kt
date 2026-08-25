@@ -1,8 +1,5 @@
 package gobby.features.dungeons
 
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonObject
-import com.google.gson.reflect.TypeToken
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.BlockStateChangeEvent
 import gobby.events.ClientTickEvent
@@ -21,20 +18,12 @@ import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRealCoords
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
-import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.Blocks
-import net.minecraft.world.level.block.SlabBlock
-import net.minecraft.world.level.block.StairBlock
-import net.minecraft.world.level.block.state.properties.Half
-import net.minecraft.world.level.block.state.properties.SlabType
-import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.Identifier as ResourceLocation
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
-import net.minecraft.util.RandomSource
+import net.minecraft.world.level.block.state.BlockState
 import java.io.File
 
 object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and lets you place or remove them", Category.DUNGEONS) {
@@ -45,11 +34,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     private var wasInBoss = false
     private var wasInGui = false
 
-    private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val dataType = object : TypeToken<MutableMap<String, MutableMap<String, MutableList<String>>>>() {}.type
-
     private val favoritesFile = File("./config/gobbyclientFabric/favorites.json")
-    private val favoritesSetType = object : TypeToken<MutableSet<String>>() {}.type
     var favoriteBlocks: MutableSet<String> = mutableSetOf()
         private set
     var showFavoritesOnOpen = false
@@ -69,42 +54,14 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     )
 
     init {
-        loadFromFile(configFile, "brush") { brushData = it }
-        loadFromFile(bossConfigFile, "boss brush") { bossData = it }
-        loadFavorites()
+        brushData = BrushPersistence.loadData(configFile, "brush")
+        bossData = BrushPersistence.loadData(bossConfigFile, "boss brush")
+        val favorites = BrushPersistence.loadFavorites(favoritesFile)
+        favoriteBlocks = favorites.first
+        showFavoritesOnOpen = favorites.second
     }
 
     private fun coordStr(pos: BlockPos): String = "${pos.x}, ${pos.y}, ${pos.z}"
-
-    private fun coordPart(encoded: String): String = encoded.substringBefore("|")
-
-    private fun parseCoord(str: String): BlockPos {
-        val parts = coordPart(str).split(",").map { it.trim().toInt() }
-        return BlockPos(parts[0], parts[1], parts[2])
-    }
-
-    private fun encodeCoord(coord: String, state: BlockState): String = when (state.block) {
-        is StairBlock -> "$coord|facing=${state.getValue(StairBlock.FACING).serializedName},half=${state.getValue(StairBlock.HALF).serializedName}"
-        is SlabBlock -> "$coord|type=${state.getValue(SlabBlock.TYPE).serializedName}"
-        else -> coord
-    }
-
-    private fun decodeState(blockId: String, encoded: String): BlockState {
-        val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
-        var state = block.defaultBlockState()
-        val pipeIdx = encoded.indexOf('|')
-        if (pipeIdx == -1) return state
-
-        for (prop in encoded.substring(pipeIdx + 1).split(",")) {
-            val (key, value) = prop.split("=", limit = 2)
-            when (key) {
-                "facing" -> if (block is StairBlock) state = state.setValue(StairBlock.FACING, Direction.valueOf(value.uppercase()))
-                "half" -> if (block is StairBlock) state = state.setValue(StairBlock.HALF, Half.valueOf(value.uppercase()))
-                "type" -> if (block is SlabBlock) state = state.setValue(SlabBlock.TYPE, SlabType.valueOf(value.uppercase()))
-            }
-        }
-        return state
-    }
 
     private fun getTargetedBlock(): BlockHitResult? {
         val hit = mc.hitResult
@@ -113,32 +70,9 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     }
 
     private fun removeCoord(blocks: MutableMap<String, MutableList<String>>, coord: String): Boolean {
-        val removed = blocks.values.any { it.removeIf { entry -> coordPart(entry) == coord } }
+        val removed = blocks.values.any { it.removeIf { entry -> BrushWorldOperations.coordinatePart(entry) == coord } }
         if (removed) blocks.values.removeIf { it.isEmpty() }
         return removed
-    }
-
-    private fun saveOriginalState(pos: BlockPos, world: ClientLevel) {
-        originalStates.putIfAbsent(pos, world.getBlockState(pos))
-    }
-
-    private fun computePlacementState(defaultState: BlockState, hitResult: BlockHitResult): BlockState {
-        val player = mc.player ?: return defaultState
-        val hitY = hitResult.location.y - hitResult.blockPos.y.toDouble()
-        val isUpper = when (hitResult.direction) {
-            Direction.UP -> false
-            Direction.DOWN -> true
-            else -> hitY > 0.5
-        }
-
-        return when (defaultState.block) {
-            is StairBlock -> defaultState
-                .setValue(StairBlock.FACING, player.direction)
-                .setValue(StairBlock.HALF, if (isUpper) Half.TOP else Half.BOTTOM)
-            is SlabBlock -> defaultState
-                .setValue(SlabBlock.TYPE, if (isUpper) SlabType.TOP else SlabType.BOTTOM)
-            else -> defaultState
-        }
     }
 
     /**
@@ -147,6 +81,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
      * In room mode, coordinates are relative to the room and data is keyed by room name.
      * When [writable] is true, missing map entries are created; otherwise returns null.
      */
+
     private fun resolveContext(pos: BlockPos, writable: Boolean = true): BrushContext? {
         if (inBoss) {
             val key = dungeonFloor.toString()
@@ -159,103 +94,19 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         return BrushContext(coordStr(room.getRelativeCoords(pos)), blocks, ::save)
     }
 
-    private fun loadFromFile(
-        file: File,
-        label: String,
-        assign: (MutableMap<String, MutableMap<String, MutableList<String>>>) -> Unit
-    ) {
-        if (!file.exists()) return
-        try {
-            assign(gson.fromJson(file.readText(), dataType) ?: mutableMapOf())
-        } catch (e: Exception) {
-            println("[GobbyClient] Failed to load $label data: ${e.message}")
-            assign(mutableMapOf())
-        }
-    }
-
-    private fun saveToFile(
-        file: File,
-        label: String,
-        data: MutableMap<String, MutableMap<String, MutableList<String>>>
-    ) {
-        try {
-            file.parentFile.mkdirs()
-            file.writeText(gson.toJson(data))
-        } catch (e: Exception) {
-            println("[GobbyClient] Failed to save $label data: ${e.message}")
-        }
-    }
-
     fun toggleFavorite(blockId: String): Boolean {
-        val added = if (blockId in favoriteBlocks) { favoriteBlocks.remove(blockId); false }
+        val added = if (blockId in favoriteBlocks) { favoriteBlocks.remove(blockId)
+        false }
                     else { favoriteBlocks.add(blockId); true }
-        saveFavorites()
+        BrushPersistence.saveFavorites(favoritesFile, favoriteBlocks, showFavoritesOnOpen)
         return added
     }
 
     fun isFavorite(blockId: String): Boolean = blockId in favoriteBlocks
 
-    private fun loadFavorites() {
-        if (!favoritesFile.exists()) return
-        try {
-            val json = gson.fromJson(favoritesFile.readText(), JsonObject::class.java)
-            favoriteBlocks = gson.fromJson(json.getAsJsonArray("blocks"), favoritesSetType) ?: mutableSetOf()
-            showFavoritesOnOpen = json.get("showFavorites")?.asBoolean ?: false
-        } catch (e: Exception) {
-            println("[GobbyClient] Failed to load favorites: ${e.message}")
-            favoriteBlocks = mutableSetOf()
-        }
-    }
+    private fun save() = BrushPersistence.saveData(configFile, "brush", brushData)
 
-    private fun saveFavorites() {
-        try {
-            favoritesFile.parentFile.mkdirs()
-            val json = JsonObject()
-            json.add("blocks", gson.toJsonTree(favoriteBlocks))
-            json.addProperty("showFavorites", showFavoritesOnOpen)
-            favoritesFile.writeText(gson.toJson(json))
-        } catch (e: Exception) {
-            println("[GobbyClient] Failed to save favorites: ${e.message}")
-        }
-    }
-
-    private fun save() = saveToFile(configFile, "brush", brushData)
-
-    private fun saveBoss() = saveToFile(bossConfigFile, "boss brush", bossData)
-
-    private fun applyBlockData(
-        world: ClientLevel,
-        blockMap: Map<String, List<String>>,
-        posMapper: (BlockPos) -> BlockPos = { it }
-    ) {
-        val stairPositions = mutableListOf<BlockPos>()
-        for ((blockId, coords) in blockMap) {
-            val block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(blockId))
-            for (encoded in coords) {
-                val pos = posMapper(parseCoord(encoded))
-                val state = decodeState(blockId, encoded)
-                val oldState = world.getBlockState(pos)
-                saveOriginalState(pos, world)
-                world.setBlock(pos, state, 3)
-                world.sendBlockUpdated(pos, oldState, state, 3)
-                if (block is StairBlock) stairPositions.add(pos)
-            }
-        }
-
-        val random = RandomSource.create()
-        for (pos in stairPositions) {
-            var state = world.getBlockState(pos)
-            for (dir in Direction.entries) {
-                val neighborPos = pos.relative(dir)
-                state = state.updateShape(world, world, pos, dir, neighborPos, world.getBlockState(neighborPos), random)
-            }
-            val current = world.getBlockState(pos)
-            if (state != current) {
-                world.setBlock(pos, state, 3)
-                world.sendBlockUpdated(pos, current, state, 3)
-            }
-        }
-    }
+    private fun saveBoss() = BrushPersistence.saveData(bossConfigFile, "boss brush", bossData)
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
@@ -275,7 +126,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         wasInGui = inGui
 
         if (enabled && inDungeons && inBoss && !wasInBoss) {
-            mc.level?.let { world -> bossData[dungeonFloor.toString()]?.let { applyBlockData(world, it) } }
+            mc.level?.let { world -> bossData[dungeonFloor.toString()]?.let { BrushWorldOperations.applyBlockData(world, it, originalStates) } }
         }
         wasInBoss = inDungeons && inBoss
 
@@ -306,9 +157,9 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         val ctx = resolveContext(placePos) ?: return
 
         removeCoord(ctx.blocks, ctx.coord)
-        saveOriginalState(placePos, world)
-        val state = computePlacementState(selectedBlock.defaultBlockState(), hitResult)
-        val encodedCoord = encodeCoord(ctx.coord, state)
+        BrushWorldOperations.rememberOriginalState(world, originalStates, placePos)
+        val state = BrushWorldOperations.computePlacementState(selectedBlock.defaultBlockState(), hitResult)
+        val encodedCoord = BrushWorldOperations.encodeCoordinate(ctx.coord, state)
         ctx.blocks.getOrPut(blockId) { mutableListOf() }.add(encodedCoord)
         world.setBlock(placePos, state, 3)
         ctx.save()
@@ -336,7 +187,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
             val currentState = world.getBlockState(pos)
             if (currentState.isAir) return
             ctx.blocks.getOrPut("minecraft:air") { mutableListOf() }.add(ctx.coord)
-            saveOriginalState(pos, world)
+            BrushWorldOperations.rememberOriginalState(world, originalStates, pos)
             world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3)
             world.sendBlockUpdated(pos, currentState, Blocks.AIR.defaultBlockState(), 3)
         }
@@ -350,7 +201,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         if (!enabled || !inDungeons) return
 
         val ctx = resolveContext(event.blockPos, writable = false) ?: return
-        val isTracked = ctx.blocks.values.any { it.any { entry -> coordPart(entry) == ctx.coord } }
+        val isTracked = ctx.blocks.values.any { it.any { entry -> BrushWorldOperations.coordinatePart(entry) == ctx.coord } }
         if (isTracked) event.cancel()
     }
 
@@ -360,7 +211,7 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
         val room = event.room ?: return
         val world = mc.level ?: return
         val roomBlocks = brushData[room.data.name] ?: return
-        applyBlockData(world, roomBlocks) { room.getRealCoords(it) }
+        BrushWorldOperations.applyBlockData(world, roomBlocks, originalStates) { room.getRealCoords(it) }
     }
 
     @SubscribeEvent
@@ -372,10 +223,10 @@ object Brush : Module("Brush", "Applies your saved blocks to dungeon rooms and l
     private fun applyCurrentRoom() {
         val world = mc.level ?: return
         if (inBoss) {
-            bossData[dungeonFloor.toString()]?.let { applyBlockData(world, it) }
+            bossData[dungeonFloor.toString()]?.let { BrushWorldOperations.applyBlockData(world, it, originalStates) }
         } else {
             val room = ScanUtils.currentRoom ?: return
-            brushData[room.data.name]?.let { applyBlockData(world, it) { pos -> room.getRealCoords(pos) } }
+            brushData[room.data.name]?.let { BrushWorldOperations.applyBlockData(world, it, originalStates) { pos -> room.getRealCoords(pos) } }
         }
     }
 

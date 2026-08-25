@@ -26,6 +26,7 @@ import java.awt.Color
  * @author coltonk9043 (https://github.com/coltonk9043)
  * License: https://github.com/coltonk9043/Aoba-Client/blob/master/LICENSE
  */
+
 object Render3D {
 
     private val OPAQUE_ALPHA = 0xFF shl 24
@@ -44,63 +45,54 @@ object Render3D {
         val renderer = mc.entityRenderDispatcher.getRenderer(entity) ?: return
 
         @Suppress("UNCHECKED_CAST")
-        val leRenderer = renderer as LivingEntityRenderer<LivingEntity, LivingEntityRenderState, EntityModel<LivingEntityRenderState>>
-
-        matrixStack.pushPose()
-
-        val model = leRenderer.model
-        val renderState = leRenderer.createRenderState(entity, partialTicks)
+        val livingRenderer = renderer as LivingEntityRenderer<LivingEntity, LivingEntityRenderState, EntityModel<LivingEntityRenderState>>
+        val renderState = livingRenderer.createRenderState(entity, partialTicks)
         renderState.isBaby = entity.isBaby
-        model.setupAnim(renderState)
-        val sleepDirection = entity.bedOrientation
-        val leAccessor = leRenderer as LivingEntityRendererAccessor
-
-        val interpolatedPos = getEntityPositionInterpolated(entity, partialTicks)
-            .add(leRenderer.getRenderOffset(renderState))
-            .subtract(camera.cameraPos)
-        matrixStack.translate(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z)
-
-        if (entity.hasPose(Pose.SLEEPING) && sleepDirection != null) {
-            val sleepingEyeHeight = entity.getEyeHeight(Pose.STANDING) - 0.1f
-            matrixStack.translate(
-                -sleepDirection.stepX * sleepingEyeHeight,
-                0.0f,
-                -sleepDirection.stepZ * sleepingEyeHeight
-            )
-        }
-
-        val entityScale = renderState.scale
-        matrixStack.scale(entityScale, entityScale, entityScale)
-        leAccessor.`gobbyclient$invokeSetupRotations`(renderState, matrixStack, renderState.bodyRot, entityScale)
-        matrixStack.scale(-1.0f, -1.0f, 1.0f)
-        leAccessor.`gobbyclient$invokeScale`(renderState, matrixStack)
-        matrixStack.translate(0.0f, -1.501f, 0.0f)
-
-        val solidFill = color.rgb or OPAQUE_ALPHA
-        collector.submitModel(
-            model,
-            renderState,
-            matrixStack,
-            ItemBlockRenderTypes.ESP_QUADS,
-            BAKED_LIGHT_IGNORED,
-            OverlayTexture.NO_OVERLAY,
-            solidFill,
-            null,
-            EntityRenderState.NO_OUTLINE,
-            null
-        )
-
-        if (renderArmor && renderState is HumanoidRenderState) {
-            armorLayerOf(leRenderer)?.submit(
-                matrixStack,
-                TintingSubmitCollector(collector, solidFill),
-                BAKED_LIGHT_IGNORED,
-                renderState,
-                renderState.yRot,
-                renderState.xRot
-            )
-        }
+        matrixStack.pushPose()
+        prepareEntityModel(matrixStack, camera, entity, livingRenderer, renderState, partialTicks)
+        submitEntityModel(matrixStack, collector, livingRenderer, renderState, color, renderArmor)
         matrixStack.popPose()
+    }
+
+    private fun prepareEntityModel(
+        matrixStack: PoseStack,
+        camera: Camera,
+        entity: LivingEntity,
+        renderer: LivingEntityRenderer<LivingEntity, LivingEntityRenderState, EntityModel<LivingEntityRenderState>>,
+        renderState: LivingEntityRenderState,
+        partialTicks: Float
+    ) {
+        val model = renderer.model
+        model.setupAnim(renderState)
+        val sleepingDirection = entity.bedOrientation
+        val accessor = renderer as LivingEntityRendererAccessor
+        val position = getEntityPositionInterpolated(entity, partialTicks).add(renderer.getRenderOffset(renderState)).subtract(camera.cameraPos)
+        matrixStack.translate(position.x, position.y, position.z)
+        if (entity.hasPose(Pose.SLEEPING) && sleepingDirection != null) {
+            val eyeHeight = entity.getEyeHeight(Pose.STANDING) - 0.1f
+            matrixStack.translate(-sleepingDirection.stepX * eyeHeight, 0.0f, -sleepingDirection.stepZ * eyeHeight)
+        }
+        val scale = renderState.scale
+        matrixStack.scale(scale, scale, scale)
+        accessor.`gobbyclient$invokeSetupRotations`(renderState, matrixStack, renderState.bodyRot, scale)
+        matrixStack.scale(-1.0f, -1.0f, 1.0f)
+        accessor.`gobbyclient$invokeScale`(renderState, matrixStack)
+        matrixStack.translate(0.0f, -1.501f, 0.0f)
+    }
+
+    private fun submitEntityModel(
+        matrixStack: PoseStack,
+        collector: SubmitNodeCollector,
+        renderer: LivingEntityRenderer<LivingEntity, LivingEntityRenderState, EntityModel<LivingEntityRenderState>>,
+        renderState: LivingEntityRenderState,
+        color: Color,
+        renderArmor: Boolean
+    ) {
+        val solidFill = color.rgb or OPAQUE_ALPHA
+        collector.submitModel(renderer.model, renderState, matrixStack, ItemBlockRenderTypes.ESP_QUADS, BAKED_LIGHT_IGNORED, OverlayTexture.NO_OVERLAY, solidFill, null, EntityRenderState.NO_OUTLINE, null)
+        if (renderArmor && renderState is HumanoidRenderState) {
+            armorLayerOf(renderer)?.submit(matrixStack, TintingSubmitCollector(collector, solidFill), BAKED_LIGHT_IGNORED, renderState, renderState.yRot, renderState.xRot)
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -116,3 +108,4 @@ object Render3D {
         )
     }
 }
+

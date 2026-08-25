@@ -14,6 +14,7 @@ private const val TRANSMISSION_RANGE = 12.0
 private const val ETHERWARP_STAND_OFFSET = 1.05
 private const val TRANSMISSION_STAND_OFFSET = 0.0
 private const val AIR_LANDING_PENALTY = 50.0
+private const val BASE_HOP_COST = 1.0
 
 enum class EtherwarpKind(
     val sneak: Boolean,
@@ -31,8 +32,9 @@ enum class EtherwarpKind(
 
         override fun resolveAim(eye: Vec3, hit: BlockPos, range: Double, rayYaw: Float, rayPitch: Float): Aim = Aim(rayYaw, rayPitch)
 
-        override fun aimAt(eye: Vec3, target: BlockPos, range: Double, cached: Boolean, snapshot: BlockCache.SnapshotView?): Aim? =
-            EtherwarpUtils.quickAim(target, eye, range, cached = cached, snapshot = snapshot)?.let { Aim(it.first, it.second) }
+        override fun aimAt(eye: Vec3, target: BlockPos, range: Double, cached: Boolean, snapshot: BlockCache.SnapshotView?): Aim? {
+            return EtherwarpUtils.quickAim(target, eye, range, cached = cached, snapshot = snapshot)?.let { Aim(it.first, it.second) }
+        }
     },
     TRANSMISSION(false, TRANSMISSION_RANGE, TRANSMISSION_STAND_OFFSET) {
         override fun hit(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, goal: BlockPos, access: EtherwarpWorldAccess): BlockPos? =
@@ -53,11 +55,16 @@ enum class EtherwarpKind(
 
     open fun landingCost(hit: BlockPos): Double = 0.0
 
+    fun hopCost(hit: BlockPos): Double = BASE_HOP_COST + landingCost(hit)
+
     open fun goal(to: BlockPos): BlockPos = to
 
     fun eyeHeight(): Double = PlayerUtils.getEyeHeight(sneak)
 
     fun landingY(hitY: Int): Double = hitY + standOffset
+
+    fun standingBlock(position: Vec3): BlockPos =
+        BlockPos.containing(position.x, position.y - standOffset, position.z)
 
     fun direction(from: Vec3, to: BlockPos, range: Double, snapshot: BlockCache.SnapshotView? = null): Aim? =
         EtherwarpRaycaster.aim(from, to, range, this, snapshot)

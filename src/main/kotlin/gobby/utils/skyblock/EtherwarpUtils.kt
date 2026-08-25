@@ -2,6 +2,7 @@ package gobby.utils.skyblock
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.pathfinder.world.BlockCache
+import gobby.pathfinder.world.SnapshotCursor
 import gobby.pathfinder.world.VoxelRay
 import gobby.utils.PlayerUtils
 import gobby.utils.getEtherTransmissionRange
@@ -19,6 +20,7 @@ import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 object EtherwarpUtils {
 
@@ -31,7 +33,7 @@ object EtherwarpUtils {
         Blocks.PRISMARINE_WALL
     )
 
-    private val AIM_OFFSETS = listOf(
+    private val AIM_OFFSETS = arrayOf(
         Triple(0.5, 0.5, 0.5),
         Triple(0.5, 0.95, 0.5),
         Triple(0.5, 0.5, 0.05), Triple(0.5, 0.5, 0.95),
@@ -53,12 +55,28 @@ object EtherwarpUtils {
 
     fun aimForBlock(target: BlockPos, eye: Vec3, range: Double, access: EtherwarpWorldAccess): Pair<Float, Float>? {
         if (range <= 0.0) return null
-        val hits = AIM_OFFSETS.filter { (ox, oy, oz) -> rayReaches(eye, Vec3(target.x + ox, target.y + oy, target.z + oz), target, range, access) }
-        if (hits.isEmpty()) return topFaceAim(target, eye, range, access)
-        val centroid = Vec3(target.x + hits.sumOf { it.first } / hits.size, target.y + hits.sumOf { it.second } / hits.size, target.z + hits.sumOf { it.third } / hits.size)
-        val aimPoint = if (rayReaches(eye, centroid, target, range, access)) centroid
-            else hits.first().let { Vec3(target.x + it.first, target.y + it.second, target.z + it.third) }
-        return calcAimAnglesBetween(eye, aimPoint)
+        var hitCount = 0
+        var sumX = 0.0
+        var sumY = 0.0
+        var sumZ = 0.0
+        var firstHit: Triple<Double, Double, Double>? = null
+        var index = 0
+        while (index < AIM_OFFSETS.size) {
+            val offset = AIM_OFFSETS[index]
+            if (rayReaches(eye, target, offset.first, offset.second, offset.third, range, access)) {
+                firstHit = firstHit ?: offset
+                hitCount++
+                sumX += offset.first
+                sumY += offset.second
+                sumZ += offset.third
+            }
+            index++
+        }
+        if (hitCount == 0) return topFaceAim(target, eye, range, access)
+        val centroid = Vec3(target.x + sumX / hitCount, target.y + sumY / hitCount, target.z + sumZ / hitCount)
+        aimAtPoint(eye, centroid, target, range, access)?.let { return it }
+        val fallback = firstHit ?: return null
+        return aimAtPoint(eye, Vec3(target.x + fallback.first, target.y + fallback.second, target.z + fallback.third), target, range, access)
     }
 
     fun quickAim(target: BlockPos, eye: Vec3, range: Double, cached: Boolean = false, snapshot: BlockCache.SnapshotView? = null): Pair<Float, Float>? {
@@ -69,17 +87,25 @@ object EtherwarpUtils {
     fun quickAim(target: BlockPos, eye: Vec3, range: Double, access: EtherwarpWorldAccess): Pair<Float, Float>? {
         if (range <= 0.0) return null
         topFaceAim(target, eye, range, access)?.let { return it }
-        return AIM_OFFSETS.firstNotNullOfOrNull { (ox, oy, oz) ->
-            val point = Vec3(target.x + ox, target.y + oy, target.z + oz)
-            if (rayReaches(eye, point, target, range, access)) calcAimAnglesBetween(eye, point) else null
+        var index = 0
+        while (index < AIM_OFFSETS.size) {
+            val (ox, oy, oz) = AIM_OFFSETS[index]
+            aimAtPoint(eye, Vec3(target.x + ox, target.y + oy, target.z + oz), target, range, access)?.let { return it }
+            index++
         }
+        return null
     }
 
     private fun topFaceAim(target: BlockPos, eye: Vec3, range: Double, access: EtherwarpWorldAccess): Pair<Float, Float>? {
         val topFace = target.y + 1.0
         if (eye.y <= topFace) return null
-        val point = Vec3(target.x + 0.5, topFace - TOP_FACE_EPSILON, target.z + 0.5)
-        return if (rayReaches(eye, point, target, range, access)) calcAimAnglesBetween(eye, point) else null
+        return aimAtPoint(eye, Vec3(target.x + 0.5, topFace - TOP_FACE_EPSILON, target.z + 0.5), target, range, access)
+    }
+
+    private fun aimAtPoint(eye: Vec3, point: Vec3, target: BlockPos, range: Double, access: EtherwarpWorldAccess): Pair<Float, Float>? {
+        if (!rayReaches(eye, point, target, range, access)) return null
+        val angles = calcAimAnglesBetween(eye, point)
+        return angles.takeIf { validateAim(eye, target, range, it, access) != EtherPos.NONE }
     }
 
     private fun rayReaches(eye: Vec3, point: Vec3, target: BlockPos, range: Double, access: EtherwarpWorldAccess): Boolean {
@@ -87,6 +113,24 @@ object EtherwarpUtils {
         val dist = dir.length()
         if (dist !in MIN_AIM_DISTANCE..range) return false
         val hit = etherwarpRaycast(eye, dir.scale(range / dist), access)
+        return hit.succeeded && hit.pos == target
+    }
+
+    private fun rayReaches(
+        eye: Vec3,
+        target: BlockPos,
+        offsetX: Double,
+        offsetY: Double,
+        offsetZ: Double,
+        range: Double,
+        access: EtherwarpWorldAccess
+    ): Boolean {
+        val dx = target.x + offsetX - eye.x
+        val dy = target.y + offsetY - eye.y
+        val dz = target.z + offsetZ - eye.z
+        val distance = sqrt(dx * dx + dy * dy + dz * dz)
+        if (distance !in MIN_AIM_DISTANCE..range) return false
+        val hit = etherwarpRaycast(eye, dx * range / distance, dy * range / distance, dz * range / distance, access)
         return hit.succeeded && hit.pos == target
     }
 
@@ -162,10 +206,10 @@ object EtherwarpUtils {
         raycast(eye, ray, true, access)
 
     fun etherwarpRaycast(eye: Vec3, rayX: Double, rayY: Double, rayZ: Double, access: EtherwarpWorldAccess): EtherPos =
-        traverseVoxels(eye, rayX, rayY, rayZ, true, access.minY, access.maxY, access.blockSource, access.collisionGetter)
+        traverseVoxels(eye, rayX, rayY, rayZ, true, access.minY, access.maxY, access.blockSource, access.coordinateSourceFactory, access.collisionGetter)
 
     private fun raycast(eye: Vec3, ray: Vec3, etherWarp: Boolean, access: EtherwarpWorldAccess): EtherPos =
-        traverseVoxels(eye, ray.x, ray.y, ray.z, etherWarp, access.minY, access.maxY, access.blockSource, access.collisionGetter)
+        traverseVoxels(eye, ray.x, ray.y, ray.z, etherWarp, access.minY, access.maxY, access.blockSource, access.coordinateSourceFactory, access.collisionGetter)
 
     fun validateAim(eye: Vec3, target: BlockPos, range: Double, aim: Pair<Float, Float>): EtherPos {
         val direction = directionFromAngles(aim.first, aim.second)
@@ -233,49 +277,63 @@ object EtherwarpUtils {
         minY: Int,
         maxY: Int,
         blockSource: (BlockPos) -> BlockState?,
+        coordinateSourceFactory: (() -> EtherwarpCoordinateSource)?,
         blockGetter: BlockGetter
     ): EtherPos {
 
         val ray = VoxelRay.threadLocal(start.x, start.y, start.z, rayX, rayY, rayZ)
-        val cursor = BlockPos.MutableBlockPos()
-        fun stateAt(bx: Int, by: Int, bz: Int): BlockState? {
-            cursor.set(bx, by, bz)
-            if (BlockCache.isPassableOverride(cursor)) return AIR
-            return blockSource(cursor)
-        }
+        val coordinateSource = coordinateSourceFactory?.invoke()
+        val cursor = if (coordinateSource == null) BlockPos.MutableBlockPos() else null
 
-        repeat(1000) {
-            val x = ray.x
-            val y = ray.y
-            val z = ray.z
-            if (y !in minY..<maxY) return EtherPos.NONE
-            val state = stateAt(x, y, z) ?: return EtherPos.NONE
-            val id = Block.getId(state)
-            val flags = blockFlags[id]
-            val isPassable = (flags and PASSABLE) != 0
-
-            if ((etherWarp && !isPassable) || (!etherWarp && id != 0)) {
-                val hit = BlockPos(x, y, z)
-                if (!etherWarp && isPassable) return EtherPos(false, hit, state)
-                val shape = state.getCollisionShape(blockGetter, hit)
-                if (shape.isEmpty) return EtherPos(false, hit, state)
-                if (flags hasFlag LANDING_BLACKLIST) return EtherPos(false, hit, state)
-                val collisionTop = shape.max(Direction.Axis.Y)
-                val clearanceBaseY = hit.y + max(1, ceil(collisionTop).toInt())
-                val feetState = stateAt(hit.x, clearanceBaseY, hit.z) ?: return EtherPos.NONE
-                val feetFlags = blockFlags[Block.getId(feetState)]
-                if (!isValidFeetSpot(feetFlags)) return EtherPos(false, hit, state)
-                val headState = stateAt(hit.x, clearanceBaseY + 1, hit.z) ?: return EtherPos.NONE
-                val headFlags = blockFlags[Block.getId(headState)]
-                if (!isValidHeadSpot(headFlags)) return EtherPos(false, hit, state)
-                return EtherPos(true, hit, state)
-            }
-
+        repeat(MAX_RAY_STEPS) {
+            inspectVoxel(ray.x, ray.y, ray.z, etherWarp, minY, maxY, blockSource, coordinateSource, cursor, blockGetter)?.let { return it }
             if (ray.atEnd) return EtherPos.NONE
             ray.advance()
         }
 
         return EtherPos.NONE
+    }
+
+    private fun inspectVoxel(
+        x: Int,
+        y: Int,
+        z: Int,
+        etherWarp: Boolean,
+        minY: Int,
+        maxY: Int,
+        blockSource: (BlockPos) -> BlockState?,
+        coordinateSource: EtherwarpCoordinateSource?,
+        cursor: BlockPos.MutableBlockPos?,
+        blockGetter: BlockGetter
+    ): EtherPos? {
+        if (y !in minY..<maxY) return EtherPos.NONE
+        val state = accessState(blockSource, coordinateSource, cursor, x, y, z) ?: return EtherPos.NONE
+        val id = Block.getId(state)
+        val flags = blockFlags[id]
+        val isPassable = (flags and PASSABLE) != 0
+        if (!(etherWarp && !isPassable) && (etherWarp || id == 0)) return null
+        val hit = BlockPos(x, y, z)
+        if (!etherWarp && isPassable) return EtherPos(false, hit, state)
+        val shape = state.getCollisionShape(blockGetter, hit)
+        if (shape.isEmpty || flags hasFlag LANDING_BLACKLIST) return EtherPos(false, hit, state)
+        val clearanceBaseY = hit.y + max(1, ceil(shape.max(Direction.Axis.Y)).toInt())
+        val feetState = accessState(blockSource, coordinateSource, cursor, hit.x, clearanceBaseY, hit.z) ?: return EtherPos.NONE
+        if (!isValidFeetSpot(blockFlags[Block.getId(feetState)])) return EtherPos(false, hit, state)
+        val headState = accessState(blockSource, coordinateSource, cursor, hit.x, clearanceBaseY + 1, hit.z) ?: return EtherPos.NONE
+        return if (isValidHeadSpot(blockFlags[Block.getId(headState)])) EtherPos(true, hit, state) else EtherPos(false, hit, state)
+    }
+
+    private fun accessState(
+        blockSource: (BlockPos) -> BlockState?,
+        coordinateSource: EtherwarpCoordinateSource?,
+        cursor: BlockPos.MutableBlockPos?,
+        x: Int,
+        y: Int,
+        z: Int
+    ): BlockState? = coordinateSource?.stateAt(x, y, z) ?: run {
+        val reusablePos = cursor ?: BlockPos.MutableBlockPos()
+        reusablePos.set(x, y, z)
+        blockSource(reusablePos)
     }
 
     private infix fun Int.hasFlag(bit: Int): Boolean = (this and bit) != 0
@@ -316,7 +374,7 @@ object EtherwarpUtils {
     private fun worldAccess(cached: Boolean, snapshot: BlockCache.SnapshotView?): EtherwarpWorldAccess? {
         if (cached) {
             val view = snapshot ?: BlockCache.freeze()
-            return EtherwarpWorldAccess(view.minY, view.maxY, view::stateAt)
+            return EtherwarpWorldAccess(view.minY, view.maxY, view::stateAt, coordinateSourceFactory = { SnapshotCursor.threadLocal(view) })
         }
         val world = mc.level ?: return null
         return EtherwarpWorldAccess(world.minY, world.maxY, { pos ->
@@ -333,6 +391,7 @@ object EtherwarpUtils {
     }
 
     private const val MIN_AIM_DISTANCE = 1e-4
+    private const val MAX_RAY_STEPS = 1000
     private const val TOP_FACE_EPSILON = 0.001
     private const val PASSABLE = 1
     private const val BLOCKS_FEET = 2
@@ -371,6 +430,7 @@ object EtherwarpUtils {
     )
 
     private val landingBlacklist: Set<Class<out Block>> = setOf(
+        CarpetBlock::class.java,
         EndPortalBlock::class.java,
     )
 

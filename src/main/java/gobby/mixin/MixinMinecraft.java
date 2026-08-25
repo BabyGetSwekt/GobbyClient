@@ -3,11 +3,11 @@ package gobby.mixin;
 import gobby.Gobbyclient;
 import gobby.events.*;
 import gobby.features.skyblock.FreeCam;
+import gobby.utils.rotation.ServerRotationLeaseManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,11 +21,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = Minecraft.class, priority = 1001)
 public abstract class MixinMinecraft {
 
+    @Unique
+    private static final long WORLD_LOAD_DEBOUNCE_MS = 300L;
 
     @Shadow public ClientLevel level;
 
     @Unique
-    private long gobbyclien$lastChecked = 0;
+    private long gobbyclient$lastWorldLoad = 0;
 
     /**
      * Injects before the tick happens (at HEAD), preTickEvent
@@ -33,6 +35,11 @@ public abstract class MixinMinecraft {
     @Inject(method = "tick", at = @At("HEAD"))
     private void gobbyclient$onPreTick(CallbackInfo ci) {
         Minecraft client = (Minecraft) (Object) this;
+        ServerRotationLeaseManager.INSTANCE.beginClientTick();
+        ServerRotationLeaseManager.INSTANCE.observeClientState(
+                client.level,
+                client.player != null && client.getConnection() != null
+        );
         if (client.player != null || client.level != null) {
             Gobbyclient.EVENT_MANAGER.publish(ClientTickEvent.Pre.INSTANCE);
         }
@@ -50,31 +57,29 @@ public abstract class MixinMinecraft {
     }
 
     @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V", at = @At("HEAD"))
-    private void gobbyclient$onDisconnect(Screen screen, boolean transferring, boolean savingWorld, CallbackInfo info) {
+    private void gobbyclient$onDisconnect(Screen screen, boolean keepResourcePacks, boolean stopSound, CallbackInfo info) {
         if (level != null) {
             Gobbyclient.EVENT_MANAGER.publish(new DisconnectEvent());
         }
     }
 
     @Inject(method = "setLevel", at = @At("HEAD"))
-    private void gobbyclient$onWorldLoad(ClientLevel world, CallbackInfo info) {
-        gobbyclient$handleWorldLoad(world);
+    private void gobbyclient$onWorldLoad(ClientLevel level, CallbackInfo info) {
+        gobbyclient$handleWorldLoad(level);
     }
 
     @Unique
-    private void gobbyclient$handleWorldLoad(ClientLevel world) {
-        if (world != null) {
-            long now = System.currentTimeMillis();
-            if (now - gobbyclien$lastChecked >= 300) {
-                System.out.println("World loaded");
-                Gobbyclient.EVENT_MANAGER.publish(new WorldLoadEvent());
-                gobbyclien$lastChecked = now;
-            }
-        }
+    private void gobbyclient$handleWorldLoad(ClientLevel loaded) {
+        if (loaded == null) return;
+        long now = System.currentTimeMillis();
+        if (now - gobbyclient$lastWorldLoad < WORLD_LOAD_DEBOUNCE_MS) return;
+        System.out.println("World loaded");
+        Gobbyclient.EVENT_MANAGER.publish(new WorldLoadEvent());
+        gobbyclient$lastWorldLoad = now;
     }
 
     @Inject(method = "pick(F)V", at = @At("RETURN"))
-    private void gobbyclient$freeCamCrosshair(float tickDelta, CallbackInfo ci) {
+    private void gobbyclient$freeCamCrosshair(float partialTicks, CallbackInfo ci) {
         if (!FreeCam.INSTANCE.getEnabled()) return;
         Minecraft client = (Minecraft) (Object) this;
         if (client.level == null || client.player == null) return;
@@ -98,14 +103,12 @@ public abstract class MixinMinecraft {
 
         Vec3 end = start.add(lookX * reach, lookY * reach, lookZ * reach);
 
-        BlockHitResult blockHit = client.level.clip(new ClipContext(
+        client.hitResult = client.level.clip(new ClipContext(
                 start, end,
                 ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE,
                 client.player
         ));
-
-        client.hitResult = blockHit;
     }
 
     @Inject(method = "startAttack()Z", at = @At("HEAD"), cancellable = true)
@@ -121,7 +124,7 @@ public abstract class MixinMinecraft {
     }
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
-    private void gobbyclient$onHandleBlockBreaking(boolean breaking, CallbackInfo ci) {
+    private void gobbyclient$onHandleBlockBreaking(boolean down, CallbackInfo ci) {
         if (FreeCam.INSTANCE.getEnabled()) ci.cancel();
     }
 }

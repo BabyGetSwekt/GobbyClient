@@ -18,7 +18,7 @@ object DevTestCommand {
     private fun setTask(name: String): LiteralArgumentBuilder<FabricClientCommandSource?> {
         return ClientCommands.literal(name)
             .executes {
-                val task = Executor.schedule(60) {
+                Executor.schedule(60) {
                     modMessage("Printing this shit after 3 seconds")
                 }
                 Command.SINGLE_SUCCESS
@@ -37,7 +37,6 @@ object DevTestCommand {
         return ClientCommands.literal(name)
             .executes {
                 coloredModMessage("Heya")
-                //updateTablist()
                 LocationUtils.updateScoreboard(mc)
                 val strings = LocationUtils.STRING_SCOREBOARD
                 val texts = LocationUtils.TEXT_SCOREBOARD

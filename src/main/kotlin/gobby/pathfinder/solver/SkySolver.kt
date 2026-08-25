@@ -58,36 +58,39 @@ object SkySolver {
             if (current.key == goalKey) return rebuild(current)
             if (manhattan(current.pos, from) > range) continue
 
-            var i = 0
-            while (i < neighbors.size) {
-                val dx = neighbors[i]; val dy = neighbors[i + 1]; val dz = neighbors[i + 2]
-                i += 3
-                val nextPos = current.pos.offset(dx, dy, dz)
-                val nextKey = Cells.pack(nextPos)
-                if (nextKey in closed) continue
-                if (!flightPassable(nextPos)) continue
-
-                val axes = (if (dx != 0) 1 else 0) + (if (dy != 0) 1 else 0) + (if (dz != 0) 1 else 0)
-                val moveCost = when (axes) {
-                    1 -> 1.0
-                    2 -> DIAG_2D
-                    else -> DIAG_3D
-                }
-                val tentativeG = current.gCost + moveCost
-
-                val prior = seen[nextKey]
-                if (prior == null) {
-                    val node = Node(nextKey, nextPos, current, tentativeG, tentativeG + octile(nextPos, to))
-                    seen[nextKey] = node
-                    open += node
-                } else if (tentativeG < prior.gCost) {
-                    val node = Node(nextKey, nextPos, current, tentativeG, tentativeG + octile(nextPos, to))
-                    seen[nextKey] = node
-                    open += node
-                }
-            }
+            expandNeighbors(current, to, neighbors, closed, seen, open)
         }
         return null
+    }
+
+    private fun expandNeighbors(current: Node, goal: BlockPos, neighbors: IntArray, closed: Set<Long>, seen: MutableMap<Long, Node>, open: PriorityQueue<Node>) {
+        var index = 0
+        while (index < neighbors.size) {
+            val dx = neighbors[index]
+            val dy = neighbors[index + 1]
+            val dz = neighbors[index + 2]
+            index += 3
+            val nextPos = current.pos.offset(dx, dy, dz)
+            val nextKey = Cells.pack(nextPos)
+            if (nextKey in closed || !flightPassable(nextPos)) continue
+            val moveCost = moveCost(dx, dy, dz)
+            val tentativeG = current.gCost + moveCost
+            val prior = seen[nextKey]
+            if (prior == null || tentativeG < prior.gCost) {
+                val node = Node(nextKey, nextPos, current, tentativeG, tentativeG + octile(nextPos, goal))
+                seen[nextKey] = node
+                open += node
+            }
+        }
+    }
+
+    private fun moveCost(dx: Int, dy: Int, dz: Int): Double {
+        val axes = (if (dx != 0) 1 else 0) + (if (dy != 0) 1 else 0) + (if (dz != 0) 1 else 0)
+        return when (axes) {
+            1 -> 1.0
+            2 -> DIAG_2D
+            else -> DIAG_3D
+        }
     }
 
     private fun rebuild(end: Node): List<BlockPos> {
@@ -115,21 +118,24 @@ object SkySolver {
         out += raw.first()
         var anchor = 0
         while (anchor < raw.size - 1) {
-            var farthest = anchor + 1
-            for (probe in raw.lastIndex downTo anchor + 2) {
-                if (hasLineOfSight(raw[anchor], raw[probe])) {
-                    farthest = probe
-                    break
-                }
-            }
+            val farthest = farthestReachableIndex(raw, anchor)
             out += raw[farthest]
             anchor = farthest
         }
         return out
     }
 
+    private fun farthestReachableIndex(raw: List<Vec3>, anchor: Int): Int {
+        for (probe in raw.lastIndex downTo anchor + 2) {
+            if (hasLineOfSight(raw[anchor], raw[probe])) return probe
+        }
+        return anchor + 1
+    }
+
     private fun hasLineOfSight(from: Vec3, to: Vec3): Boolean {
-        val dx = to.x - from.x; val dy = to.y - from.y; val dz = to.z - from.z
+        val dx = to.x - from.x
+        val dy = to.y - from.y
+        val dz = to.z - from.z
         val distance = sqrt(dx * dx + dy * dy + dz * dz)
         if (distance < MIN_LOS_DIST) return true
         val steps = ceil(distance / LOS_STEP).toInt()

@@ -21,6 +21,7 @@ import kotlin.math.sin
  * License: https://github.com/coltonk9043/Aoba-Client/blob/master/LICENSE
  * Original source: https://github.com/coltonk9043/Aoba-Client/blob/53607ef4318a9e5a246fb2a347ec25ec184b15a8/src/main/java/net/aoba/utils/Interpolation.java
  */
+
 object Interpolate {
 
     fun interpolatedEyePos(): Vec3 {
@@ -56,8 +57,6 @@ object Interpolate {
         return interpolatedEyePos().add(lookVec.scale(distance))
     }
 
-
-
     fun interpolateLastTickPos(pos: Double, lastPos: Double): Double {
         return lastPos + (pos - lastPos) * mc.deltaTracker.getGameTimeDeltaPartialTick(false)
     }
@@ -80,6 +79,7 @@ object Interpolate {
      * @param tickDelta The render time
      * @return The interpolated vector of an entity
      */
+
     fun getRenderPosition(entity: Entity, tickDelta: Float): Vec3 {
         return Vec3(
             entity.x - Mth.lerp(tickDelta, entity.xOld.toFloat(), entity.x.toFloat()),

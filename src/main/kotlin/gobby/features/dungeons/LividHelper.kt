@@ -139,8 +139,11 @@ object LividHelper : EntityHighlighter(
     }
 
     override fun getColor(): Color = currentLivid.displayColor
+
     override fun shouldDrawLines(): Boolean = drawLine
+
     override fun getLineColor(): Color = currentLivid.displayColor
+
     override fun getLineMode(): Int = espLineMode
 
     @SubscribeEvent

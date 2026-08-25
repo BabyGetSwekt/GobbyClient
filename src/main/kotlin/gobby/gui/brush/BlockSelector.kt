@@ -2,254 +2,161 @@ package gobby.gui.brush
 
 import gg.essential.elementa.ElementaVersion
 import gg.essential.elementa.WindowScreen
-import gg.essential.elementa.components.UIBlock
-import gg.essential.elementa.components.UIRoundedRectangle
-import gg.essential.elementa.components.UIText
-import gg.essential.elementa.components.input.UITextInput
 import gg.essential.elementa.constraints.CenterConstraint
 import gg.essential.elementa.constraints.CramSiblingConstraint
 import gg.essential.elementa.dsl.*
-import gg.essential.elementa.effects.OutlineEffect
-import gg.essential.universal.UScreen
-import gobby.Gobbyclient.Companion.mc
 import gobby.features.dungeons.Brush
-import gobby.utils.skyblock.EtherwarpUtils
-import gobby.gui.components.BlockItemComponent
-import gobby.gui.components.GobbyScrollPanel
+import gobby.gui.components.*
+import gobby.gui.font.StyledFontProvider
 import gobby.utils.ChatUtils.modMessage
 import net.minecraft.world.level.block.Block
 import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.core.registries.BuiltInRegistries
-import java.awt.Color
+import org.lwjgl.glfw.GLFW
 
-class BlockSelector private constructor (
+private const val PANEL_WIDTH = 374f
+private const val PANEL_HEIGHT = 280f
+private const val STATUS_BAR_HEIGHT = 16f
+private const val FAVOURITES_WIDTH = 52f
+private const val FAVOURITES_HEIGHT = 14f
+private const val SEARCH_Y = 28f
+private const val SEARCH_HEIGHT = 14f
+private const val LIST_TOP = 48f
+private const val LIST_BOTTOM_RESERVED = 68f
+private const val ITEM_SIZE = 20f
+private const val ITEM_GAP = 2f
+
+class BlockSelector private constructor(
     private val onSelect: ((Block) -> Unit)?
 ) : WindowScreen(
     version = ElementaVersion.V6,
     drawDefaultBackground = false
 ) {
 
-    private val allEntries = mutableListOf<BlockEntry>()
-    private var visibleEntries = listOf<BlockEntry>()
+    private val allEntries = mutableListOf<BlockSelectorEntry>()
+    private var visibleEntries = listOf<BlockSelectorEntry>()
     private var lastQuery = ""
     private var showingFavorites = false
 
-    private val overlay by UIBlock(Color(0, 0, 0, 100)).constrain {
-        width = 100.percent
-        height = 100.percent
-    } childOf window
-
-    private val panel by UIRoundedRectangle(5f).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        width = 374.pixels
-        height = 280.pixels
-        color = Color(18, 18, 22, 240).toConstraint()
-    } childOf window
-
-    private val titleBar by UIBlock(Color(26, 26, 32, 255)).constrain {
-        width = 100.percent
-        height = 22.pixels
-    } childOf panel
-
-    private val titleText by UIText("Gobby Client's Block Selector", shadow = true).constrain {
-        x = 8.pixels
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-    } childOf titleBar
-
-    private val favBtnBg by UIRoundedRectangle(3f).constrain {
-        x = 8.pixels(alignOpposite = true)
-        y = CenterConstraint()
-        width = 52.pixels
-        height = 14.pixels
-        color = Color(40, 40, 50).toConstraint()
-    } childOf titleBar
-
-    private val favBtnText by UIText("Favorites", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(180, 180, 190).toConstraint()
-    } childOf favBtnBg
-
-    private val searchBg by UIRoundedRectangle(3f).constrain {
-        x = 8.pixels
-        y = 28.pixels
-        width = 100.percent - 16.pixels
-        height = 14.pixels
-        color = Color(12, 12, 16, 220).toConstraint()
-    } childOf panel
-
-    private val searchInput by UITextInput(placeholder = "Search...").constrain {
-        x = 4.pixels
-        y = CenterConstraint()
-        width = 100.percent - 8.pixels
-        height = 9.pixels
-        color = Color(200, 200, 200).toConstraint()
-    } childOf searchBg
-
-    private val scrollPanel by GobbyScrollPanel(
-        emptyString = "No blocks found :(",
-        innerPadding = 4f,
-        pixelsPerScroll = 40f,
-        scrollAcceleration = 1.8f
+    private val panel = GobbyPanel(
+        window,
+        title = "Gobby Client's Block Selector",
+        font = StyledFontProvider,
+        bottomBarHeight = STATUS_BAR_HEIGHT,
+        onDismiss = { displayScreen(null) }
     ).constrain {
-        x = 8.pixels
-        y = 48.pixels
-        width = 100.percent - 16.pixels
-        height = 100.percent - 68.pixels
-    } childOf panel
+        width = PANEL_WIDTH.pixels
+        height = PANEL_HEIGHT.pixels
+    }
 
-    private val statusBar by UIBlock(Color(26, 26, 32, 255)).constrain {
-        y = 0.pixels(alignOpposite = true)
-        width = 100.percent
-        height = 16.pixels
-    } childOf panel
-
-    private val statusText by UIText("", shadow = true).constrain {
-        x = 8.pixels
+    private val favouritesButton = GobbyToggleButton(
+        activeText = "§c♥ §rFavs",
+        inactiveText = "Favorites",
+        font = StyledFontProvider,
+        onToggle = { active -> applyFavouritesFilter(active) }
+    ).constrain {
+        x = ComponentTheme.SIDE_PAD.pixels(alignOpposite = true)
         y = CenterConstraint()
-        color = Color(140, 140, 150).toConstraint()
-    } childOf statusBar
+        width = FAVOURITES_WIDTH.pixels
+        height = FAVOURITES_HEIGHT.pixels
+    } childOf panel.titleBar
+
+    private val searchField = GobbyTextField(
+        placeholder = "Search...",
+        font = StyledFontProvider,
+        onChange = { query -> onQueryChanged(query) }
+    ).constrain {
+        x = ComponentTheme.SIDE_PAD.pixels
+        y = SEARCH_Y.pixels
+        width = 100.percent - (ComponentTheme.SIDE_PAD * 2).pixels
+        height = SEARCH_HEIGHT.pixels
+    } childOf panel
+
+    private val scrollPanel = panel.contentArea(
+        GobbyScrollPanel(emptyString = "No blocks found :("),
+        LIST_TOP, LIST_BOTTOM_RESERVED
+    )
+
+    private val statusText = panel.label("", textColor = ComponentTheme.TEXT_MUTED).constrain {
+        x = ComponentTheme.SIDE_PAD.pixels
+        y = CenterConstraint()
+    }
 
     init {
-        searchInput.onKeyType { _, _ ->
-            val query = searchInput.getText()
-            if (query != lastQuery) {
-                lastQuery = query
-                filterBlocks(query)
-            }
-        }
-        searchBg.onMouseClick { searchInput.grabWindowFocus() }
-        searchBg.enableEffect(OutlineEffect(Color(40, 40, 50), 1f))
-        overlay.onMouseClick { UScreen.displayScreen(null) }
-
-        favBtnBg.onMouseClick {
-            showingFavorites = !showingFavorites
-            Brush.showFavoritesOnOpen = showingFavorites
-            updateFavButton()
-            refreshFilter()
-        }
-
+        panel.bottomBar?.let { statusText childOf it }
         showingFavorites = Brush.showFavoritesOnOpen
-        updateFavButton()
+        favouritesButton.setActive(showingFavorites)
         populateBlocks()
     }
 
-    private fun updateFavButton() {
-        if (showingFavorites) {
-            favBtnBg.setColor(Color(180, 50, 50))
-            favBtnText.setText("§c♥ §rFavs")
-        } else {
-            favBtnBg.setColor(Color(40, 40, 50))
-            favBtnText.setText("Favorites")
-        }
+    private fun onQueryChanged(query: String) {
+        if (query == lastQuery) return
+        lastQuery = query
+        refreshFilter()
+    }
+
+    private fun applyFavouritesFilter(active: Boolean) {
+        showingFavorites = active
+        Brush.showFavoritesOnOpen = active
+        refreshFilter()
     }
 
     private fun populateBlocks() {
-        for (block in BuiltInRegistries.BLOCK) {
-            if (block.asItem() == Items.AIR) continue
-
-            val id = BuiltInRegistries.BLOCK.getKey(block).toString()
-            val stack = ItemStack(block.asItem())
-            val component = BlockItemComponent(id, stack).constrain {
-                x = CramSiblingConstraint(2f)
-                y = CramSiblingConstraint(2f)
-                width = 20.pixels
-                height = 20.pixels
-            }
-
-            component.onMouseEnter { statusText.setText(id) }
-            component.onMouseLeave { statusText.setText("") }
-            component.onMouseClick { event ->
-                if (event.mouseButton == 0) {
-                    selectedBlock = block
-                    modMessage("Selected block: §a$id")
-                    onSelect?.invoke(block)
-                    displayScreen(null)
-                } else if (event.mouseButton == 1) {
-                    val added = Brush.toggleFavorite(id)
-                    modMessage(if (added) "§e★ §aFavorited: §f$id" else "§7Unfavorited: §f$id")
-                    if (showingFavorites) refreshFilter()
-                }
-            }
-
-            allEntries.add(BlockEntry(block, id, stack, component))
-        }
-
+        BuiltInRegistries.BLOCK.filterNot { it.asItem() == Items.AIR }.forEach(::addBlock)
         allEntries.sortBy { it.id }
         refreshFilter()
     }
 
-    private fun filterBlocks(query: String) {
-        scrollPanel.scrollArea.clearChildren()
-        val lower = query.lowercase().trim()
-        var filtered = if (lower.isEmpty()) allEntries else allEntries.filter { it.id.contains(lower) }
-        if (showingFavorites) filtered = filtered.filter { Brush.isFavorite(it.id) }
-        showEntries(filtered)
+    private fun addBlock(block: Block) {
+        val id = BuiltInRegistries.BLOCK.getKey(block).toString()
+        val stack = ItemStack(block.asItem())
+        val component = BlockItemComponent(id, stack).constrain {
+            x = CramSiblingConstraint(ITEM_GAP)
+            y = CramSiblingConstraint(ITEM_GAP)
+            width = ITEM_SIZE.pixels
+            height = ITEM_SIZE.pixels
+        }
+        component.onMouseEnter { statusText.setText(id) }
+        component.onMouseLeave { statusText.setText("") }
+        component.onMouseClick { event ->
+            when (event.mouseButton) {
+                GLFW.GLFW_MOUSE_BUTTON_LEFT -> selectBlock(block, id)
+                GLFW.GLFW_MOUSE_BUTTON_RIGHT -> toggleFavourite(id)
+            }
+        }
+        allEntries.add(BlockSelectorEntry(block, id, stack, component))
+    }
+
+    private fun selectBlock(block: Block, id: String) {
+        selectedBlock = block
+        modMessage("Selected block: §a$id")
+        onSelect?.invoke(block)
+        displayScreen(null)
+    }
+
+    private fun toggleFavourite(id: String) {
+        val added = Brush.toggleFavorite(id)
+        modMessage(if (added) "§e★ §aFavorited: §f$id" else "§7Unfavorited: §f$id")
+        if (showingFavorites) refreshFilter()
     }
 
     private fun refreshFilter() {
-        filterBlocks(lastQuery)
+        scrollPanel.scrollArea.clearChildren()
+        val query = lastQuery.lowercase().trim()
+        visibleEntries = allEntries
+            .filter { query.isEmpty() || it.id.contains(query) }
+            .filter { !showingFavorites || Brush.isFavorite(it.id) }
+        visibleEntries.forEach { it.component childOf scrollPanel.scrollArea }
     }
 
-    private fun showEntries(entries: List<BlockEntry>) {
-        visibleEntries = entries.toList()
-        for (entry in visibleEntries) {
-            entry.component childOf scrollPanel.scrollArea
-        }
-    }
-
-    fun drawBlockItems(context: GuiGraphics) {
-        val clipLeft = scrollPanel.scrollArea.getLeft().toInt()
-        val clipTop = scrollPanel.scrollArea.getTop().toInt()
-        val clipRight = scrollPanel.scrollArea.getRight().toInt()
-        val clipBottom = scrollPanel.scrollArea.getBottom().toInt()
-
-        context.enableScissor(clipLeft, clipTop, clipRight, clipBottom)
-        for (entry in visibleEntries) {
-            val comp = entry.component
-            val left = comp.getLeft().toInt()
-            val top = comp.getTop().toInt()
-            val right = comp.getRight().toInt()
-            val bottom = comp.getBottom().toInt()
-            if (top + 20 < clipTop || top > clipBottom) continue
-            val bg = when {
-                entry.block == selectedBlock -> BlockItemComponent.SELECTED_COLOR
-                comp.mouseOver -> BlockItemComponent.HOVER_COLOR
-                else -> BlockItemComponent.BG_COLOR
-            }
-            context.fill(left, top, right, bottom, bg)
-            context.item(entry.stack, left + 2, top + 2)
-
-            if (entry.block in EtherwarpUtils.TARGET_BLOCKS) {
-                val c = BlockItemComponent.ETHERWARP_COLOR
-                context.fill(left, top, right, top + 1, c)
-                context.fill(left, bottom - 1, right, bottom, c)
-                context.fill(left, top, left + 1, bottom, c)
-                context.fill(right - 1, top, right, bottom, c)
-            }
-
-            if (Brush.isFavorite(entry.id)) {
-                context.text(mc.font, "§c♥", right - 7, bottom - 8, 0xFFFFFFFF.toInt(), true)
-            }
-        }
-        context.disableScissor()
-    }
+    fun drawBlockItems(context: GuiGraphics) = BlockSelectorRenderer.draw(context, visibleEntries, scrollPanel)
 
     override fun onScreenClose() {
         super.onScreenClose()
         activeInstance = null
     }
-
-    private data class BlockEntry(
-        val block: Block,
-        val id: String,
-        val stack: ItemStack,
-        val component: BlockItemComponent
-    )
 
     companion object {
         var selectedBlock: Block? = null

@@ -18,7 +18,12 @@ internal class BlockCacheStore {
     private val lock = Any()
 
     @Volatile private var generation = 0L
+
     @Volatile private var epoch = 0L
+
+    @Volatile private var published: BlockCache.SnapshotView? = null
+
+    @Volatile private var publicationDirty = true
 
     fun markPassable(pos: BlockPos) {
         updateOverride(pos, true)
@@ -37,28 +42,41 @@ internal class BlockCacheStore {
     fun isPassableOverride(pos: BlockPos): Boolean = pos.asLong() in passableOverrides
 
     fun captureLoadedChunks(minChunkX: Int, minChunkZ: Int, maxChunkX: Int, maxChunkZ: Int, refresh: Boolean, loaded: (Int, Int) -> Boolean) {
-        val keys = (minChunkX..maxChunkX).asSequence()
-            .flatMap { x -> (minChunkZ..maxChunkZ).asSequence().map { z -> x to z } }
-            .toList()
-        val captured = keys.count { (cx, cz) ->
+        val width = maxChunkX - minChunkX + 1
+        val depth = maxChunkZ - minChunkZ + 1
+        val inspected = width * depth
+        var captured = 0
+        repeat(inspected) { index ->
+            val cx = minChunkX + index / depth
+            val cz = minChunkZ + index % depth
             val key = chunkKey(cx, cz)
-            (refresh || key in dirtyChunks || !snapshots.containsKey(key)) && loaded(cx, cz) && captureAndStore(cx, cz) != null
+            if ((refresh || key in dirtyChunks || !snapshots.containsKey(key)) && loaded(cx, cz) && captureAndStore(cx, cz) != null) captured++
         }
-        CacheDiagnostics.log("capture-range chunks=${keys.size} captured=$captured refresh=$refresh snapshots=${snapshots.size} dirty=${dirtyChunks.size}")
+    }
+
+    fun flushDirtyLoadedChunks(loaded: (Int, Int) -> Boolean): Int {
+        if (!mc.isSameThread) return 0
+        return dirtyChunks.count { key ->
+            val chunkX = (key shr 32).toInt()
+            val chunkZ = key.toInt()
+            loaded(chunkX, chunkZ) && captureAndStore(chunkX, chunkZ) != null
+        }
     }
 
     fun captureAndStore(chunk: LevelChunk): BlockCache.ChunkSnapshot? {
         if (chunk.isEmpty) return snapshots[chunkKey(chunk.pos.x, chunk.pos.z)]
-        val snapshot = runCatching { BlockCacheCapture.capture(chunk) }.getOrNull() ?: return null
         val key = chunkKey(chunk.pos.x, chunk.pos.z)
+        val previous = snapshots[key]
+        val snapshot = runCatching { BlockCacheCapture.capture(chunk, previous) }.getOrNull() ?: return null
+        val changed = previous?.collisionFingerprint != snapshot.collisionFingerprint
         synchronized(lock) {
             snapshots[key] = snapshot
             dirtyChunks.remove(key)
-            markChanged(chunk.pos.x, chunk.pos.z)
+            if (changed) markChanged(chunk.pos.x, chunk.pos.z)
+            publicationDirty = true
         }
         reportedMissing.remove(key)
         reportedDirty.remove(key)
-        CacheDiagnostics.log("capture chunk=${chunk.pos.x},${chunk.pos.z} sections=${snapshot.sections.count { it != null }} snapshots=${snapshots.size} dirty=${dirtyChunks.size}")
         return snapshot
     }
 
@@ -66,9 +84,8 @@ internal class BlockCacheStore {
         mc.level?.chunkSource?.getChunk(cx, cz, false)?.let(::captureAndStore)
 
     fun freeze(): BlockCache.SnapshotView = synchronized(lock) {
-        val minY = snapshots.values.minOfOrNull { it.minBlockY } ?: 0
-        val maxY = snapshots.values.maxOfOrNull { it.minBlockY + it.sections.size * 16 } ?: 0
-        BlockCache.SnapshotView(snapshots.toMap(), passableOverrides.toSet(), chunkVersions.toMap(), generation, epoch, minY, maxY)
+        if (publicationDirty || published == null) publishSnapshot()
+        published ?: error("Block cache snapshot publication failed")
     }
 
     fun version(): Long = generation
@@ -90,12 +107,6 @@ internal class BlockCacheStore {
         return key !in dirtyChunks && snapshots.containsKey(key)
     }
 
-    fun debugChunk(x: Int, z: Int, loaded: (Int, Int) -> Boolean): String {
-        val cx = x shr 4
-        val cz = z shr 4
-        val key = chunkKey(cx, cz)
-        return "chunk=$cx,$cz loaded=${loaded(x, z)} snapshot=${hasSnapshot(x, z)} dirty=${key in dirtyChunks}"
-    }
 
     fun reportMissing(cx: Int, cz: Int): Boolean = reportedMissing.add(chunkKey(cx, cz))
 
@@ -115,20 +126,18 @@ internal class BlockCacheStore {
         reportedMissing.clear()
         reportedDirty.clear()
         passableOverrides.clear()
+        published = null
+        publicationDirty = true
     }
 
-    fun writeState(reason: String, columns: Int): Unit {
-        val lines = mutableListOf("reason=$reason", "snapshots=${snapshots.size} dirty=${dirtyChunks.size} columns=$columns")
-        snapshots.entries.sortedBy { it.key }.forEach { (key, snapshot) ->
-            lines.add("chunk=${key shr 32},${key.toInt()} snapshot=${key !in dirtyChunks} dirty=${key in dirtyChunks} sections=${snapshot.sections.count { it != null }}")
-        }
-        CacheDiagnostics.writeState(lines)
-    }
 
     private fun updateOverride(pos: BlockPos, add: Boolean) {
         synchronized(lock) {
             val changed = if (add) passableOverrides.add(pos.asLong()) else passableOverrides.remove(pos.asLong())
-            if (changed) markChanged(pos.x shr 4, pos.z shr 4)
+            if (changed) {
+                markChanged(pos.x shr 4, pos.z shr 4)
+                publicationDirty = true
+            }
         }
     }
 
@@ -149,6 +158,15 @@ internal class BlockCacheStore {
         val key = chunkKey(cx, cz)
         chunkVersions[key] = (chunkVersions[key] ?: 0L) + 1L
         generation++
+        publicationDirty = true
+    }
+
+    private fun publishSnapshot() {
+        val usable = snapshots.filterKeys { it !in dirtyChunks }
+        val minY = usable.values.minOfOrNull { it.minBlockY } ?: 0
+        val maxY = usable.values.maxOfOrNull { it.minBlockY + it.sections.size * 16 } ?: 0
+        published = BlockCache.SnapshotView(usable, passableOverrides.toSet(), chunkVersions.toMap(), generation, epoch, minY, maxY)
+        publicationDirty = false
     }
 
     private fun chunkKey(cx: Int, cz: Int): Long = (cx.toLong() shl 32) or (cz.toLong() and 0xFFFFFFFFL)

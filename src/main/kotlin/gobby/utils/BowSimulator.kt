@@ -25,11 +25,18 @@ object BowSimulator {
         val world = mc.level ?: return Outcome(emptyList(), null, null, null)
         val trail = ArrayList<Vec3>(ticks + 1)
         trail += start
-        var x = start.x; var y = start.y; var z = start.z
-        var vx = vel0.x; var vy = vel0.y; var vz = vel0.z
+        var x = start.x
+        var y = start.y
+        var z = start.z
+        var vx = vel0.x
+        var vy = vel0.y
+        var vz = vel0.z
         repeat(ticks) {
-            val nx = x + vx; val ny = y + vy; val nz = z + vz
-            val from = Vec3(x, y, z); val to = Vec3(nx, ny, nz)
+            val nx = x + vx
+            val ny = y + vy
+            val nz = z + vz
+            val from = Vec3(x, y, z)
+            val to = Vec3(nx, ny, nz)
             val blockHit = walkVoxels(world, from, to)
             val entityHit = if (checkEntities) nearestEntityHit(world, from, to) else null
             val pickBlock: Boolean = when {
@@ -55,12 +62,20 @@ object BowSimulator {
     private data class BlockSegmentHit(val point: Vec3, val pos: BlockPos)
     private data class EntitySegmentHit(val point: Vec3, val entity: Entity)
 
+    private fun axisDelta(distance: Double, origin: Double, cell: Int): Pair<Double, Double> {
+        if (distance == 0.0) return Double.POSITIVE_INFINITY to Double.POSITIVE_INFINITY
+        val step = abs(1.0 / distance)
+        val toBoundary = if (distance > 0) cell + 1 - origin else origin - cell
+        return step to toBoundary * step
+    }
+
     private fun walkVoxels(world: ClientLevel, from: Vec3, to: Vec3): BlockSegmentHit? {
-        val sx = from.x; val sy = from.y; val sz = from.z
-        val ex = to.x; val ey = to.y; val ez = to.z
-        val dx = ex - sx; val dy = ey - sy; val dz = ez - sz
-        var ix = floor(sx).toInt(); var iy = floor(sy).toInt(); var iz = floor(sz).toInt()
-        val gx = floor(ex).toInt(); val gy = floor(ey).toInt(); val gz = floor(ez).toInt()
+        val dx = to.x - from.x
+        val dy = to.y - from.y
+        val dz = to.z - from.z
+        var ix = floor(from.x).toInt()
+        var iy = floor(from.y).toInt()
+        var iz = floor(from.z).toInt()
 
         val cursor = BlockPos.MutableBlockPos(ix, iy, iz)
         segmentHitsShape(world, cursor, from, to)?.let { return BlockSegmentHit(it, BlockPos(ix, iy, iz)) }
@@ -68,14 +83,14 @@ object BowSimulator {
         val stepX = if (dx > 0) 1 else -1
         val stepY = if (dy > 0) 1 else -1
         val stepZ = if (dz > 0) 1 else -1
-        val tdx = if (dx == 0.0) Double.POSITIVE_INFINITY else abs(1.0 / dx)
-        val tdy = if (dy == 0.0) Double.POSITIVE_INFINITY else abs(1.0 / dy)
-        val tdz = if (dz == 0.0) Double.POSITIVE_INFINITY else abs(1.0 / dz)
-        var tmx = if (dx == 0.0) Double.POSITIVE_INFINITY else (if (dx > 0) (ix + 1 - sx) else (sx - ix)) * tdx
-        var tmy = if (dy == 0.0) Double.POSITIVE_INFINITY else (if (dy > 0) (iy + 1 - sy) else (sy - iy)) * tdy
-        var tmz = if (dz == 0.0) Double.POSITIVE_INFINITY else (if (dz > 0) (iz + 1 - sz) else (sz - iz)) * tdz
+        val (tdx, initialX) = axisDelta(dx, from.x, ix)
+        val (tdy, initialY) = axisDelta(dy, from.y, iy)
+        val (tdz, initialZ) = axisDelta(dz, from.z, iz)
+        var tmx = initialX
+        var tmy = initialY
+        var tmz = initialZ
 
-        val maxSteps = abs(gx - ix) + abs(gy - iy) + abs(gz - iz)
+        val maxSteps = abs(floor(to.x).toInt() - ix) + abs(floor(to.y).toInt() - iy) + abs(floor(to.z).toInt() - iz)
         repeat(maxSteps) {
             when {
                 tmx < tmy && tmx < tmz -> { ix += stepX; tmx += tdx }

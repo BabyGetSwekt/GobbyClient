@@ -18,6 +18,7 @@ object MelodyTerminal : TerminalSolver() {
     private const val LAST_ROW = 4
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = title.contains("Click the button on time!")
 
     private var lastClickedRow = -1
@@ -30,6 +31,7 @@ object MelodyTerminal : TerminalSolver() {
     }
 
     override fun onDeactivate() = reset()
+
     override fun onActivate(screen: ContainerScreen) = reset()
 
     override fun solve(screen: ContainerScreen): TerminalClick? = null

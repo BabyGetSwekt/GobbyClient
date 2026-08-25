@@ -70,6 +70,7 @@ object CreeperBeams : Module("Creeper Beams", "Draws and auto-solves the creeper
     private class Beam(val a: BlockPos, val b: BlockPos) {
         var attempts = 0
         var unreachable = false
+
         fun lanterns() = listOf(a, b)
     }
 

@@ -1,6 +1,7 @@
 package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.render.TextureRegistry
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -9,8 +10,6 @@ import gobby.gui.hud.HudSetting
 import gobby.utils.LocationUtils
 import gobby.utils.managers.InvincibilityManager
 import net.minecraft.client.renderer.RenderPipelines
-import com.mojang.blaze3d.platform.NativeImage
-import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.Identifier as ResourceLocation
 
 object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns on a movable HUD", Category.SKYBLOCK) {
@@ -54,8 +53,6 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
 
     private val GREEN_ID = tex("green_checkmark")
     private val FAILED_ID = tex("failed")
-    private val registered = mutableSetOf<ResourceLocation>()
-
     private val maskHud by HudSetting("Mask Timers", "Movable mask cooldown display") { example ->
         ensureTextures()
         if (example) {
@@ -100,19 +97,8 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
         else -> "§c${"%.1f".format(seconds)}s"
     }
 
-    private fun ensureTextures() = (Mask.entries.map { it.sprite } + listOf(GREEN_ID, FAILED_ID))
-        .filter { registered.add(it) }
-        .forEach(::loadTexture)
+    private fun ensureTextures() = TextureRegistry.ensureRegistered(Mask.entries.map { it.sprite } + listOf(GREEN_ID, FAILED_ID))
 
-    private fun loadTexture(id: ResourceLocation) {
-        val path = "assets/${id.namespace}/${id.path}.png"
-        runCatching {
-            MaskTimers::class.java.classLoader.getResourceAsStream(path)?.use { stream ->
-                val image = NativeImage.read(stream)
-                mc.textureManager.register(id, DynamicTexture({ id.toString() }, image))
-            }
-        }
-    }
 }
 
 private fun tex(name: String): ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/$name")

@@ -9,6 +9,7 @@ object ColorsTerminal : TerminalSolver() {
     private val titleRegex = Regex("Select all the ([\\w ]+) items!")
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = titleRegex.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "")
 
     override fun solve(screen: ContainerScreen): TerminalClick? {

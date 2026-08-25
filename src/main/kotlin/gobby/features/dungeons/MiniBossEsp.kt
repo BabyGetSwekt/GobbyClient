@@ -1,7 +1,7 @@
 package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.features.render.EntityHighlighter
+import gobby.features.render.ColoredEntityHighlighter
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.ColorSetting
@@ -13,12 +13,11 @@ import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
 import java.awt.Color
 
-object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses in dungeons", Category.DUNGEONS) {
+object MiniBossEsp : ColoredEntityHighlighter(
+    "Mini Boss ESP", "Highlights mini bosses in dungeons", Category.DUNGEONS,
+    Color(255, 170, 0, 72), "mini boss", "mini bosses"
+) {
 
-    val espColor by ColorSetting("ESP Color", Color(255, 170, 0, 72), desc = "Pick a color for mini boss highlights")
-    val espLines by BooleanSetting("ESP Line", false, desc = "Draws a line to mini bosses")
-    val espLineMode by SelectorSetting("Line Mode", 1, listOf("Feet", "Crosshair"), desc = "Where the line starts from")
-        .withDependency { espLines }
 
     private val MINIBOSS_NAMES = setOf(
         "Lost Adventurer",
@@ -49,9 +48,8 @@ object MiniBossEsp : EntityHighlighter("Mini Boss ESP", "Highlights mini bosses 
         return entity
     }
 
-    override fun getColor(): Color = espColor
-    override fun shouldDrawLines(): Boolean = espLines
-    override fun getLineColor(): Color = espColor
-    override fun getLineMode(): Int = espLineMode
-    override fun rendersArmor(): Boolean = true
+
+
+
+
 }

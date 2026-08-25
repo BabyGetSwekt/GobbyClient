@@ -13,6 +13,6 @@ data class EtherwarpPathConfig(
         const val DEFAULT_PITCH_STEP = 7f
         const val DEFAULT_H_WEIGHT = 6.7
         const val DEFAULT_THREADS = 6
-        const val DEFAULT_TIMEOUT_MS = 2500L
+        const val DEFAULT_TIMEOUT_MS = 670L
     }
 }

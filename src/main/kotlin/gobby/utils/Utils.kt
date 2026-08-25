@@ -40,6 +40,7 @@ object Utils {
      * @param options List of other objects to check.
      * @return `true` if the object is equal to one of the specified objects.
      */
+
     fun Any?.equalsOneOf(vararg options: Any?): Boolean =
         options.any { this == it }
 
@@ -64,6 +65,7 @@ object Utils {
      * after our task runs (e.g. opening a screen from inside a chat command — `ChatScreen.keyPressed`
      * dispatches the command then calls `setScreen(null)` synchronously, wiping any screen we set).
      */
+
     fun Minecraft.executeLater(block: () -> Unit) = this.schedule(Runnable(block))
 
     fun ClientLevel.setBlockAtPos(pos: BlockPos, block: Block) = setBlock(pos, block.defaultBlockState(), 3)
@@ -93,6 +95,7 @@ object Utils {
     inline val eyePosZ get() = mc.player?.eyePosition?.z ?: 0.0
 
     fun Double.toRadians(): Double = Math.toRadians(this)
+
     fun Float.toRadians(): Double = Math.toRadians(this.toDouble())
 
 }

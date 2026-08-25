@@ -49,6 +49,7 @@ object BlockPaster {
         onDone: () -> Unit
     ) {
         var idx = 0
+
         fun step() {
             val end = (idx + batchSize).coerceAtMost(positions.size)
             while (idx < end) {

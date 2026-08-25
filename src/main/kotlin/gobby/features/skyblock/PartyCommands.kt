@@ -19,7 +19,6 @@ object PartyCommands : Module("Party Commands", "Enables party commands (!help i
         val match = partyMessageRegex.matchEntire(rawMessage) ?: return
         val (rank, username, message) = match.destructured
 
-
         if (!message.startsWith("!")) return
         val split = message.trim().split("\\s+".toRegex())
         val command = split.firstOrNull() ?: return

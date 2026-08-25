@@ -14,8 +14,9 @@ class EtherwarpNode(
     var yaw: Float,
     var pitch: Float
 ) : Comparable<EtherwarpNode> {
-    val eye: Vec3 by lazy(LazyThreadSafetyMode.NONE) { Vec3(x, y, z) }
+    val eye: Vec3 get() = Vec3(x, y, z)
     val f: Double get() = g + h
+
     override fun compareTo(other: EtherwarpNode): Int = f.compareTo(other.f)
 }
 

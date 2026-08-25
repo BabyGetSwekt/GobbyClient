@@ -1,26 +1,26 @@
 package gobby.utils.skyblock.dungeon.map
 
+import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_STRIDE
+
 object DungeonRooms {
 
     private val STEP_DIRECTIONS = listOf(intArrayOf(0, -2), intArrayOf(0, 2), intArrayOf(2, 0), intArrayOf(-2, 0))
-    private val SNAP_OFFSETS = (-1..1).flatMap { dc -> (-1..1).map { dr -> dc to dr } }
+    private val NEIGHBOUR_ROOM_OFFSETS = (-CELL_STRIDE..CELL_STRIDE step CELL_STRIDE)
+        .flatMap { dc -> (-CELL_STRIDE..CELL_STRIDE step CELL_STRIDE).map { dr -> dc to dr } }
 
-    fun roomCellAt(grid: Array<MapTile>, x: Double, z: Double): Int? {
-        val col = MapGrid.colOf(x)
-        val row = MapGrid.rowOf(z)
-        return SNAP_OFFSETS.firstNotNullOfOrNull { (dc, dr) ->
-            val c = col + dc
-            val r = row + dr
-            MapGrid.index(c, r).takeIf { MapGrid.inRange(c, r) && grid.getOrNull(it) is MapTile.Room }
+    fun roomCellAt(grid: Array<MapTile>, x: Double, z: Double): Int? =
+        containingRoomCell(grid, x, z) ?: neighbouringRoomCell(grid, MapGrid.roomColOf(x), MapGrid.roomRowOf(z))
+
+    fun containingRoomCell(grid: Array<MapTile>, x: Double, z: Double): Int? =
+        MapGrid.roomCellOf(x, z)?.takeIf { grid.getOrNull(it) is MapTile.Room }
+
+    private fun neighbouringRoomCell(grid: Array<MapTile>, col: Int, row: Int): Int? =
+        NEIGHBOUR_ROOM_OFFSETS.firstNotNullOfOrNull { (dc, dr) ->
+            val neighbourCol = col + dc
+            val neighbourRow = row + dr
+            MapGrid.index(neighbourCol, neighbourRow)
+                .takeIf { MapGrid.inRange(neighbourCol, neighbourRow) && grid.getOrNull(it) is MapTile.Room }
         }
-    }
-
-    fun containingRoomCell(grid: Array<MapTile>, x: Double, z: Double): Int? {
-        val roomCol = MapGrid.colOf(x).let { it - (it and 1) }
-        val roomRow = MapGrid.rowOf(z).let { it - (it and 1) }
-        if (!MapGrid.inRange(roomCol, roomRow)) return null
-        return MapGrid.index(roomCol, roomRow).takeIf { grid.getOrNull(it) is MapTile.Room }
-    }
 
     fun component(grid: Array<MapTile>, start: Int): Set<Int> {
         val seen = hashSetOf(start)

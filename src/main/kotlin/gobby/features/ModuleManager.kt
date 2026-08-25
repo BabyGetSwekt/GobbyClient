@@ -25,8 +25,10 @@ import gobby.utils.*
 import gobby.utils.managers.*
 import gobby.utils.render.*
 import gobby.utils.rotation.RotationUtils
+import gobby.pathfinder.etherwarp.EtherwarpServerTickGate
 import gobby.utils.skyblock.dungeon.*
 import gobby.utils.timer.Executor
+import gobby.utils.MovementPacketSuppressor
 
 object ModuleManager {
 
@@ -56,10 +58,12 @@ object ModuleManager {
         EquipmentManager,
         AbilityManager,
         InvincibilityManager,
-        PacketOrderManager
+            PacketOrderManager,
+            EtherwarpServerTickGate
     ).forEach(EVENT_MANAGER::subscribe)
 
     private fun subscribeUtils() = listOf(
+            MovementPacketSuppressor,
             Executor,
             LocationUtils,
             DungeonListener,

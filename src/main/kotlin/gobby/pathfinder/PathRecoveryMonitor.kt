@@ -46,47 +46,52 @@ internal class PathRecoveryMonitor {
 
     fun tick(pos: Vec3, isSky: Boolean, cursor: Int, waypoints: List<Vec3>, repathInFlight: Boolean): Decision {
         val airborne = !isSky && mc.player?.onGround() == false
-
-        if (!repathInFlight) {
-            val offPath = isOffPath(pos, cursor, waypoints)
-            if (offPath) {
-                val skip = nearestReachableWaypoint(pos, cursor, waypoints)
-                if (skip != null) {
-                    offPathTicks = 0
-                    return Decision.SkipTo(skip)
-                }
-                offPathTicks++
-                if (offPathTicks >= OFF_PATH_CONFIRM_TICKS) {
-                    offPathTicks = 0
-                    return Decision.OffPath
-                }
-            } else if (!airborne) {
-                offPathTicks = 0
-            }
-        }
-
+        if (!repathInFlight) handleOffPath(pos, cursor, waypoints, airborne)?.let { return it }
         if (airborne) return Decision.None
-
         if (cursor != lastCursor) {
-            lastCursor = cursor
-            noProgressTicks = 0
-            positionStuckTicks = 0
-            lastPosForStuck = null
-            clearRecoveryInputs()
+            resetProgress(cursor)
             return Decision.None
         }
+        updateProgress(pos)
+        return stuckDecision(repathInFlight)
+    }
 
+    private fun handleOffPath(pos: Vec3, cursor: Int, waypoints: List<Vec3>, airborne: Boolean): Decision? {
+        if (!isOffPath(pos, cursor, waypoints)) {
+            if (!airborne) offPathTicks = 0
+            return null
+        }
+        nearestReachableWaypoint(pos, cursor, waypoints)?.let {
+            offPathTicks = 0
+            return Decision.SkipTo(it)
+        }
+        offPathTicks++
+        if (offPathTicks < OFF_PATH_CONFIRM_TICKS) return null
+        offPathTicks = 0
+        return Decision.OffPath
+    }
+
+    private fun resetProgress(cursor: Int) {
+        lastCursor = cursor
+        noProgressTicks = 0
+        positionStuckTicks = 0
+        lastPosForStuck = null
+        clearRecoveryInputs()
+    }
+
+    private fun updateProgress(pos: Vec3) {
         noProgressTicks++
         val last = lastPosForStuck
         if (last != null) {
             val dx = pos.x - last.x
             val dz = pos.z - last.z
             val movedSq = dx * dx + dz * dz
-            if (movedSq < STUCK_MOVE_EPSILON_SQ) positionStuckTicks++
-            else positionStuckTicks = max(0, positionStuckTicks - 2)
+            positionStuckTicks = if (movedSq < STUCK_MOVE_EPSILON_SQ) positionStuckTicks + 1 else max(0, positionStuckTicks - 2)
         }
         lastPosForStuck = pos
+    }
 
+    private fun stuckDecision(repathInFlight: Boolean): Decision {
         val stuck = noProgressTicks >= STUCK_STRAFE_THRESHOLD && positionStuckTicks >= STUCK_STRAFE_THRESHOLD / 2
         val veryStuck = noProgressTicks >= STUCK_REPATH_THRESHOLD && positionStuckTicks >= STUCK_REPATH_THRESHOLD / 2
         if (veryStuck && !repathInFlight) return Decision.Stuck

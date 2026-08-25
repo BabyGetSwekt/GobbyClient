@@ -14,9 +14,11 @@ enum class DoorType { NORMAL, WITHER, BLOOD, ENTRANCE }
 enum class MapCheckmark { NONE, UNKNOWN, WHITE, GREEN, FAILED }
 
 object MapConstants {
+    const val UNKNOWN_CORE = 0
     const val GRID_SIZE = 11
     const val CELL_STRIDE = 2
     const val HALF_ROOM = 16
+    const val ROOM_STRIDE = HALF_ROOM * CELL_STRIDE
     const val START_X = -185
     const val START_Z = -185
 

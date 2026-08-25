@@ -4,5 +4,4 @@ import gobby.events.Events
 
 open class LightTexEvent : Events()
 
-
 class GammaEvent(var gamma: Float) : LightTexEvent()

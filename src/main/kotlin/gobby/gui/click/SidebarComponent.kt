@@ -1,12 +1,11 @@
 package gobby.gui.click
 
-import com.mojang.blaze3d.platform.NativeImage
 import gobby.BuildConfig
 import gobby.Gobbyclient.Companion.mc
+import gobby.utils.render.TextureRegistry
 import gobby.utils.Utils.openUrl
 import net.minecraft.client.gui.GuiGraphicsExtractor as GuiGraphics
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.Identifier as ResourceLocation
 
 object SidebarComponent {
@@ -25,21 +24,8 @@ object SidebarComponent {
     private val discordTexture: ResourceLocation =
         ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/discord")
 
-    private val registered = mutableSetOf<ResourceLocation>()
+    private fun ensureTextures() = TextureRegistry.ensureRegistered(Category.entries.map { it.iconTexture } + discordTexture)
 
-    private fun ensureTextures() = (Category.entries.map { it.iconTexture } + discordTexture)
-        .filter { registered.add(it) }
-        .forEach(::loadTexture)
-
-    private fun loadTexture(id: ResourceLocation) {
-        val path = "assets/${id.namespace}/${id.path}.png"
-        runCatching {
-            SidebarComponent::class.java.classLoader.getResourceAsStream(path)?.use { stream ->
-                val image = NativeImage.read(stream)
-                mc.textureManager.register(id, DynamicTexture({ id.toString() }, image))
-            }
-        }
-    }
 
     private const val BURGER_W = 14
     private const val BURGER_H = 10

@@ -26,5 +26,17 @@ object ComponentTheme {
     val TEXT_DIM = Color(150, 150, 158)
     val TEXT_MUTED = Color(120, 120, 128)
 
+    val TOOLTIP_BG = Color(10, 10, 14, 240)
+    val WARNING = Color(200, 60, 60)
+    val HINT_ICON = Color(140, 30, 30, 220)
+
     const val CORNER_RADIUS = 3f
+    const val PANEL_CORNER = 5f
+    const val TITLE_BAR_HEIGHT = 22f
+    const val SIDE_PAD = 8f
+    const val TITLE_GAP = 4f
+    const val ICON_SIZE = 14f
+    const val BUTTON_HEIGHT = 18f
+    const val LABEL_SCALE = 0.85f
+    const val SMALL_SCALE = 0.75f
 }

@@ -78,6 +78,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     }
 
     fun toGuiX(screenX: Double): Int = ((screenX - drawOffsetX) / guiScale).toInt()
+
     fun toGuiY(screenY: Double): Int = ((screenY - drawOffsetY) / guiScale).toInt()
 
     override fun onClose() {

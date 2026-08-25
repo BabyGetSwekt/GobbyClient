@@ -77,12 +77,10 @@ object FreeCam : Module(
         val dt = clock.getTime() / 1000.0
         clock.update()
 
-        val forwardInput = (if (mc.options.keyUp.isDown) 1.0 else 0.0) -
-                (if (mc.options.keyDown.isDown) 1.0 else 0.0)
-        val leftInput = (if (mc.options.keyLeft.isDown) 1.0 else 0.0) -
-                (if (mc.options.keyRight.isDown) 1.0 else 0.0)
-        val upInput = (if (mc.options.keyJump.isDown) 1.0 else 0.0) -
-                (if (mc.options.keyShift.isDown) 1.0 else 0.0)
+        val input = readInput()
+        val forwardInput = input.forward
+        val leftInput = input.left
+        val upInput = input.up
 
         forwardVelocity = calculateVelocity(forwardVelocity, forwardInput, dt)
         leftVelocity = calculateVelocity(leftVelocity, leftInput, dt)
@@ -106,21 +104,36 @@ object FreeCam : Module(
         var dy = upVelocity
         var dz = forwardZ * forwardVelocity + leftZ * leftVelocity
 
-        val speed = sqrt(dx * dx + dy * dy + dz * dz)
-        if (speed > MAX_SPEED) {
-            val scale = MAX_SPEED / speed
-            forwardVelocity *= scale
-            leftVelocity *= scale
-            upVelocity *= scale
-            dx *= scale
-            dy *= scale
-            dz *= scale
-        }
+        val limited = limitSpeed(dx, dy, dz)
+        dx = limited.first
+        dy = limited.second
+        dz = limited.third
 
         camX += dx * dt
         camY += dy * dt
         camZ += dz * dt
     }
+
+    private fun readInput() = FreeCamInput(
+        forward = axis(mc.options.keyUp.isDown, mc.options.keyDown.isDown),
+        left = axis(mc.options.keyLeft.isDown, mc.options.keyRight.isDown),
+        up = axis(mc.options.keyJump.isDown, mc.options.keyShift.isDown)
+    )
+
+    private fun axis(positive: Boolean, negative: Boolean): Double =
+        (if (positive) 1.0 else 0.0) - (if (negative) 1.0 else 0.0)
+
+    private fun limitSpeed(dx: Double, dy: Double, dz: Double): Triple<Double, Double, Double> {
+        val speed = sqrt(dx * dx + dy * dy + dz * dz)
+        if (speed <= MAX_SPEED) return Triple(dx, dy, dz)
+        val scale = MAX_SPEED / speed
+        forwardVelocity *= scale
+        leftVelocity *= scale
+        upVelocity *= scale
+        return Triple(dx * scale, dy * scale, dz * scale)
+    }
+
+    private data class FreeCamInput(val forward: Double, val left: Double, val up: Double)
 
     private fun calculateVelocity(current: Double, input: Double, dt: Double): Double {
         if (input == 0.0) return current * SLOWDOWN.pow(dt)

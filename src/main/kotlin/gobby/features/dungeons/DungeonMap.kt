@@ -13,6 +13,11 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.pathfinder.world.BlockCache
+import gobby.pathfinder.etherwarp.EtherwarpPathfinder
+import gobby.pathfinder.etherwarp.DungeonEtherwarpPathfinder
+import gobby.pathfinder.etherwarp.DungeonRoomPathfinder
+import gobby.pathfinder.etherwarp.DungeonRoomRoutePreparation
+import gobby.pathfinder.navigation.DungeonRoomGoalResolver
 import gobby.utils.skyblock.dungeon.map.*
 import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
 import gobby.utils.skyblock.dungeon.tiles.RoomData
@@ -23,7 +28,14 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
 
     var hasScanned = false
         private set
+
+    @Volatile
+    var revision: Long = 0L
+        private set
+    private var lastPathSignature = Long.MIN_VALUE
     private var isScanning = false
+    private var warmedPathfinderRevision = Long.MIN_VALUE
+    private var warmingPathfinderRevision = Long.MIN_VALUE
 
     private const val REFRESH_INTERVAL_MS = 500L
 
@@ -34,6 +46,7 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
     val checkmarksView: Array<MapCheckmark> get() = checkmarks
     val discoveredView: BooleanArray get() = discovered
     val openedDoorsView: BooleanArray get() = openedDoors
+
     fun isDoorOpened(cell: Int): Boolean = openedDoors.getOrElse(cell) { false }
     private val refreshClock = Clock()
 
@@ -41,6 +54,7 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
         MapCheckmarks.update(grid, checkmarks, discovered)
         MapDoors.updateFromMap(grid, openedDoors)
         markLocalRoom()
+        updatePathRevision()
     }
 
     private fun markLocalRoom() {
@@ -114,8 +128,19 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
         val scanComplete = MapScanner.scan(grid)
         hasScanned = hasScanned || scanComplete
         if (scanComplete) {
+            updatePathRevision()
             val bounds = MapGrid.dungeonChunkBounds()
             BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
+            if (warmedPathfinderRevision != revision && warmingPathfinderRevision != revision) {
+                val requestedRevision = revision
+                warmingPathfinderRevision = requestedRevision
+                EtherwarpPathfinder.preloadAsync(BlockCache.freeze(), grid.copyOf(), requestedRevision) { succeeded ->
+                    if (warmingPathfinderRevision != requestedRevision) return@preloadAsync
+                    warmingPathfinderRevision = Long.MIN_VALUE
+                    if (succeeded && revision == requestedRevision) warmedPathfinderRevision = requestedRevision
+                }
+            }
+            prewarmReachableRoutes()
         }
         isScanning = false
     }
@@ -144,6 +169,31 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon. WO
         openedDoors.fill(false)
         MapCheckmarks.reset()
         hasScanned = false
+        revision++
+        lastPathSignature = Long.MIN_VALUE
         isScanning = false
+        warmedPathfinderRevision = Long.MIN_VALUE
+        warmingPathfinderRevision = Long.MIN_VALUE
+        EtherwarpPathfinder.cancelPreload()
+        DungeonRoomGoalResolver.clear()
     }
+
+    private fun updatePathRevision() {
+        val signature = grid.contentHashCode().toLong() * SIGNATURE_MULTIPLIER + openedDoors.contentHashCode()
+        if (signature == lastPathSignature) return
+        lastPathSignature = signature
+        revision++
+    }
+
+    private fun prewarmReachableRoutes() {
+        if (!RoomPathfinder.enabled) return
+        val player = mc.player ?: return
+        val startCell = DungeonRooms.roomCellAt(grid, player.x, player.z) ?: return
+        val reachable = DungeonRoomPathfinder.reachableCellsFrom(grid, startCell) { door ->
+            DungeonEtherwarpPathfinder.doorOpen(door) { position -> BlockCache.knownStateAt(position) }
+        }
+        DungeonRoomRoutePreparation.prepare(reachable)
+    }
+
+    private const val SIGNATURE_MULTIPLIER = 1_000_003L
 }

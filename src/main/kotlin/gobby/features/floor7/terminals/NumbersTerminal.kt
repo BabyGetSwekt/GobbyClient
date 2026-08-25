@@ -7,6 +7,7 @@ import net.minecraft.world.item.Items
 object NumbersTerminal : TerminalSolver() {
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = title.contains("Click in order!")
 
     override fun solve(screen: ContainerScreen): TerminalClick? {

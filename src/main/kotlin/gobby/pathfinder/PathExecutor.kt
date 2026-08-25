@@ -17,11 +17,9 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 object PathExecutor {
-
     var enableMicroPauses: Boolean = true
     var enableSpeedAdaptation: Boolean = true
     var enableSprint: Boolean = true
-
     private var plan: RoutePlan = RoutePlan.Failed
     private var cursor: Int = 0
     private val steering = PathSteering()
@@ -32,7 +30,7 @@ object PathExecutor {
     private var obstructionHits: Int = 0
     private var graceTicksRemaining: Int = 0
     private var repathInFlight: Boolean = false
-    private var pendingFallRepath: Boolean = false
+    private val fallRecovery = PathFallRecovery(recovery)
     private var partialReplans: Int = 0
     private var bestGoalDist: Double = Double.MAX_VALUE
     private var finalGoal: Vec3? = null
@@ -61,7 +59,6 @@ object PathExecutor {
         }
     }
 
-
     fun begin(routePlan: RoutePlan, originalGoal: Vec3? = null, mode: TravelMode = TravelMode.WALK) {
         if (routePlan.isEmpty) {
             modMessage("§cNo route to follow.")
@@ -80,7 +77,7 @@ object PathExecutor {
         obstructionHits = 0
         graceTicksRemaining = OBSTRUCTION_GRACE_TICKS
         repathInFlight = false
-        pendingFallRepath = false
+        fallRecovery.reset()
         finalGoal = goal
         travelMode = mode
     }
@@ -99,7 +96,7 @@ object PathExecutor {
         steering.reset()
         recovery.reset()
         repathInFlight = false
-        pendingFallRepath = false
+        fallRecovery.reset()
         finalGoal = null
         InputManager.releaseAll()
     }
@@ -124,13 +121,15 @@ object PathExecutor {
         if (active is RoutePlan.Failed) return
         val player = mc.player ?: return
         JumpTracker.tick(player)
+        processTick(active, player)
+    }
 
+    private fun processTick(active: RoutePlan, player: LocalPlayer) {
         val waypoints = waypointsMutable
         if (cursor >= waypoints.size) {
             arrive()
             return
         }
-
         val isSky = active is RoutePlan.Sky
         val pos = PlayerUtils.getSyncedPos() ?: player.position()
         cursor = PathProgress.advanceCursor(cursor, waypoints, pos, isSky, player.onGround())
@@ -138,79 +137,70 @@ object PathExecutor {
             arrive()
             return
         }
+        if (!isSky && fallRecovery.handle(waypoints, cursor, pos, player) { triggerOffPathRepath(pos) }) return
 
-        if (!isSky && handleUnplannedFall(waypoints, pos, player)) return
-
-        when (val decision = recovery.tick(pos, isSky, cursor, waypoints, repathInFlight)) {
-            PathRecoveryMonitor.Decision.None -> Unit
-            is PathRecoveryMonitor.Decision.SkipTo -> cursor = decision.cursor
-            PathRecoveryMonitor.Decision.OffPath -> {
-                triggerOffPathRepath(pos)
-                return
-            }
-            PathRecoveryMonitor.Decision.Stuck -> {
-                triggerStuckRepath(pos)
-                return
-            }
-        }
+        if (handleRecovery(pos, isSky, waypoints)) return
         if (repathInFlight) return
         if (recovery.applyRecoveryInputsIfNeeded()) return
-
         if (microPauser.tick(enableMicroPauses)) return
-
         if (!isSky && dynamicRepathDueAndBlocked(waypoints)) {
             triggerObstructionRepath(pos)
             return
         }
 
-        if (!isSky) tryLookAheadShortcut(waypoints, pos, player)
-        if (cursor >= waypoints.size) { arrive(); return }
+        if (!isSky) {
+            val shortcut = PathLookaheadShortcut.find(waypoints, cursor, pos, player, lookAheadCooldown)
+            cursor = shortcut.first
+            lookAheadCooldown = shortcut.second
+        }
+        if (cursor >= waypoints.size) {
+            arrive()
+            return
+        }
 
         if (isSky) steering.steerSky(waypoints[cursor], pos, player)
         else steering.steerGround(waypoints, cursor, pos, player, enableSpeedAdaptation, enableSprint)
     }
 
+    private fun handleRecovery(pos: Vec3, isSky: Boolean, waypoints: List<Vec3>): Boolean {
+        when (val decision = recovery.tick(pos, isSky, cursor, waypoints, repathInFlight)) {
+            PathRecoveryMonitor.Decision.None -> return false
+            is PathRecoveryMonitor.Decision.SkipTo -> cursor = decision.cursor
+            PathRecoveryMonitor.Decision.OffPath -> {
+                triggerOffPathRepath(pos)
+                return true
+            }
+            PathRecoveryMonitor.Decision.Stuck -> {
+                triggerStuckRepath(pos)
+                return true
+            }
+        }
+        return false
+    }
+
     private fun dynamicRepathDueAndBlocked(waypoints: List<Vec3>): Boolean {
         if (mc.player?.onGround() == false) return false
-        if (graceTicksRemaining > 0) { graceTicksRemaining--; return false }
+        if (graceTicksRemaining > 0) {
+            graceTicksRemaining--
+            return false
+        }
         dynamicRepathCooldown--
         if (dynamicRepathCooldown > 0) return false
         dynamicRepathCooldown = DYNAMIC_REPATH_INTERVAL
         val ceiling = min(cursor + DYNAMIC_REPATH_LOOKAHEAD, waypoints.lastIndex)
         var blocked = false
         for (i in cursor until ceiling) {
-            if (!PathCollision.isSegmentStillClear(waypoints[i], waypoints[i + 1])) { blocked = true; break }
+            if (!PathCollision.isSegmentStillClear(waypoints[i], waypoints[i + 1])) {
+                blocked = true
+                break
+            }
         }
-        if (!blocked) { obstructionHits = 0; return false }
+        if (!blocked) {
+            obstructionHits = 0
+            return false
+        }
         obstructionHits++
         return obstructionHits >= OBSTRUCTION_CONFIRM_HITS
-    }
-
-    private fun handleUnplannedFall(waypoints: List<Vec3>, pos: Vec3, player: LocalPlayer): Boolean {
-        if (cursor <= 0 || cursor >= waypoints.size) return false
-        if (JumpTracker.isPending() && !pendingFallRepath) return false
-
-        if (pendingFallRepath) {
-            InputManager.releaseAll()
-            if (player.onGround() && !repathInFlight) {
-                pendingFallRepath = false
-                triggerOffPathRepath(pos)
-            }
-            return true
-        }
-
-        if (player.onGround()) return false
-        val deviation = PathFollowMath.segmentDeviation(waypoints, cursor, pos) ?: return false
-        if (deviation.segmentDy < -0.2) return false
-
-        val fellBelowPath = deviation.verticalBelow > FALL_OFF_PATH_Y_DROP
-        val fellSideways = deviation.lateral > FALL_OFF_PATH_LATERAL
-        if (!fellBelowPath && !fellSideways) return false
-
-        pendingFallRepath = true
-        recovery.clearForFall()
-        InputManager.releaseAll()
-        return true
     }
 
     private fun triggerRepath(pos: Vec3, reason: String) {
@@ -220,16 +210,12 @@ object PathExecutor {
         recovery.reset()
         InputManager.releaseAll()
         modMessage(reason)
-        RouteEngine.planAsync(pos, goal, travelMode).thenAccept { newPlan ->
-            mc.execute {
-                if (newPlan is RoutePlan.Failed) {
-                    modMessage("§cReroute failed.")
-                    stop()
-                } else {
-                    begin(newPlan, goal, travelMode)
-                }
-            }
-        }
+        PathRepathPlanner.submit(pos, goal, travelMode, { newPlan ->
+            begin(newPlan, goal, travelMode)
+        }, {
+            modMessage("§cReroute failed.")
+            stop()
+        })
     }
 
     private fun triggerOffPathRepath(pos: Vec3) = triggerRepath(pos, "§eOff-path detected - recalculating...")
@@ -242,27 +228,6 @@ object PathExecutor {
             PathBlacklist.blacklistArea(it, STUCK_BLACKLIST_WAYPOINT_RADIUS, STUCK_BLACKLIST_DURATION)
         }
         triggerRepath(pos, "§cStuck! Blacklisting and replanning...")
-    }
-
-    private fun tryLookAheadShortcut(waypoints: List<Vec3>, pos: Vec3, player: LocalPlayer) {
-        if (!player.onGround()) return
-        lookAheadCooldown--
-        if (lookAheadCooldown > 0) return
-        lookAheadCooldown = LOOK_AHEAD_INTERVAL
-        val ceiling = min(cursor + LOOK_AHEAD_MAX_INDEX_DELTA, waypoints.lastIndex)
-        for (i in ceiling downTo cursor + 1) {
-            val wp = waypoints[i]
-            val dx = pos.x - wp.x
-            val dy = pos.y - wp.y
-            val dz = pos.z - wp.z
-            val distSq = dx * dx + dy * dy + dz * dz
-            if (distSq > LOOK_AHEAD_RANGE_SQ) continue
-            if (wp.y - pos.y > LOOK_AHEAD_MAX_CLIMB) continue
-            if (PathCollision.quickLineOfSight(pos, wp)) {
-                cursor = i
-                break
-            }
-        }
     }
 
     private fun arrive() {
@@ -294,7 +259,6 @@ object PathExecutor {
         modMessage("§aRoute complete!")
         stop()
     }
-
 
     @SubscribeEvent
     fun onRender3D(event: NewRender3DEvent) {

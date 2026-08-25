@@ -42,13 +42,19 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
         if (!enabled) return
         val player = mc.player ?: return
         val pos = event.pos
-        val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
+        val dx = pos.x - player.x
+        val dy = pos.y - player.y
+        val dz = pos.z - player.z
         val dist = sqrt(dx * dx + dy * dy + dz * dz)
         if (dist > range) return
         val id = BuiltInRegistries.PARTICLE_TYPE.getKey(event.effect.type)?.toString() ?: event.effect.type.toString()
-        val x = "%.2f".format(pos.x); val y = "%.2f".format(pos.y); val z = "%.2f".format(pos.z)
+        val x = "%.2f".format(pos.x)
+        val y = "%.2f".format(pos.y)
+        val z = "%.2f".format(pos.z)
         val v = event.velocity
-        val vx = "%.2f".format(v.x); val vy = "%.2f".format(v.y); val vz = "%.2f".format(v.z)
+        val vx = "%.2f".format(v.x)
+        val vy = "%.2f".format(v.y)
+        val vz = "%.2f".format(v.z)
         modMessage("§7[Particle] §f$id §8| §bpos §f($x, $y, $z) §8| §7vel §f($vx, $vy, $vz)")
     }
 
@@ -74,23 +80,29 @@ object ParticleDebugger : Module("Particle Debugger", "Prints every particle spa
         }
         val stack = live?.item ?: fireworkCache[id]?.stack
 
-        val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
+        val dx = pos.x - player.x
+        val dy = pos.y - player.y
+        val dz = pos.z - player.z
         val dist = sqrt(dx * dx + dy * dy + dz * dz)
         if (dist > range) return
 
         modMessage("§7[Particle] §6firework_explosion §8| §bpos §f(${"%.2f".format(pos.x)}, ${"%.2f".format(pos.y)}, ${"%.2f".format(pos.z)}) §8| §7dist §f${"%.2f".format(dist)} §8| §7live=${live != null} §7cached=${fireworkCache.containsKey(id)}")
+        reportFireworkItem(stack)
+    }
+
+    private fun reportFireworkItem(stack: ItemStack?) {
         if (stack == null) {
             modMessage("§8 └ §7(no ItemStack for firework)")
-        } else {
-            modMessage("§8 └ §7item=§f${stack.item} §8| §7components=§f${stack.components.size()}")
-            val details = extractFireworkDetails(stack)
-            if (details.isNullOrEmpty()) {
-                modMessage("§8   └ §7(no minecraft:fireworks component — Hypixel likely uses client-simulated effect)")
-                stack.components.forEach { modMessage("§8   └ §7component §f${it.type} §8= §f${it.value}") }
-            } else {
-                details.forEach { modMessage(it) }
-            }
+            return
         }
+        modMessage("§8 └ §7item=§f${stack.item} §8| §7components=§f${stack.components.size()}")
+        val details = extractFireworkDetails(stack)
+        if (!details.isNullOrEmpty()) {
+            details.forEach { modMessage(it) }
+            return
+        }
+        modMessage("§8   └ §7(no minecraft:fireworks component, Hypixel likely uses a client-simulated effect)")
+        stack.components.forEach { modMessage("§8   └ §7component §f${it.type} §8= §f${it.value}") }
     }
 
     private fun readEntityId(packet: ClientboundEntityEventPacket): Int? {

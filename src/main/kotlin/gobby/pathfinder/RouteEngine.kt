@@ -15,9 +15,13 @@ enum class TravelMode { WALK, FLY, HYBRID }
 
 object PlanStats {
     @Volatile var lastMeshMs: Long = 0
+
     @Volatile var lastSolveMs: Long = 0
+
     @Volatile var lastTotalMs: Long = 0
+
     @Volatile var lastPolygonCount: Int = 0
+
     @Volatile var lastWaypointCount: Int = 0
 }
 
@@ -71,14 +75,16 @@ object RouteEngine {
         val centerZ = floor(target.z).toInt()
         for (radius in 0..SNAP_SPIRAL_RADIUS) {
             val candidates = if (radius == 0) listOf(centerX to centerZ) else ringCells(centerX, centerZ, radius)
-            for ((cx, cz) in candidates) {
-                if (!BlockCache.isChunkAvailable(cx, cz)) continue
-                val surfaces = BlockCache.getStandableSurfaces(cx, cz, target.y - SNAP_SEARCH_Y, target.y + SNAP_SEARCH_Y)
-                val best = surfaces.minByOrNull { abs(it.feetY - target.y) } ?: continue
-                return Vec3(cx + 0.5, best.feetY, cz + 0.5)
-            }
+            findSurfaceIn(candidates, target)?.let { return it }
         }
         return null
+    }
+
+    private fun findSurfaceIn(candidates: List<Pair<Int, Int>>, target: Vec3): Vec3? = candidates.firstNotNullOfOrNull { (cx, cz) ->
+        if (!BlockCache.isChunkAvailable(cx, cz)) return@firstNotNullOfOrNull null
+        val surfaces = BlockCache.getStandableSurfaces(cx, cz, target.y - SNAP_SEARCH_Y, target.y + SNAP_SEARCH_Y)
+        val best = surfaces.minByOrNull { abs(it.feetY - target.y) } ?: return@firstNotNullOfOrNull null
+        Vec3(cx + 0.5, best.feetY, cz + 0.5)
     }
 
     private fun resolveReachableGoal(start: Vec3, goal: Vec3): Vec3? {

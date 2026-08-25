@@ -160,96 +160,138 @@ object MapRenderer {
         val size = getMapSize()
         ctx.fill(0, 0, size, size, COL_BG.rgb)
         val forcedFront = entranceFrontCell(grid)
-
-        for (row in 0 until GRID_SIZE) {
-            for (col in 0 until GRID_SIZE) {
-                val tile = grid[row * GRID_SIZE + col]
-                val px = (col / 2) * STEP
-                val py = (row / 2) * STEP
-                val colOdd = col and 1 == 1
-                val rowOdd = row and 1 == 1
-
-                when (tile) {
-                    is MapTile.Room -> {
-                        val idx = row * GRID_SIZE + col
-                        val question = checkmarks[idx] == MapCheckmark.UNKNOWN || (idx == forcedFront && !discovered[idx])
-                        if (!legitMode || discovered[idx] || question || tile.data.type == RoomType.ENTRANCE) {
-                            ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomFill(tile.data, discovered[idx], legitMode))
-                            if (renderCheckmarks && question && !discovered[idx]) drawCheckmark(ctx, MapCheckmark.UNKNOWN, px + CELL_SIZE / 2, py + CELL_SIZE / 2)
-                        }
-                    }
-                    is MapTile.Connection -> if (!legitMode || neighbourAll(discovered, col, row)) {
-                        val c = roomFill(tile.data, neighbourDiscovered(discovered, col, row), legitMode)
-                        when {
-                            colOdd && !rowOdd -> ctx.fill(px + CELL_SIZE, py, px + CELL_SIZE + GAP, py + CELL_SIZE, c)
-                            !colOdd && rowOdd -> ctx.fill(px, py + CELL_SIZE, px + CELL_SIZE, py + CELL_SIZE + GAP, c)
-                            colOdd && rowOdd  -> ctx.fill(px + CELL_SIZE, py + CELL_SIZE, px + CELL_SIZE + GAP, py + CELL_SIZE + GAP, c)
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-
-        for (row in 0 until GRID_SIZE) {
-            for (col in 0 until GRID_SIZE) {
-                val tile = grid[row * GRID_SIZE + col]
-                if (tile !is MapTile.Door) continue
-                if (legitMode && tile.type != DoorType.ENTRANCE && !neighbourDiscovered(discovered, col, row)) continue
-                val px = (col / 2) * STEP
-                val py = (row / 2) * STEP
-                val c = doorFill(grid, discovered, legitMode, col, row, tile.type, openedDoors[row * GRID_SIZE + col])
-                val inset = (CELL_SIZE - DOOR_THICKNESS) / 2
-
-                if (col and 1 == 1) {
-                    ctx.fill(px + CELL_SIZE, py + inset, px + CELL_SIZE + GAP, py + CELL_SIZE - inset, c)
-                } else {
-                    ctx.fill(px + inset, py + CELL_SIZE, px + CELL_SIZE - inset, py + CELL_SIZE + GAP, c)
-                }
-            }
-        }
-
-        val processedRooms = mutableSetOf<RoomData>()
-        for (row in 0 until GRID_SIZE step 2) {
-            for (col in 0 until GRID_SIZE step 2) {
-                val tile = grid[row * GRID_SIZE + col]
-                if (tile !is MapTile.Room) continue
-                if (tile.data in processedRooms) continue
-                processedRooms.add(tile.data)
-
-                val cells = mutableListOf<Pair<Int, Int>>()
-                for (r in 0 until GRID_SIZE step 2) {
-                    for (c in 0 until GRID_SIZE step 2) {
-                        val t = grid[r * GRID_SIZE + c]
-                        if (t is MapTile.Room && t.data === tile.data) cells.add(c to r)
-                    }
-                }
-
-                val visible = if (legitMode) cells.filter { (c, r) -> discovered[r * GRID_SIZE + c] } else cells
-                if (visible.isEmpty()) continue
-
-                if (renderCheckmarks) {
-                    var bestCheckmark = MapCheckmark.NONE
-                    for ((c, r) in visible) {
-                        val cm = checkmarks[r * GRID_SIZE + c]
-                        if (cm != MapCheckmark.UNKNOWN && cm.ordinal > bestCheckmark.ordinal) bestCheckmark = cm
-                    }
-                    if (bestCheckmark != MapCheckmark.NONE) {
-                        val (cx, cy) = getRoomCheckmarkCenter(visible, tile.data.shape)
-                        drawCheckmark(ctx, bestCheckmark, cx, cy)
-                    }
-                }
-
-                if (renderNames && (!legitMode || visible.any { (c, r) -> discovered[r * GRID_SIZE + c] })) {
-                    val (nameCol, nameRow) = visible.first()
-                    val namePx = (nameCol / 2) * STEP
-                    val namePy = (nameRow / 2) * STEP
-                    drawRoomName(ctx, tile.data, namePx, namePy, nameScale)
-                }
-            }
-        }
-
+        drawTiles(ctx, grid, checkmarks, discovered, legitMode, renderCheckmarks, forcedFront)
+        drawDoors(ctx, grid, discovered, openedDoors, legitMode)
+        drawRooms(ctx, grid, checkmarks, discovered, legitMode, renderNames, nameScale, renderCheckmarks)
         if (renderHeads) drawPlayers(ctx, headScale)
+    }
+
+    private fun drawTiles(
+        ctx: GuiGraphicsExtractor,
+        grid: Array<MapTile>,
+        checkmarks: Array<MapCheckmark>,
+        discovered: BooleanArray,
+        legitMode: Boolean,
+        renderCheckmarks: Boolean,
+        forcedFront: Int
+    ) {
+        grid.forEachIndexed { index, tile ->
+            val row = index / GRID_SIZE
+            val col = index % GRID_SIZE
+            val px = (col / 2) * STEP
+            val py = (row / 2) * STEP
+            val colOdd = col and 1 == 1
+            val rowOdd = row and 1 == 1
+            when (tile) {
+                is MapTile.Room -> drawRoomTile(ctx, tile, checkmarks[index], discovered[index], legitMode, renderCheckmarks, index == forcedFront && !discovered[index], px, py)
+                is MapTile.Connection -> drawConnectionTile(ctx, tile, discovered, legitMode, col, row, colOdd, rowOdd, px, py)
+                else -> Unit
+            }
+        }
+    }
+
+    private fun drawRoomTile(
+        ctx: GuiGraphicsExtractor,
+        tile: MapTile.Room,
+        checkmark: MapCheckmark,
+        discovered: Boolean,
+        legitMode: Boolean,
+        renderCheckmarks: Boolean,
+        question: Boolean,
+        px: Int,
+        py: Int
+    ) {
+        if (legitMode && !discovered && !question && tile.data.type != RoomType.ENTRANCE) return
+        ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomFill(tile.data, discovered, legitMode))
+        if (renderCheckmarks && question && !discovered) drawCheckmark(ctx, MapCheckmark.UNKNOWN, px + CELL_SIZE / 2, py + CELL_SIZE / 2)
+    }
+
+    private fun drawConnectionTile(
+        ctx: GuiGraphicsExtractor,
+        tile: MapTile.Connection,
+        discovered: BooleanArray,
+        legitMode: Boolean,
+        col: Int,
+        row: Int,
+        colOdd: Boolean,
+        rowOdd: Boolean,
+        px: Int,
+        py: Int
+    ) {
+        if (legitMode && !neighbourAll(discovered, col, row)) return
+        val color = roomFill(tile.data, neighbourDiscovered(discovered, col, row), legitMode)
+        when {
+            colOdd && !rowOdd -> ctx.fill(px + CELL_SIZE, py, px + CELL_SIZE + GAP, py + CELL_SIZE, color)
+            !colOdd && rowOdd -> ctx.fill(px, py + CELL_SIZE, px + CELL_SIZE, py + CELL_SIZE + GAP, color)
+            colOdd && rowOdd -> ctx.fill(px + CELL_SIZE, py + CELL_SIZE, px + CELL_SIZE + GAP, py + CELL_SIZE + GAP, color)
+        }
+    }
+
+    private fun drawDoors(
+        ctx: GuiGraphicsExtractor,
+        grid: Array<MapTile>,
+        discovered: BooleanArray,
+        openedDoors: BooleanArray,
+        legitMode: Boolean
+    ) {
+        grid.forEachIndexed { index, tile ->
+            if (tile !is MapTile.Door) return@forEachIndexed
+            val row = index / GRID_SIZE
+            val col = index % GRID_SIZE
+            if (legitMode && tile.type != DoorType.ENTRANCE && !neighbourDiscovered(discovered, col, row)) return@forEachIndexed
+            val px = (col / 2) * STEP
+            val py = (row / 2) * STEP
+            val color = doorFill(grid, discovered, legitMode, col, row, tile.type, openedDoors[index])
+            val inset = (CELL_SIZE - DOOR_THICKNESS) / 2
+            if (col and 1 == 1) ctx.fill(px + CELL_SIZE, py + inset, px + CELL_SIZE + GAP, py + CELL_SIZE - inset, color)
+            else ctx.fill(px + inset, py + CELL_SIZE, px + CELL_SIZE - inset, py + CELL_SIZE + GAP, color)
+        }
+    }
+
+    private fun drawRooms(
+        ctx: GuiGraphicsExtractor,
+        grid: Array<MapTile>,
+        checkmarks: Array<MapCheckmark>,
+        discovered: BooleanArray,
+        legitMode: Boolean,
+        renderNames: Boolean,
+        nameScale: Int,
+        renderCheckmarks: Boolean
+    ) {
+        val processed = mutableSetOf<RoomData>()
+        grid.indices.filter { it / GRID_SIZE % 2 == 0 && it % GRID_SIZE % 2 == 0 }.forEach { index ->
+            val tile = grid[index]
+            if (tile !is MapTile.Room || !processed.add(tile.data)) return@forEach
+            val cells = grid.indices.asSequence()
+                .filter { it / GRID_SIZE % 2 == 0 && it % GRID_SIZE % 2 == 0 }
+                .filter { grid[it] is MapTile.Room && (grid[it] as MapTile.Room).data === tile.data }
+                .map { it % GRID_SIZE to it / GRID_SIZE }
+                .toList()
+            val visible = if (legitMode) cells.filter { (col, row) -> discovered[row * GRID_SIZE + col] } else cells
+            if (visible.isEmpty()) return@forEach
+            drawRoomCheckmark(ctx, visible, tile.data.shape, checkmarks, renderCheckmarks)
+            if (renderNames && (!legitMode || visible.any { (col, row) -> discovered[row * GRID_SIZE + col] })) {
+                val (col, row) = visible.first()
+                drawRoomName(ctx, tile.data, (col / 2) * STEP, (row / 2) * STEP, nameScale)
+            }
+        }
+    }
+
+    private fun drawRoomCheckmark(
+        ctx: GuiGraphicsExtractor,
+        visible: List<Pair<Int, Int>>,
+        shape: String,
+        checkmarks: Array<MapCheckmark>,
+        enabled: Boolean
+    ) {
+        if (!enabled) return
+        val best = visible.map { (col, row) -> checkmarks[row * GRID_SIZE + col] }
+            .filter { it != MapCheckmark.UNKNOWN }
+            .maxByOrNull { it.ordinal } ?: MapCheckmark.NONE
+        if (best != MapCheckmark.NONE) {
+            val (x, y) = getRoomCheckmarkCenter(visible, shape)
+            drawCheckmark(ctx, best, x, y)
+        }
     }
 
     private fun drawRoomName(ctx: GuiGraphicsExtractor, data: RoomData, px: Int, py: Int, scalePercent: Int) {
@@ -276,6 +318,7 @@ object MapRenderer {
     }
 
     /** Finds the pixel center for a room's checkmark. For L-shapes, uses the bend cell. */
+
     private fun getRoomCheckmarkCenter(cells: List<Pair<Int, Int>>, shape: String): Pair<Int, Int> {
         if (shape == "L" && cells.size == 3) {
             for ((c, r) in cells) {
@@ -294,6 +337,7 @@ object MapRenderer {
     }
 
     /** Draws checkmark centered at the given pixel position */
+
     private fun drawCheckmark(ctx: GuiGraphicsExtractor, checkmark: MapCheckmark, centerX: Int, centerY: Int) {
         registerCheckmarkTexture()
         val checkSize = (CELL_SIZE * 0.5f).toInt()
@@ -372,3 +416,4 @@ object MapRenderer {
         }
     }
 }
+

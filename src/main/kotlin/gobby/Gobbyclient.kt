@@ -6,6 +6,11 @@ import gobby.events.core.EventManager
 import gobby.features.ModuleManager.subscribeEventListeners
 import gobby.features.skyblock.ModIdHider
 import gobby.gui.click.ConfigManager
+import gobby.pathfinder.etherwarp.DungeonEtherwarpPathfinder
+import gobby.pathfinder.etherwarp.DungeonPathPlanningExecutor
+import gobby.pathfinder.etherwarp.EtherwarpPathfinder
+import gobby.pathfinder.etherwarp.EtherwarpPathExecutor
+import gobby.features.dungeons.DungeonMap
 
 import gobby.utils.LocationUtils
 import gobby.utils.timer.Executor
@@ -37,6 +42,10 @@ class Gobbyclient : ClientModInitializer {
 		}
 
 		ModIdHider.applyToLoader()
+		EtherwarpPathfinder.preload()
+		DungeonEtherwarpPathfinder.preload(DungeonMap.grid, DungeonMap.revision)
+		DungeonPathPlanningExecutor.preload()
+		EtherwarpPathExecutor.preload()
 		initEvents()
 		EVENT_MANAGER.initEvents()
 		subscribeEventListeners()
@@ -49,6 +58,7 @@ class Gobbyclient : ClientModInitializer {
 
 	private fun initEvents() {
 		ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher: CommandDispatcher<FabricClientCommandSource>, _: CommandBuildContext ->
+
 			@Suppress("UNCHECKED_CAST")
 			EVENT_MANAGER.publish(CommandRegisterEvent(dispatcher as CommandDispatcher<FabricClientCommandSource?>))
 		})

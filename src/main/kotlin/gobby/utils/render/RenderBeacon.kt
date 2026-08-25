@@ -1,7 +1,8 @@
 package gobby.utils.render
 
-import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils.cameraPos
+
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
 import gobby.events.render.NewRender3DEvent
 import gobby.utils.render.BlockRenderUtils.buildLine3D
@@ -76,68 +77,80 @@ object RenderBeacon {
     private fun renderBeaconBeam(matrixStack: PoseStack, camera: Camera, beacon: BeaconData) {
         val collector = RenderUtils.frameCollector ?: return
         val cameraPos = camera.cameraPos
-
-        // Color values
         val r = beacon.color.red.toFloat() / 255f
         val g = beacon.color.green.toFloat() / 255f
         val b = beacon.color.blue.toFloat() / 255f
         val a = beacon.color.alpha.toFloat() / 255f
+        val x = beacon.pos.x + 0.5 - cameraPos.x
+        val y = beacon.pos.y + 1.0 - cameraPos.y
+        val z = beacon.pos.z + 0.5 - cameraPos.z
+        drawBeamLayer(matrixStack, collector, x, y, z, BEAM_RADIUS, r, g, b, a, a * 0.3f)
+        drawBeamLayer(matrixStack, collector, x, y, z, BEAM_RADIUS * 0.6f, r, g, b, a * 0.8f, a * 0.1f)
+        renderBeamOutline(matrixStack, camera, collector, beacon)
+    }
 
-        val beaconX = beacon.pos.x + 0.5 - cameraPos.x
-        val beaconY = beacon.pos.y + 1.0 - cameraPos.y
-        val beaconZ = beacon.pos.z + 0.5 - cameraPos.z
-
+    private fun drawBeamLayer(
+        matrixStack: PoseStack,
+        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        x: Double,
+        y: Double,
+        z: Double,
+        radius: Float,
+        red: Float,
+        green: Float,
+        blue: Float,
+        bottomAlpha: Float,
+        topAlpha: Float
+    ) {
         collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_QUADS) { pose, buffer ->
-            for (i in 0 until SEGMENTS) {
-                val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
-                val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
-
-                val x1 = beaconX + cos(angle1) * BEAM_RADIUS
-                val z1 = beaconZ + sin(angle1) * BEAM_RADIUS
-                val x2 = beaconX + cos(angle2) * BEAM_RADIUS
-                val z2 = beaconZ + sin(angle2) * BEAM_RADIUS
-
-                // Bottom quad (beacon level)
-                buffer.addVertex(pose, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a)
-                buffer.addVertex(pose, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a)
-                buffer.addVertex(pose, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.3f)
-                buffer.addVertex(pose, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.3f)
-            }
-
-            val innerRadius = BEAM_RADIUS * 0.6f
-            for (i in 0 until SEGMENTS) {
-                val angle1 = (i * 2.0 * Math.PI / SEGMENTS).toFloat()
-                val angle2 = ((i + 1) * 2.0 * Math.PI / SEGMENTS).toFloat()
-
-                val x1 = beaconX + cos(angle1) * innerRadius
-                val z1 = beaconZ + sin(angle1) * innerRadius
-                val x2 = beaconX + cos(angle2) * innerRadius
-                val z2 = beaconZ + sin(angle2) * innerRadius
-
-                // Inner beam quad
-                buffer.addVertex(pose, x1.toFloat(), beaconY.toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.8f)
-                buffer.addVertex(pose, x2.toFloat(), beaconY.toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.8f)
-                buffer.addVertex(pose, x2.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(r, g, b, a * 0.1f)
-                buffer.addVertex(pose, x1.toFloat(), (beaconY + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(r, g, b, a * 0.1f)
+            for (index in 0 until SEGMENTS) {
+                val first = index * 2.0 * Math.PI / SEGMENTS
+                val second = (index + 1) * 2.0 * Math.PI / SEGMENTS
+                addBeamQuad(buffer, pose, x, y, z, radius, first, second, red, green, blue, bottomAlpha, topAlpha)
             }
         }
+    }
 
-        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_LINES) { pose, lineBuffer ->
-            val baseSize = 0.6f
-            val baseY = beacon.pos.y + 1.0
+    private fun addBeamQuad(
+        buffer: com.mojang.blaze3d.vertex.VertexConsumer,
+        pose: PoseStack.Pose,
+        x: Double,
+        y: Double,
+        z: Double,
+        radius: Float,
+        first: Double,
+        second: Double,
+        red: Float,
+        green: Float,
+        blue: Float,
+        bottomAlpha: Float,
+        topAlpha: Float
+    ) {
+        val x1 = x + cos(first) * radius
+        val z1 = z + sin(first) * radius
+        val x2 = x + cos(second) * radius
+        val z2 = z + sin(second) * radius
+        buffer.addVertex(pose, x1.toFloat(), y.toFloat(), z1.toFloat()).setColor(red, green, blue, bottomAlpha)
+        buffer.addVertex(pose, x2.toFloat(), y.toFloat(), z2.toFloat()).setColor(red, green, blue, bottomAlpha)
+        buffer.addVertex(pose, x2.toFloat(), (y + BEAM_HEIGHT).toFloat(), z2.toFloat()).setColor(red, green, blue, topAlpha)
+        buffer.addVertex(pose, x1.toFloat(), (y + BEAM_HEIGHT).toFloat(), z1.toFloat()).setColor(red, green, blue, topAlpha)
+    }
 
-            buildLine3D(pose, camera, lineBuffer,
-                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
-                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
-            buildLine3D(pose, camera, lineBuffer,
-                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2,
-                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
-            buildLine3D(pose, camera, lineBuffer,
-                beacon.pos.x + 0.5 + baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
-                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2, beacon.color)
-            buildLine3D(pose, camera, lineBuffer,
-                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 + baseSize/2,
-                beacon.pos.x + 0.5 - baseSize/2, baseY, beacon.pos.z + 0.5 - baseSize/2, beacon.color)
+    private fun renderBeamOutline(
+        matrixStack: PoseStack,
+        camera: Camera,
+        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        beacon: BeaconData
+    ) {
+        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_LINES) { pose, buffer ->
+            val base = beacon.pos.y + 1.0
+            val half = 0.3
+            val x = beacon.pos.x + 0.5
+            val z = beacon.pos.z + 0.5
+            buildLine3D(pose, camera, buffer, x - half, base, z - half, x + half, base, z - half, beacon.color)
+            buildLine3D(pose, camera, buffer, x + half, base, z - half, x + half, base, z + half, beacon.color)
+            buildLine3D(pose, camera, buffer, x + half, base, z + half, x - half, base, z + half, beacon.color)
+            buildLine3D(pose, camera, buffer, x - half, base, z + half, x - half, base, z - half, beacon.color)
         }
     }
 
@@ -147,7 +160,6 @@ object RenderBeacon {
         val dz = beaconPos.z + 0.5 - cameraPos.z
         return sqrt(dx * dx + dy * dy + dz * dz)
     }
-
 
     private fun calculateTextScale(distance: Double): Float {
         return when {

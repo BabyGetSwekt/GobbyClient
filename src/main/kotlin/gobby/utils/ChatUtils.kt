@@ -1,6 +1,9 @@
 package gobby.utils
 
 import gobby.Gobbyclient.Companion.mc
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.Charset
+import java.nio.CharBuffer
 import gobby.utils.Utils.isDeveloper
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Component
@@ -12,17 +15,15 @@ object ChatUtils {
 
     val kuudraTierRegex = Regex("Kuudra's Hollow \\(T(\\d+)\\)$")
 
-    private val FORMATTING_CODE_PATTERN = Regex("§[0-9a-fk-or]", RegexOption.IGNORE_CASE)
+    private val FORMATTING_CODE_PATTERN = Regex("\u00A7[0-9a-fk-or]", RegexOption.IGNORE_CASE)
     val String.noControlCodes: String get() = FORMATTING_CODE_PATTERN.replace(this, "")
 
     // Regex patterns for matching chat messages [all chat, party chat]
     val publicMessageRegex = Regex("""^\[\d+]\s+(\[[^]]+])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")
     val partyMessageRegex = Regex("""^Party > (\[[^]]*])?\s?(\w{1,16})(?: [ቾ⚒])?: (.+)$""")
 
-
-
-    private const val PREFIX = "§b[§3Gobby Client§b] §8»§r"
-    private const val DEV_PREFIX = "§2[§aGobby Client§2] §8»§r"
+    private const val PREFIX = "\u00A7b[\u00A73Gobby Client\u00A7b] \u00A78\u00BB\u00A7r"
+    private const val DEV_PREFIX = "\u00A72[\u00A7aGobby Client\u00A72] \u00A78\u00BB\u00A7r"
     private val AQUA_PREFIX: MutableComponent
         get() = Component.empty()
             .append(Component.literal("[").withStyle(ChatFormatting.GRAY))
@@ -33,7 +34,7 @@ object ChatUtils {
             .append(Component.literal("y").withColor(0x007777))
             .append(Component.literal(" Client").withStyle(ChatFormatting.AQUA))
             .append(Component.literal("] ").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(Component.literal("\u00BB ").withStyle(ChatFormatting.DARK_GRAY))
 
     private val RAINBOW_PREFIX_COLOR: MutableComponent
         get() {
@@ -50,15 +51,40 @@ object ChatUtils {
             }
 
             prefix.append(Component.literal("] ").withStyle(ChatFormatting.GRAY))
-            prefix.append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(Component.literal("\u00BB ").withStyle(ChatFormatting.DARK_GRAY))
 
             return prefix
         }
 
+    private fun repairText(value: String): String {
+        var best = value
+        repeat(MAX_REPAIR_PASSES) {
+            val candidate = decodeMojibakePass(best) ?: return best
+            if (mojibakeScore(candidate) >= mojibakeScore(best)) return best
+            best = candidate
+        }
+        return best
+    }
+
+    private fun decodeMojibakePass(value: String): String? = runCatching {
+        val encoded = WINDOWS_1252.newEncoder()
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .encode(CharBuffer.wrap(value))
+        Charsets.UTF_8.newDecoder()
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .decode(encoded)
+            .toString()
+    }.getOrNull()
+
+    private fun mojibakeScore(value: String): Int = value.count { it in MOJIBAKE_MARKERS }
+
     @JvmStatic
     fun modMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null || message == "") return
-        val msg = if (showPrefix) "$PREFIX $message" else message.toString()
+        val text = repairText(message.toString())
+        val msg = if (showPrefix) "$PREFIX $text" else text
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(Component.literal(msg)) }
     }
 
@@ -70,7 +96,8 @@ object ChatUtils {
 
     fun devMessage(message: Any, showPrefix: Boolean = true) {
         if (mc.player == null || mc.level == null || message == "" || !isDeveloper() || !gobby.features.developer.DevMode.enabled || !gobby.features.developer.DevMode.enableDevMessages) return
-        val msg = if (showPrefix) "$DEV_PREFIX $message" else message.toString()
+        val text = repairText(message.toString())
+        val msg = if (showPrefix) "$DEV_PREFIX $text" else text
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(Component.literal(msg)) }
     }
 
@@ -86,8 +113,8 @@ object ChatUtils {
             .append(Component.literal("[").withStyle(ChatFormatting.DARK_RED))
             .append(Component.literal("Gobby Client").withStyle(ChatFormatting.RED))
             .append(Component.literal("] ").withStyle(ChatFormatting.DARK_RED))
-            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
-            .append(Component.literal(message.toString()).withStyle(ChatFormatting.RED))
+            .append(Component.literal("\u00BB ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(Component.literal(repairText(message.toString())).withStyle(ChatFormatting.RED))
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(text) }
     }
 
@@ -97,7 +124,7 @@ object ChatUtils {
             .append(Component.literal("[").withStyle(ChatFormatting.DARK_RED))
             .append(Component.literal("Gobby Client").withStyle(ChatFormatting.RED))
             .append(Component.literal("] ").withStyle(ChatFormatting.DARK_RED))
-            .append(Component.literal("» ").withStyle(ChatFormatting.DARK_GRAY))
+            .append(Component.literal("\u00BB ").withStyle(ChatFormatting.DARK_GRAY))
             .append(text.copy().withStyle(ChatFormatting.RED))
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(prefixed) }
     }
@@ -131,4 +158,8 @@ object ChatUtils {
         val b = blue and 0x000000FF
         return a or r or g or b
     }
+
+    private val WINDOWS_1252: Charset = Charset.forName("windows-1252")
+    private const val MAX_REPAIR_PASSES = 3
+    private val MOJIBAKE_MARKERS = setOf('Ã', 'Â', 'â', 'ƒ', 'ï', '�')
 }

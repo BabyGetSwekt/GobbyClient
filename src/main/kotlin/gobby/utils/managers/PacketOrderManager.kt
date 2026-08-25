@@ -5,39 +5,48 @@ import gobby.events.ClientTickEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.PlayerUtils
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import java.util.Collections
 
-/**
- * Queues runnables by tick phase and executes them at the right moment.
- * Ensures item swaps happen before use-item packets in the same tick.
- */
 object PacketOrderManager {
 
+    class Registration internal constructor(internal val phase: Phase, internal val action: Runnable, internal val generation: Long) {
+        @Volatile var active = true
+    }
+
     enum class Phase {
-        START,           // Beginning of tick (swap slots, mutate rotation)
-        ITEM_USE,        // HEAD of sendMovementPackets — before vanilla's rotation send
-        AFTER_MOVEMENT,  // TAIL of sendMovementPackets — after vanilla's rotation send
-        ATTACK           // After item use (attack packets)
+        START,
+        ITEM_USE,
+        AFTER_MOVEMENT,
+        ATTACK
     }
 
-    private val queues = ConcurrentHashMap<Phase, MutableList<Runnable>>()
+    private val queues = ConcurrentHashMap<Phase, MutableList<Registration>>()
+    private val generation = AtomicLong()
 
-    fun register(phase: Phase, action: Runnable) {
-        queues.getOrPut(phase) { mutableListOf() }.add(action)
+    fun register(phase: Phase, action: Runnable): Registration = Registration(phase, action, generation.get()).also {
+        queues.computeIfAbsent(phase) { Collections.synchronizedList(mutableListOf()) }.add(it)
     }
 
-    fun queueUseItem(yaw: Float, pitch: Float, canRun: () -> Boolean = { true }) =
+    fun cancel(registration: Registration) {
+        registration.active = false
+        queues[registration.phase]?.let { synchronized(it) { it.remove(registration) } }
+    }
+
+    fun queueUseItem(yaw: Float, pitch: Float, canRun: () -> Boolean = { true }): Registration =
         register(Phase.ITEM_USE) { if (canRun()) PlayerUtils.useItem(yaw, pitch) }
 
-    fun queueUseItem() = register(Phase.ITEM_USE) { mc.player?.let { PlayerUtils.useItem(it.yRot, it.xRot) } }
+    fun queueUseItem(): Registration = register(Phase.ITEM_USE) { mc.player?.let { PlayerUtils.useItem(it.yRot, it.xRot) } }
 
     fun execute(phase: Phase) {
         val list = queues[phase] ?: return
-        synchronized(list) {
-            if (list.isNotEmpty()) {
-                list.forEach { it.run() }
-                list.clear()
-            }
-        }
+        val registrations = synchronized(list) { list.toList().also { list.clear() } }
+        registrations.forEach { if (it.active && it.generation == generation.get()) it.action.run() }
+    }
+
+    fun clear() {
+        generation.incrementAndGet()
+        queues.values.forEach { list -> synchronized(list) { list.forEach { it.active = false }; list.clear() } }
     }
 
     @SubscribeEvent

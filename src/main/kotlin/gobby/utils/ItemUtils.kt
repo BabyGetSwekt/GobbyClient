@@ -12,10 +12,10 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.core.registries.BuiltInRegistries
 
-
 /**
  * Function to get the item data (NBT) from an item stack.
  */
+
 @SuppressWarnings("deprecation")
 val DataComponentHolder.getItemData: CompoundTag
     get() = this.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
@@ -38,6 +38,7 @@ val DataComponentHolder.getItemUUID: String?
 /**
  * Checks if the component holder is holding an item with the specified skyblock ID.
  */
+
 fun DataComponentHolder.isHolding(id: String): Boolean =
     this.skyblockID == id
 
@@ -48,6 +49,7 @@ fun ItemStack.getItemID(): String {
  * Checks if the item stack’s Minecraft ID matches the given string.
  * Example: "minecraft:bow", "minecraft:blaze_rod"
  */
+
 fun ItemStack.hasItemID(id: String): Boolean {
     val itemId = BuiltInRegistries.ITEM.getKey(this.item).toString()
     return itemId == id
@@ -90,11 +92,9 @@ private val ABILITY_TRIGGERS = listOf(
 ).sortedByDescending { it.length }
 
 private val ABILITY_HEADER_REGEX = Regex("^Ability:\\s+(.+?)\\s*$")
-private val MANA_COST_REGEX = Regex("^Mana Cost:\\s+([\\d,]+)")
-private val SOULFLOW_COST_REGEX = Regex("^Soulflow Cost:\\s+([\\d,]+)")
-private val COOLDOWN_REGEX = Regex("^Cooldown:\\s+([\\d,]+)s")
 private const val BASE_INSTANT_TRANSMISSION_RANGE = 8
 private const val BASE_ETHER_TRANSMISSION_RANGE = 57
+private const val ETHERMERGE_ENABLED = 1
 
 private fun splitNameAndTrigger(raw: String): Pair<String, String?> {
     for (trigger in ABILITY_TRIGGERS) {
@@ -107,49 +107,19 @@ private fun splitNameAndTrigger(raw: String): Pair<String, String?> {
 }
 
 fun ItemStack.parseAbilities(): List<Ability> {
-    val lines = getLoreStrings()
     val abilities = mutableListOf<Ability>()
+    var current: AbilityBuilder? = null
 
-    var currentName: String? = null
-    var currentTrigger: String? = null
-    var currentMana: Int? = null
-    var currentSoulflow: Int? = null
-    var currentCooldown: Int? = null
-
-    fun flush() {
-        currentName?.let { name ->
-            abilities.add(Ability(name, currentTrigger, currentMana, currentSoulflow, currentCooldown))
-        }
-        currentName = null
-        currentTrigger = null
-        currentMana = null
-        currentSoulflow = null
-        currentCooldown = null
-    }
-
-    for (raw in lines) {
+    fun flush() { current?.let { abilities += it.build() }; current = null }
+    getLoreStrings().forEach { raw ->
         val line = raw.trim()
         val header = ABILITY_HEADER_REGEX.find(line)
         if (header != null) {
             flush()
             val (name, trigger) = splitNameAndTrigger(header.groupValues[1].trim())
-            currentName = name
-            currentTrigger = trigger
-            continue
-        }
-        if (currentName == null) continue
-
-        MANA_COST_REGEX.find(line)?.let {
-            currentMana = it.groupValues[1].replace(",", "").toIntOrNull()
-            return@let
-        }
-        SOULFLOW_COST_REGEX.find(line)?.let {
-            currentSoulflow = it.groupValues[1].replace(",", "").toIntOrNull()
-            return@let
-        }
-        COOLDOWN_REGEX.find(line)?.let {
-            currentCooldown = it.groupValues[1].replace(",", "").toIntOrNull()
-            return@let
+            current = AbilityBuilder(name, trigger)
+        } else {
+            current?.applyCostLine(line)
         }
     }
     flush()
@@ -170,10 +140,22 @@ fun ItemStack.getShotCooldown(): Double? = findStatValue("Shot Cooldown")
 
 fun ItemStack.getBowShootSpeedMs(): Long = (this.getShotCooldown()?.times(1000)?.toLong() ?: 250L).coerceIn(50L, 2000L)
 
-fun ItemStack.isEtherwarpable(): Boolean {
-    if (!mc?.player?.mainHandItem?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return false
-    return this.getItemData.getBoolean("ethermerge").orElse(false)
+fun ItemStack.isEtherwarpable(): Boolean = isEtherwarpItem()
+
+fun findEtherwarpableHotbarSlot(): Int {
+    val player = mc.player ?: return -1
+    for (slot in 0..8) if (player.inventory.getItem(slot).isEtherwarpable()) return slot
+    return -1
 }
+
+private fun ItemStack.isEtherwarpItem(): Boolean {
+    val data = getItemData
+    return data.getStringOr("id", "").equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END") &&
+        data.hasEnabledEthermerge()
+}
+
+internal fun CompoundTag.hasEnabledEthermerge(): Boolean =
+    getBoolean("ethermerge").orElse(false) || getInt("ethermerge").orElse(0) == ETHERMERGE_ENABLED
 
 fun ItemStack.getTunedTransmission(): Int {
     if (!mc?.player?.mainHandItem?.skyblockID.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return 0

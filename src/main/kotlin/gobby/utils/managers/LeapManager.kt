@@ -89,45 +89,38 @@ object LeapManager {
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         if (state == State.IDLE) return
-
         when (val packet = event.packet) {
-            is ClientboundOpenScreenPacket -> {
-                if (state != State.OPENING_MENU) return
-                if (!packet.title.string.contains("Spirit Leap")) return
-                if (packet.containerId < 1 || packet.containerId > 100) return
-                val player = mc.player ?: return
-                container = packet.type.create(packet.containerId, player.inventory)
-                state = State.MENU_OPENED
-                event.cancel()
-            }
-
-            is ClientboundContainerSetSlotPacket -> {
-                if (state != State.MENU_OPENED) return
-                val handler = container ?: return
-                if (packet.containerId != handler.containerId) return
-                val slot = packet.slot
-                if (slot < 11) return
-
-                handler.setItem(slot, packet.stateId, packet.item)
-
-                if (slot > 16) {
-                    modMessage("§cFailed to find leap target!")
-                    close()
-                    return
-                }
-
-                val stack = packet.item
-                if (stack.item != Items.PLAYER_HEAD) return
-                val itemName = ChatFormatting.stripFormatting(stack.hoverName.string) ?: return
-                if (!itemName.equals(leapTarget, ignoreCase = true)) return
-
-                state = State.LEAPING
-                sendWindowClick(slot, mc.player ?: return, handler)
-                modMessage("§e[Leap] Sent a packet to slot $slot")
-                modMessage("§aAuto leaped to $leapTarget!")
-                reset()
-            }
+            is ClientboundOpenScreenPacket -> handleOpenScreen(packet, event)
+            is ClientboundContainerSetSlotPacket -> handleSlot(packet)
         }
+    }
+
+    private fun handleOpenScreen(packet: ClientboundOpenScreenPacket, event: PacketReceivedEvent) {
+        if (state != State.OPENING_MENU || !packet.title.string.contains("Spirit Leap")) return
+        if (packet.containerId !in 1..100) return
+        val player = mc.player ?: return
+        container = packet.type.create(packet.containerId, player.inventory)
+        state = State.MENU_OPENED
+        event.cancel()
+    }
+
+    private fun handleSlot(packet: ClientboundContainerSetSlotPacket) {
+        if (state != State.MENU_OPENED) return
+        val handler = container ?: return
+        if (packet.containerId != handler.containerId || packet.slot < 11) return
+        handler.setItem(packet.slot, packet.stateId, packet.item)
+        if (packet.slot > 16) {
+            modMessage("Failed to find leap target!")
+            close()
+            return
+        }
+        val itemName = ChatFormatting.stripFormatting(packet.item.hoverName.string) ?: return
+        if (packet.item.item != Items.PLAYER_HEAD || !itemName.equals(leapTarget, ignoreCase = true)) return
+        state = State.LEAPING
+        sendWindowClick(packet.slot, mc.player ?: return, handler)
+        modMessage("[Leap] Sent a packet to slot " + packet.slot)
+        modMessage("Auto leaped to " + leapTarget + "!")
+        reset()
     }
 
     private fun sendWindowClick(slotNumber: Int, player: Player, handler: AbstractContainerMenu) {
@@ -177,3 +170,4 @@ object LeapManager {
         state = State.IDLE
     }
 }
+

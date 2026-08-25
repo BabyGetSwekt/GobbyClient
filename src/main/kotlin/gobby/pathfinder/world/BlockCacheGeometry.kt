@@ -1,5 +1,6 @@
 package gobby.pathfinder.world
 
+import gobby.utils.BlockBox
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.EmptyBlockGetter
 import net.minecraft.world.level.block.state.BlockState
@@ -47,7 +48,7 @@ internal class BlockCacheGeometry(
         val state = stateAt(pos)
         supportTopCache[state]?.let { tops -> return tops.map { pos.y + it } }
         val tops = getShapeAabbs(pos).asSequence()
-            .map { ((it.maxY * 16.0).roundToInt()) / 16.0 }
+            .map { (it.maxY * feetQuantization).roundToInt() / feetQuantization }
             .distinct()
             .sortedDescending()
             .toList()
@@ -63,7 +64,7 @@ internal class BlockCacheGeometry(
 
     fun isStandable(pos: BlockPos, feetY: Double): Boolean {
         if (floor(feetY + bodyEpsilon).toInt() != pos.y) return false
-        return bodyOffsets.asSequence().any { (dx, dz) ->
+        return bodyOffsets.any { (dx, dz) ->
             val bodyBox = buildPlayerBox(pos.x + dx, feetY, pos.z + dz)
             !hasBlockCollision(bodyBox) && hasBlockCollision(
                 AABB(bodyBox.minX, feetY - supportEpsilon, bodyBox.minZ, bodyBox.maxX, feetY + bodyEpsilon, bodyBox.maxZ)
@@ -111,7 +112,7 @@ internal class BlockCacheGeometry(
         return surfaces
     }
 
-    fun isSweepClear(fromX: Double, fromFeetY: Double, fromZ: Double, toX: Double, toFeetY: Double, toZ: Double, steps: Int, yAt: (Double) -> Double): Boolean {
+    fun isSweepClear(fromX: Double, fromZ: Double, toX: Double, toZ: Double, steps: Int, yAt: (Double) -> Double): Boolean {
         if (steps <= 0) return true
         return (0..steps).none { i ->
             val t = i.toDouble() / steps
@@ -125,9 +126,7 @@ internal class BlockCacheGeometry(
         columnSurfacesCache.clear()
     }
 
-    fun columnCount(): Int = columnSurfacesCache.values.sumOf { it.size }
-
-    fun invalidateChunk(cx: Int, cz: Int) {
+    fun invalidateChunk(cx: Int, cz: Int) {
         columnSurfacesCache.remove(chunkKey(cx, cz))
     }
 
@@ -141,20 +140,13 @@ internal class BlockCacheGeometry(
     )
 
     private fun hasBlockCollision(box: AABB): Boolean {
-        val minX = floor(box.minX).toInt()
-        val maxX = floor(box.maxX).toInt()
-        val minY = floor(box.minY).toInt()
-        val maxY = floor(box.maxY).toInt()
-        val minZ = floor(box.minZ).toInt()
-        val maxZ = floor(box.maxZ).toInt()
+        val bounds = BlockBox.covering(box)
         val cursor = BlockPos.MutableBlockPos()
-        return (minX..maxX).asSequence().flatMap { x ->
-            (minY..maxY).asSequence().flatMap { y ->
-                (minZ..maxZ).asSequence().map { z -> cursor.set(x, y, z).immutable() }
-            }
-        }.any { pos ->
-            getShapeAabbs(pos).any { aabb -> overlaps(aabb, pos, box) }
+        for (index in 0 until bounds.cellCount) {
+            val position = cursor.set(bounds.xAt(index), bounds.yAt(index), bounds.zAt(index)).immutable()
+            if (getShapeAabbs(position).any { aabb -> overlaps(aabb, position, box) }) return true
         }
+        return false
     }
 
     private fun overlaps(aabb: AABB, pos: BlockPos, box: AABB): Boolean =

@@ -12,7 +12,6 @@ internal data class Rect(val x: Int, val y: Int, val w: Int, val h: Int) {
     operator fun contains(p: Pair<Int, Int>): Boolean = p.first in x..(x + w) && p.second in y..(y + h)
 }
 
-
 val FONT_STYLE: Style = Style.EMPTY.withFont(
     FontDescription.Resource(ResourceLocation.fromNamespaceAndPath("gobbyclient", "custom"))
 )
@@ -88,7 +87,6 @@ val cTooltipBg   = Color(10, 10, 14, 240).rgb
 val tr get() = mc.font
 
 fun styledText(s: String): Component = Component.literal(s).setStyle(FONT_STYLE)
-
 
 fun textWSmall(s: String): Int = (tr.width(styledText(s)) * SETTING_SCALE).toInt()
 

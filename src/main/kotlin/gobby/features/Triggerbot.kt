@@ -51,8 +51,11 @@ abstract class Triggerbot(
     }
 
     abstract fun shouldActivate(): Boolean
+
     abstract fun isValidBlock(pos: BlockPos): Boolean
+
     open fun getClickDelay(): Long = 100L
+
     open fun getBlockCooldown(): Long = 5000L
 
     protected open fun getTargetPos(): BlockPos? {

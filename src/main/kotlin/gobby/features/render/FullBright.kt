@@ -7,7 +7,6 @@ import gobby.gui.click.Module
 
 object FullBright : Module("Full Bright", "Enables full bright", Category.RENDER, defaultEnabled = true) {
 
-
     @SubscribeEvent
     fun onGamma(event: GammaEvent) {
         if (enabled) event.gamma = 15f

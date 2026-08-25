@@ -7,6 +7,8 @@ package gobby.events.core
  * License: https://github.com/Oxyopiia/ViceMod/blob/master/LICENSE
  * Original source: https://github.com/Oxyopiia/ViceMod/blob/fd8b0db781c0dfd45dc958665ec8ea5d4deb88f1/src/main/java/net/oxyopia/vice/events/core/SubscribeEvent.kt
  */
+
 @Target(AnnotationTarget.FUNCTION)
+
 @Retention(AnnotationRetention.RUNTIME)
 annotation class SubscribeEvent

@@ -26,8 +26,17 @@ object EtherwarpRaycaster {
     private val SURFACE_SAMPLES = doubleArrayOf(FACE_CENTER, 0.15, 0.85)
 
     private class AimFace(private val axis: Int, private val value: Double) {
-        val points: List<Triple<Double, Double, Double>> =
-            SURFACE_SAMPLES.flatMap { u -> SURFACE_SAMPLES.map { v -> at(u, v) } }
+        val points: List<Triple<Double, Double, Double>> = listOf(
+            at(SURFACE_SAMPLES[0], SURFACE_SAMPLES[0]),
+            at(SURFACE_SAMPLES[0], SURFACE_SAMPLES[1]),
+            at(SURFACE_SAMPLES[0], SURFACE_SAMPLES[2]),
+            at(SURFACE_SAMPLES[1], SURFACE_SAMPLES[0]),
+            at(SURFACE_SAMPLES[1], SURFACE_SAMPLES[1]),
+            at(SURFACE_SAMPLES[1], SURFACE_SAMPLES[2]),
+            at(SURFACE_SAMPLES[2], SURFACE_SAMPLES[0]),
+            at(SURFACE_SAMPLES[2], SURFACE_SAMPLES[1]),
+            at(SURFACE_SAMPLES[2], SURFACE_SAMPLES[2])
+        )
 
         private fun at(u: Double, v: Double): Triple<Double, Double, Double> = when (axis) {
             AXIS_X -> Triple(value, u, v)
@@ -51,11 +60,17 @@ object EtherwarpRaycaster {
     fun transmission(eye: Vec3, ray: Vec3, aabbsAt: (BlockPos) -> List<AABB> = BlockCache::getShapeAabbs): BlockPos? {
         val dda = VoxelRay.threadLocal(eye, ray)
         val cursor = BlockPos.MutableBlockPos()
-        var lastX = 0; var lastY = 0; var lastZ = 0; var hasLast = false
+        var lastX = 0
+        var lastY = 0
+        var lastZ = 0
+        var hasLast = false
         repeat(MAX_STEPS) {
             if (blocked(cursor, dda.x, dda.y, dda.z, eye, ray, aabbsAt)) return if (hasLast) BlockPos(lastX, lastY, lastZ) else null
             if (dda.atEnd) return BlockPos(dda.x, dda.y, dda.z)
-            lastX = dda.x; lastY = dda.y; lastZ = dda.z; hasLast = true
+            lastX = dda.x
+            lastY = dda.y
+            lastZ = dda.z
+            hasLast = true
             dda.advance()
         }
         return null
@@ -94,6 +109,7 @@ object EtherwarpRaycaster {
     internal fun intersects(eye: Vec3, ray: Vec3, minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double): Boolean {
         var tMin = 0.0
         var tMax = 1.0
+
         fun axis(origin: Double, direction: Double, lo: Double, hi: Double): Boolean {
             if (abs(direction) < RAY_EPSILON) return origin in lo..hi
             val inv = 1.0 / direction

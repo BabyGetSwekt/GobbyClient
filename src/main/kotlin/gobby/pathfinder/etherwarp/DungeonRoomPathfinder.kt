@@ -97,5 +97,6 @@ private class RoomNode(
     val parent: RoomNode?
 ) : Comparable<RoomNode> {
     val f: Int get() = g + h
+
     override fun compareTo(other: RoomNode): Int = f.compareTo(other.f)
 }

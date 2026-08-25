@@ -116,14 +116,19 @@ abstract class EntityHighlighter(
     }
 
     abstract fun shouldHighlight(entity: Entity): Boolean
+
     abstract fun getColor(): Color
 
     protected open fun getColorFor(entity: Entity): Color = getColor()
 
     open fun usesMobCaching(): Boolean = false
+
     open fun shouldDrawLines(): Boolean = false
+
     open fun getLineColor(): Color = getColor()
+
     open fun getLineMode(): Int = LINE_MODE_CROSSHAIR
+
     open fun rendersArmor(): Boolean = false
 
     companion object {

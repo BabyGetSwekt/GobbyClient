@@ -17,7 +17,6 @@ abstract class BlockHighlighter : ChunkScopedCache() {
 
     enum class RenderMode { FULL_BLOCK, OUTLINE, NODE }
 
-
     protected val highlightedBlocks = ObjectOpenHashSet<BlockPos>()
 
     @SubscribeEvent
@@ -115,9 +114,14 @@ abstract class BlockHighlighter : ChunkScopedCache() {
     }
 
     abstract fun isEnabled(): Boolean
+
     abstract fun getStatePredicate(): (BlockState) -> Boolean
+
     abstract fun getColor(pos: BlockPos): Color
+
     open fun isValidPosition(pos: BlockPos): Boolean = true
+
     open fun depthTest(): Boolean = false
+
     open fun renderMode(): RenderMode = RenderMode.FULL_BLOCK
 }

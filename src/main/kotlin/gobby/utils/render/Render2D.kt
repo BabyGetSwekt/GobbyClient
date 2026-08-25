@@ -28,9 +28,6 @@ object Render2D {
         'r' to Color(255, 255, 255)    // Reset
     )
 
-    // ChatFormatting codes
-    private val formatCodes = setOf('k', 'l', 'm', 'n', 'o', 'r')
-
     data class TextSegment(
         val text: String,
         val color: Color,
@@ -74,86 +71,68 @@ object Render2D {
         matrixStack.popMatrix()
     }
 
-    private fun parseColorCodes(text: String, defaultColor: Color): List<TextSegment> {
-        val segments = mutableListOf<TextSegment>()
-        val chars = text.toCharArray()
-        var i = 0
+    private fun parseColorCodes(text: String, defaultColor: Color): List<TextSegment> =
+        ColorCodeParser(text, defaultColor, colorCodes).parse()
+}
 
-        var currentColor = defaultColor
-        var bold = false
-        var italic = false
-        var underlined = false
-        var strikethrough = false
-        var obfuscated = false
+private class ColorCodeParser(
+    private val text: String,
+    private val defaultColor: Color,
+    private val colors: Map<Char, Color>
+) {
+    private var currentColor = defaultColor
+    private var bold = false
+    private var italic = false
+    private var underlined = false
+    private var strikethrough = false
+    private var obfuscated = false
 
+    fun parse(): List<Render2D.TextSegment> {
+        val segments = mutableListOf<Render2D.TextSegment>()
         val currentText = StringBuilder()
-
-        while (i < chars.size) {
-            if (chars[i] == '§' && i + 1 < chars.size) {
-                // Save current text segment if it exists
-                if (currentText.isNotEmpty()) {
-                    segments.add(TextSegment(
-                        currentText.toString(),
-                        currentColor,
-                        bold,
-                        italic,
-                        underlined,
-                        strikethrough,
-                        obfuscated
-                    ))
-                    currentText.clear()
-                }
-
-                val code = chars[i + 1].lowercaseChar()
-
-                val mappedColor = colorCodes[code]
-                when {
-                    mappedColor != null -> {
-                        currentColor = mappedColor
-                        // Reset formatting when color changes (except for 'r' which is handled separately)
-                        if (code != 'r') {
-                            bold = false
-                            italic = false
-                            underlined = false
-                            strikethrough = false
-                            obfuscated = false
-                        } else {
-                            // Reset everything including color
-                            currentColor = defaultColor
-                            bold = false
-                            italic = false
-                            underlined = false
-                            strikethrough = false
-                            obfuscated = false
-                        }
-                    }
-                    code == 'l' -> bold = true
-                    code == 'o' -> italic = true
-                    code == 'n' -> underlined = true
-                    code == 'm' -> strikethrough = true
-                    code == 'k' -> obfuscated = true
-                }
-
-                i += 2 // Skip the § and the code character
+        var index = 0
+        while (index < text.length) {
+            if (text[index] == '\u00A7' && index + 1 < text.length) {
+                appendSegment(segments, currentText)
+                applyCode(text[index + 1].lowercaseChar())
+                index += 2
             } else {
-                currentText.append(chars[i])
-                i++
+                currentText.append(text[index++])
             }
         }
-
-        // Add remaining text
-        if (currentText.isNotEmpty()) {
-            segments.add(TextSegment(
-                currentText.toString(),
-                currentColor,
-                bold,
-                italic,
-                underlined,
-                strikethrough,
-                obfuscated
-            ))
-        }
-
+        appendSegment(segments, currentText)
         return segments
     }
+
+    private fun appendSegment(segments: MutableList<Render2D.TextSegment>, text: StringBuilder) {
+        if (text.isEmpty()) return
+        segments += Render2D.TextSegment(text.toString(), currentColor, bold, italic, underlined, strikethrough, obfuscated)
+        text.clear()
+    }
+
+    private fun applyCode(code: Char) {
+        val color = colors[code]
+        if (color != null) {
+            currentColor = color
+            resetFormatting()
+            if (code == 'r') currentColor = defaultColor
+            return
+        }
+        when (code) {
+            'l' -> bold = true
+            'o' -> italic = true
+            'n' -> underlined = true
+            'm' -> strikethrough = true
+            'k' -> obfuscated = true
+        }
+    }
+
+    private fun resetFormatting() {
+        bold = false
+        italic = false
+        underlined = false
+        strikethrough = false
+        obfuscated = false
+    }
 }
+

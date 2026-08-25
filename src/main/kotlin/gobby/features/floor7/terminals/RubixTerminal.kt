@@ -17,6 +17,7 @@ object RubixTerminal : TerminalSolver() {
     private val lastColorIndices = IntArray(9) { -1 }
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = title.contains("Change all to same color!")
 
     override fun onDeactivate() {

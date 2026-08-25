@@ -24,35 +24,42 @@ object SoundDebugger : Module("Sound Debugger", "Prints every sound played withi
         if (!enabled) return
         val player = mc.player ?: return
         when (val packet = event.packet) {
-            is ClientboundSoundPacket -> {
-                val dx = packet.x - player.x; val dy = packet.y - player.y; val dz = packet.z - player.z
-                if (sqrt(dx * dx + dy * dy + dz * dz) > range) return
-                val id = packet.sound.value().location().toString()
-                val pitch = "%.2f".format(packet.pitch)
-                val x = "%.2f".format(packet.x); val y = "%.2f".format(packet.y); val z = "%.2f".format(packet.z)
-                modMessage("§7[Sound] §f$id §8| §bpos §f($x, $y, $z) §8| §dpitch §f$pitch")
-            }
-            is ClientboundSoundEntityPacket -> {
-                val entity = mc.level?.getEntity(packet.id)
-                val ex = entity?.x ?: return
-                val ey = entity.y; val ez = entity.z
-                val dx = ex - player.x; val dy = ey - player.y; val dz = ez - player.z
-                if (sqrt(dx * dx + dy * dy + dz * dz) > range) return
-                val id = packet.sound.value().location().toString()
-                val pitch = "%.2f".format(packet.pitch)
-                modMessage("§7[Sound] §f$id §8| §bpos §f(${"%.2f".format(ex)}, ${"%.2f".format(ey)}, ${"%.2f".format(ez)}) §8| §dpitch §f$pitch §8| §7entity#${packet.id}")
-            }
-            is ClientboundEntityEventPacket -> {
-                if (!detectFireworks) return
-                if (packet.eventId.toInt() != 17) return
-                val world = mc.level ?: return
-                val live = packet.getEntity(world)
-                val pos = if (live != null) Vec3(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
-                val dx = pos.x - player.x; val dy = pos.y - player.y; val dz = pos.z - player.z
-                val dist = sqrt(dx * dx + dy * dy + dz * dz)
-                if (dist > range) return
-                modMessage("§7[Sound] §6entity.firework_rocket.blast §8| §bpos §f(${"%.2f".format(pos.x)}, ${"%.2f".format(pos.y)}, ${"%.2f".format(pos.z)}) §8| §7dist §f${"%.2f".format(dist)}")
-            }
+            is ClientboundSoundPacket -> reportPositionedSound(packet, player)
+            is ClientboundSoundEntityPacket -> reportEntitySound(packet, player)
+            is ClientboundEntityEventPacket -> reportFireworkBlast(packet, player)
         }
     }
+
+    private fun outOfRange(x: Double, y: Double, z: Double, player: net.minecraft.world.entity.player.Player): Boolean {
+        val dx = x - player.x
+        val dy = y - player.y
+        val dz = z - player.z
+        return sqrt(dx * dx + dy * dy + dz * dz) > range
+    }
+
+    private fun reportPositionedSound(packet: ClientboundSoundPacket, player: net.minecraft.world.entity.player.Player) {
+        if (outOfRange(packet.x, packet.y, packet.z, player)) return
+        val id = packet.sound.value().location().toString()
+        modMessage("§7[Sound] §f$id §8| §bpos §f(${format(packet.x)}, ${format(packet.y)}, ${format(packet.z)}) §8| §dpitch §f${format(packet.pitch.toDouble())}")
+    }
+
+    private fun reportEntitySound(packet: ClientboundSoundEntityPacket, player: net.minecraft.world.entity.player.Player) {
+        val entity = mc.level?.getEntity(packet.id) ?: return
+        if (outOfRange(entity.x, entity.y, entity.z, player)) return
+        val id = packet.sound.value().location().toString()
+        modMessage("§7[Sound] §f$id §8| §bpos §f(${format(entity.x)}, ${format(entity.y)}, ${format(entity.z)}) §8| §dpitch §f${format(packet.pitch.toDouble())} §8| §7entity#${packet.id}")
+    }
+
+    private fun reportFireworkBlast(packet: ClientboundEntityEventPacket, player: net.minecraft.world.entity.player.Player) {
+        if (!detectFireworks || packet.eventId.toInt() != FIREWORK_BLAST_EVENT) return
+        val world = mc.level ?: return
+        val live = packet.getEntity(world)
+        val pos = if (live != null) Vec3(live.x, live.y, live.z) else ParticleDebugger.fireworkPos(packet) ?: return
+        if (outOfRange(pos.x, pos.y, pos.z, player)) return
+        modMessage("§7[Sound] §6entity.firework_rocket.blast §8| §bpos §f(${format(pos.x)}, ${format(pos.y)}, ${format(pos.z)})")
+    }
+
+    private fun format(value: Double): String = "%.2f".format(value)
+
+    private const val FIREWORK_BLAST_EVENT = 17
 }

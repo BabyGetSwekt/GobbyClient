@@ -4,7 +4,6 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils
 
 import org.lwjgl.glfw.GLFW
-import java.awt.Color
 import kotlin.math.abs
 
 object InputHandler {
@@ -38,7 +37,7 @@ object InputHandler {
         gui.listeningKeybind = null
         when (setting) {
             is KeybindSetting -> {
-                if (button == 1) {
+                if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
                     setting.value = 0
                     ConfigManager.save()
                 } else {
@@ -50,7 +49,7 @@ object InputHandler {
                 ConfigManager.save()
             }
             is NumberSetting -> {
-                if (button == 1) {
+                if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
                     gui.numberEditSetting = setting
                     gui.numberInput = setting.display()
                 } else {
@@ -65,7 +64,7 @@ object InputHandler {
                 }
             }
             is RangeSetting -> {
-                if (button == 0) {
+                if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                     val slW = PW - SETTING_INDENT - PAD
                     val slX = px + SETTING_INDENT
                     if (mx in slX..(slX + slW)) {
@@ -86,14 +85,14 @@ object InputHandler {
                 gui.stringSelectAll = false
             }
             is SelectorSetting -> {
-                setting.value = if (button == 1) {
+                setting.value = if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
                     if (setting.value <= 0) setting.options.lastIndex else setting.value - 1
                 } else {
                     if (setting.value >= setting.options.lastIndex) 0 else setting.value + 1
                 }
                 ConfigManager.save()
             }
-            is ColorSetting -> handleColorClick(gui, px, y, mx, my, setting, button)
+            is ColorSetting -> ColorPickerInput.handleClick(gui, px, y, mx, my, setting, button)
             is ActionSetting -> setting.action()
             is HudButton -> setting.onClick()
             is DropDownSetting -> {
@@ -103,89 +102,6 @@ object InputHandler {
             }
         }
         return true
-    }
-
-    private fun handleColorClick(gui: ClickGUI, px: Int, y: Int, mx: Int, my: Int, s: ColorSetting, button: Int) {
-        if (my < y + SH) {
-            if (button == 1) {
-                s.expanded = !s.expanded
-                if (!s.expanded) gui.hexEditSetting = null
-            } else if (!s.expanded) {
-                s.expanded = true
-            }
-            return
-        }
-        if (!s.expanded) return
-
-        val pickerY = y + SH
-        val padX = px + SETTING_INDENT
-        val areaW = PW - SETTING_INDENT - PAD
-        val sbH = COLOR_PICKER_H - HUE_BAR_H - ALPHA_BAR_H - 38
-        val sbTop = pickerY + 3
-        val sbBot = sbTop + sbH
-
-        if (my in sbTop until sbBot && mx in padX until (padX + areaW)) {
-            val sat = ((mx - padX).toFloat() / areaW).coerceIn(0f, 1f)
-            val bri = 1f - ((my - sbTop).toFloat() / sbH).coerceIn(0f, 1f)
-            s.applyHsbPreserveAlpha(s.effectiveHue, sat, bri)
-            gui.draggingColorSB = s
-            gui.colorPickerBaseX = padX
-            gui.colorPickerBaseW = areaW
-            gui.colorPickerSBTop = sbTop
-            gui.colorPickerSBH = sbH
-            ConfigManager.save()
-            return
-        }
-
-        val hueTop = sbBot + 4
-        val hueBot = hueTop + HUE_BAR_H
-        if (my in hueTop until hueBot && mx in padX until (padX + areaW)) {
-            val hue = ((mx - padX).toFloat() / areaW).coerceIn(0f, 1f)
-            s.cachedHue = hue
-            val hsb = s.toHsb()
-            s.applyHsbPreserveAlpha(hue, hsb[1], hsb[2])
-            gui.draggingColorHue = s
-            gui.colorPickerBaseX = padX
-            gui.colorPickerBaseW = areaW
-            ConfigManager.save()
-            return
-        }
-
-        val alphaTop = hueBot + 4
-        val alphaBot = alphaTop + ALPHA_BAR_H
-        if (my in alphaTop until alphaBot && mx in padX until (padX + areaW)) {
-            val alpha = ((mx - padX).toFloat() / areaW * 255).toInt().coerceIn(1, 255)
-            s.value = Color(s.value.red, s.value.green, s.value.blue, alpha)
-            gui.draggingColorAlpha = s
-            gui.colorPickerBaseX = padX
-            gui.colorPickerBaseW = areaW
-            ConfigManager.save()
-            return
-        }
-
-        val hexTop = alphaBot + 5
-        val hexBot = hexTop + 14
-        if (my in hexTop until hexBot && mx in padX until (padX + areaW)) {
-            gui.hexEditSetting = s
-            gui.hexInput = String.format("%02X%02X%02X%02X", s.value.red, s.value.green, s.value.blue, s.value.alpha)
-        }
-    }
-
-    private fun ColorSetting.toHsb(): FloatArray =
-        Color.RGBtoHSB(value.red, value.green, value.blue, null)
-
-    private val ColorSetting.effectiveHue: Float
-        get() = if (cachedHue >= 0f) cachedHue else toHsb()[0]
-
-    private fun ColorSetting.applyHsbPreserveAlpha(hue: Float, sat: Float, bri: Float) {
-        val rgb = Color.HSBtoRGB(hue, sat, bri)
-        value = Color((rgb and 0x00FFFFFF) or (value.alpha shl 24), true)
-    }
-
-    private fun ColorSetting.applyRgb(r: Int, g: Int, b: Int, a: Int) {
-        value = Color(r, g, b, a)
-        cachedHue = Color.RGBtoHSB(r, g, b, null)[0]
-        ConfigManager.save()
     }
 
     private fun updateSlider(setting: NumberSetting, mx: Int, baseX: Int, baseW: Int) {
@@ -245,36 +161,13 @@ object InputHandler {
             updateRange(it, currentX.toInt(), gui.sliderBaseX, gui.sliderBaseW, gui.draggingRangeHigh)
             return true
         }
-        gui.draggingColorSB?.let { s ->
-            val sat = ((currentX.toInt() - gui.colorPickerBaseX).toFloat() / gui.colorPickerBaseW).coerceIn(0f, 1f)
-            val bri = 1f - ((currentY.toInt() - gui.colorPickerSBTop).toFloat() / gui.colorPickerSBH).coerceIn(0f, 1f)
-            s.applyHsbPreserveAlpha(s.effectiveHue, sat, bri)
-            ConfigManager.save()
-            return true
-        }
-        gui.draggingColorHue?.let { s ->
-            val hue = ((currentX.toInt() - gui.colorPickerBaseX).toFloat() / gui.colorPickerBaseW).coerceIn(0f, 1f)
-            s.cachedHue = hue
-            val hsb = s.toHsb()
-            s.applyHsbPreserveAlpha(hue, hsb[1], hsb[2])
-            ConfigManager.save()
-            return true
-        }
-        gui.draggingColorAlpha?.let { s ->
-            val alpha = ((currentX.toInt() - gui.colorPickerBaseX).toFloat() / gui.colorPickerBaseW * 255).toInt().coerceIn(1, 255)
-            s.value = Color(s.value.red, s.value.green, s.value.blue, alpha)
-            ConfigManager.save()
-            return true
-        }
-        return false
+        return ColorPickerInput.handleDrag(gui, currentX, currentY)
     }
 
     fun handleMouseRelease(gui: ClickGUI) {
         gui.draggingSlider = null
         gui.draggingRange = null
-        gui.draggingColorSB = null
-        gui.draggingColorHue = null
-        gui.draggingColorAlpha = null
+        ColorPickerInput.clearDragging(gui)
     }
 
     fun handleScroll(gui: ClickGUI, mouseX: Int, mouseY: Int, verticalAmount: Double): Boolean {
@@ -405,7 +298,7 @@ object InputHandler {
         gui.hexEditSetting?.let { s ->
             if (chr.uppercaseChar() in "0123456789ABCDEF" && gui.hexInput.length < 8) {
                 gui.hexInput += chr.uppercaseChar()
-                applyHexInput(gui, s)
+                ColorPickerInput.applyHexInput(gui, s)
                 return true
             }
             return true
@@ -449,15 +342,5 @@ object InputHandler {
         val handle = mc.window.handle()
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
                 GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
-    }
-
-    private fun applyHexInput(gui: ClickGUI, s: ColorSetting) {
-        try {
-            val v = gui.hexInput.toLong(16).toInt()
-            when (gui.hexInput.length) {
-                8 -> s.applyRgb((v ushr 24) and 0xFF, (v ushr 16) and 0xFF, (v ushr 8) and 0xFF, (v and 0xFF).coerceAtLeast(1))
-                6 -> s.applyRgb((v ushr 16) and 0xFF, (v ushr 8) and 0xFF, v and 0xFF, s.value.alpha)
-            }
-        } catch (_: Exception) {}
     }
 }

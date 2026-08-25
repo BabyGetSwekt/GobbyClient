@@ -42,12 +42,13 @@ internal object PathCollision {
             val t = i.toDouble() / steps
             val sample = samplePoint(from, dx, dy, dz, t)
             val groundY = findGroundY(sample.x, sample.y, sample.z) ?: return false
-            for (offset in offsets) {
-                if (!isBodyClearAt(sample.x + perpX * offset, groundY, sample.z + perpZ * offset)) return false
-            }
+            if (!clearOffsets(sample, groundY, perpX, perpZ, offsets)) return false
         }
         return true
     }
+
+    private fun clearOffsets(sample: Vec3, groundY: Double, perpX: Double, perpZ: Double, offsets: DoubleArray): Boolean =
+        offsets.all { offset -> isBodyClearAt(sample.x + perpX * offset, groundY, sample.z + perpZ * offset) }
 
     private fun samplePoint(from: Vec3, dx: Double, dy: Double, dz: Double, t: Double): Vec3 {
         return Vec3(from.x + dx * t, from.y + dy * t, from.z + dz * t)

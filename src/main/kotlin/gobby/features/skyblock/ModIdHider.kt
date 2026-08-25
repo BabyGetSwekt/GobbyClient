@@ -63,6 +63,7 @@ object ModIdHider {
      * This is needed because the mixin on FabricLoaderImpl doesn't fire.
      * Knot loads the class before mod mixins are registered.
      */
+
     fun applyToLoader() {
         try {
             val loader = FabricLoaderImpl.INSTANCE

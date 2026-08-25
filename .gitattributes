@@ -1,0 +1,11 @@
+*.kt   text eol=crlf
+*.kts  text eol=crlf
+*.java text eol=crlf
+*.json text eol=crlf
+*.mcmeta text eol=crlf
+
+*.bin  binary
+*.jar  binary
+*.png  binary
+*.ttf  binary
+*.dump binary

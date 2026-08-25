@@ -20,8 +20,12 @@ object RenderTurtles : EntityHighlighter("Turtle ESP", "Enable turtle ESP, used 
     override fun shouldHighlight(entity: Entity): Boolean = entity is Turtle
 
     override fun usesMobCaching(): Boolean = true
+
     override fun getColor(): Color = espColor
+
     override fun shouldDrawLines(): Boolean = espLines
+
     override fun getLineColor(): Color = espLineColor
+
     override fun getLineMode(): Int = espLineMode
 }

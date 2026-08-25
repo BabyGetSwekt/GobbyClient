@@ -6,7 +6,9 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.PacketSentEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.utils.ChatUtils.modMessage
+import gobby.mixinterface.IInteractionManagerAccessor
+import gobby.utils.findEtherwarpableHotbarSlot
+import gobby.utils.isEtherwarpable
 import gobby.utils.skyblockID
 import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
@@ -20,6 +22,7 @@ enum class SwapResult {
  * License: https://github.com/pigeonlover1998/quoi/blob/main/LICENSE
  * Original source: https://github.com/pigeonlover1998/quoi/blob/9b79cde9db7992b231c3649185dc3a0cdb3f68c4/src/main/kotlin/quoi/utils/skyblock/player/SwapManager.kt
  */
+
 object SwapManager {
 
     private const val COOLDOWN_TICKS = 1
@@ -38,8 +41,7 @@ object SwapManager {
         if (slot !in HOTBAR) return SwapResult.FAILED
         if (player.inventory.selectedSlot == slot) return SwapResult.ALREADY_HELD
         if (swappedThisTick) return SwapResult.TOO_FAST
-        applySwap(slot)
-        return SwapResult.SUCCESS
+        return applySwap(slot).takeIf { it }?.let { SwapResult.SUCCESS } ?: SwapResult.FAILED
     }
 
     fun swapToSkyblockID(vararg ids: String): SwapResult {
@@ -54,31 +56,33 @@ object SwapManager {
         if (player.mainHandItem.skyblockID in ids) return player.inventory.selectedSlot
         if (swappedThisTick) return NO_SLOT
         val slot = HOTBAR.firstOrNull { player.inventory.getItem(it).skyblockID in ids } ?: return NO_SLOT
-        applySwap(slot)
-        return slot
+        return slot.takeIf { applySwap(it) } ?: NO_SLOT
+    }
+
+    fun swapToEtherwarpableItem(): Int {
+        val player = mc.player ?: return NO_SLOT
+        if (player.mainHandItem.isEtherwarpable()) return player.inventory.selectedSlot
+        if (swappedThisTick) return NO_SLOT
+        val slot = findEtherwarpableHotbarSlot()
+        if (slot < 0) return NO_SLOT
+        return slot.takeIf { applySwap(it) } ?: NO_SLOT
     }
 
     fun swapSlot(slot: Int): Boolean {
         val player = mc.player ?: return false
         if (player.inventory.selectedSlot == slot) return true
         if (swappedThisTick || slot !in HOTBAR) return false
-        applySwap(slot)
-        return true
+        return applySwap(slot)
     }
 
-    private fun applySwap(slot: Int) {
-        mc.player?.inventory?.selectedSlot = slot
-        mc.connection?.send(ServerboundSetCarriedItemPacket(slot))
+    private fun applySwap(slot: Int): Boolean {
+        val player = mc.player ?: return false
+        val gameMode = mc.gameMode as? IInteractionManagerAccessor ?: return false
+        player.inventory.selectedSlot = slot
+        gameMode.`gobbyclient$syncSelectedSlot`()
         cooldown = COOLDOWN_TICKS
         canUseAbility = false
-    }
-
-    enum class SendDecision { ACCEPT, CANCEL_REDUNDANT, CANCEL_ROLLBACK }
-
-    internal fun decideSend(slot: Int, serverSlot: Int, swappedThisTick: Boolean): SendDecision = when {
-        slot == serverSlot -> SendDecision.CANCEL_REDUNDANT
-        swappedThisTick -> SendDecision.CANCEL_ROLLBACK
-        else -> SendDecision.ACCEPT
+        return true
     }
 
     @SubscribeEvent
@@ -97,18 +101,8 @@ object SwapManager {
     fun onPacketSent(event: PacketSentEvent) {
         val packet = event.packet
         if (packet !is ServerboundSetCarriedItemPacket) return
-        when (decideSend(packet.slot, serverSlot, swappedThisTick)) {
-            SendDecision.CANCEL_REDUNDANT -> event.cancel()
-            SendDecision.CANCEL_ROLLBACK -> {
-                event.cancel()
-                if (serverSlot in HOTBAR) mc.player?.inventory?.selectedSlot = serverSlot
-                modMessage("§c[SwapManager] Prevented zero-tick swap! slot=${packet.slot}, serverSlot=$serverSlot")
-            }
-            SendDecision.ACCEPT -> {
-                serverSlot = packet.slot
-                swappedThisTick = true
-            }
-        }
+        serverSlot = packet.slot
+        swappedThisTick = true
     }
 
     @SubscribeEvent

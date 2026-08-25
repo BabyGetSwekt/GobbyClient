@@ -21,6 +21,7 @@ import gobby.utils.skyblockID
  * Spirit Mask cooldown is hardcoded to 30 seconds.
  * Bonzo's Mask cooldown is looked up from the item lore via AbilityManager.
  */
+
 object InvincibilityManager {
 
     private const val SPIRIT_POP_MSG = "Second Wind Activated! Your Spirit Mask saved your life!"
@@ -42,6 +43,7 @@ object InvincibilityManager {
     val bonzoCooldownSeconds: Double get() = bonzoCooldownTicks / 20.0
 
     fun isWearingSpiritMask(): Boolean = getHelmetID() in SPIRIT_MASK_IDS
+
     fun isWearingBonzoMask(): Boolean = getHelmetID() in BONZO_MASK_IDS
 
     private fun lookupBonzoCooldownSeconds(): Int {

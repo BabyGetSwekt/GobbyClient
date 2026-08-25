@@ -13,6 +13,11 @@ import java.awt.Color
 
 object RenderUtils {
 
+    private const val FULL_BRIGHT_LIGHT = 0xF000F0
+    private const val TEXT_BACKGROUND_ARGB = 0x40000000
+    private const val OPAQUE_ALPHA = 0xFF shl 24
+    private const val NO_OUTLINE = 0
+
     var frameCollector: SubmitNodeCollector? = null
 
     fun drawStringInWorld(
@@ -21,42 +26,31 @@ object RenderUtils {
         matrixStack: PoseStack,
         camera: Camera,
         color: Color = Color.WHITE,
-        depthTest: Boolean = true,
         scale: Float = 0.4f
     ) {
         val collector = frameCollector ?: return
-        val textRenderer = mc.font
-        val cameraPos = camera.cameraPos
-
         matrixStack.pushPose()
-
-        val textX = vec3.x - cameraPos.x
-        val textY = vec3.y - cameraPos.y
-        val textZ = vec3.z - cameraPos.z
-
-        matrixStack.translate(textX, textY, textZ)
-
-        val yaw = camera.yRot()
-        val pitch = camera.xRot()
-        matrixStack.mulPose(Axis.YP.rotationDegrees(-yaw))
-        matrixStack.mulPose(Axis.XP.rotationDegrees(pitch))
-
-        matrixStack.scale(-scale, -scale, scale)
-        val textWidth = textRenderer.width(text)
-
+        faceCamera(matrixStack, vec3, camera, scale)
         collector.submitText(
             matrixStack,
-            -textWidth / 2f,
+            -mc.font.width(text) / 2f,
             0f,
             Component.literal(text).visualOrderText,
             false,
             Font.DisplayMode.SEE_THROUGH,
-            15728880,
-            color.rgb or 0xFF.shl(24),
-            0x40000000,
-            0
+            FULL_BRIGHT_LIGHT,
+            color.rgb or OPAQUE_ALPHA,
+            TEXT_BACKGROUND_ARGB,
+            NO_OUTLINE
         )
-
         matrixStack.popPose()
+    }
+
+    private fun faceCamera(matrixStack: PoseStack, vec3: Vec3, camera: Camera, scale: Float) {
+        val cameraPos = camera.cameraPos
+        matrixStack.translate(vec3.x - cameraPos.x, vec3.y - cameraPos.y, vec3.z - cameraPos.z)
+        matrixStack.mulPose(Axis.YP.rotationDegrees(-camera.yRot()))
+        matrixStack.mulPose(Axis.XP.rotationDegrees(camera.xRot()))
+        matrixStack.scale(-scale, -scale, scale)
     }
 }

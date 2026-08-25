@@ -1,15 +1,10 @@
 package gobby.gui.components.hud
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.mixin.accessor.LocalPlayerAccessor
-import gobby.mixin.accessor.WalkAnimationStateAccessor
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.entity.Pose
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.phys.Vec3
 
 object InventoryHud {
 
@@ -67,7 +62,7 @@ object InventoryHud {
         nextColumnX += layout.middleWidth + COLUMN_GAP
 
         if (showPlayer && player != null) {
-            drawPlayerModel(ctx, nextColumnX, columnY, layout.contentHeight, hudX, hudY, hudScale, player, freezePlayer)
+        InventoryHudPlayerRenderer.draw(ctx, nextColumnX, columnY, layout.contentHeight, hudX, hudY, hudScale, player, freezePlayer)
         }
 
         return Size(layout.totalWidth, layout.totalHeight)
@@ -141,123 +136,6 @@ object InventoryHud {
         if (isSelected) drawSelectedSlotOutline(ctx, slotX, slotY)
         val stack = resolveInventoryStack(player, slotIndex, exampleMode)
         if (!stack.isEmpty) drawItemAtSlot(ctx, stack, slotX, slotY)
-    }
-
-    private fun drawPlayerModel(
-        ctx: GuiGraphicsExtractor,
-        x: Int,
-        y: Int,
-        height: Int,
-        hudX: Float,
-        hudY: Float,
-        hudScale: Float,
-        player: LocalPlayer,
-        freezeRotation: Boolean
-    ) {
-        ctx.fill(x, y, x + PLAYER_PANEL_WIDTH, y + height, HudDrawing.INNER_COLOR)
-
-        val absX = hudX + x * hudScale
-        val absY = hudY + y * hudScale
-        val absW = PLAYER_PANEL_WIDTH * hudScale
-        val absH = height * hudScale
-        val pad = 2f * hudScale
-        val scale = ((height / 2.4f).coerceAtLeast(20f) * hudScale).toInt()
-        val anchorMouseX = absX + absW / 2f
-        val anchorMouseY = absY + absH * 0.9f
-
-        val savedPlayerState = if (freezeRotation) capturePlayerState(player) else null
-        if (freezeRotation) freezePlayerToIdle(player)
-
-        ctx.pose().pushMatrix()
-        ctx.pose().identity()
-        suppressNameTag = true
-        try {
-            InventoryScreen.extractEntityInInventoryFollowsMouse(
-                ctx,
-                (absX + pad).toInt(),
-                (absY + pad).toInt(),
-                (absX + absW - pad).toInt(),
-                (absY + absH - pad).toInt(),
-                scale,
-                0f,
-                anchorMouseX,
-                anchorMouseY,
-                player
-            )
-        } finally {
-            suppressNameTag = false
-        }
-        ctx.pose().popMatrix()
-
-        if (savedPlayerState != null) restorePlayerState(player, savedPlayerState)
-    }
-
-    private data class PlayerFreezeState(
-        val yRot: Float, val xRot: Float,
-        val yBodyRot: Float, val yBodyRotO: Float,
-        val yHeadRot: Float, val yHeadRotO: Float,
-        val pose: Pose,
-        val crouching: Boolean,
-        val walkSpeed: Float, val walkSpeedOld: Float, val walkPosition: Float,
-        val swingTime: Int, val attackAnim: Float, val oAttackAnim: Float,
-        val swinging: Boolean,
-        val deltaMovement: Vec3
-    )
-
-    private fun capturePlayerState(player: LocalPlayer): PlayerFreezeState {
-        val walk = player.walkAnimation
-        val walkAccessor = walk as WalkAnimationStateAccessor
-        return PlayerFreezeState(
-            player.yRot, player.xRot,
-            player.yBodyRot, player.yBodyRotO,
-            player.yHeadRot, player.yHeadRotO,
-            player.pose,
-            (player as LocalPlayerAccessor).crouching,
-            walk.speed(), walkAccessor.lastSpeed, walk.position(),
-            player.swingTime, player.attackAnim, player.oAttackAnim,
-            player.swinging,
-            player.deltaMovement
-        )
-    }
-
-    private fun freezePlayerToIdle(player: LocalPlayer) {
-        player.yRot = 0f
-        player.xRot = 0f
-        player.yBodyRot = 0f
-        player.yBodyRotO = 0f
-        player.yHeadRot = 0f
-        player.yHeadRotO = 0f
-        player.pose = Pose.STANDING
-        (player as LocalPlayerAccessor).crouching = false
-        val walk = player.walkAnimation
-        walk.setSpeed(0f)
-        (walk as WalkAnimationStateAccessor).setLastSpeed(0f)
-        walk.setWalkPosition(0f)
-        player.swingTime = 0
-        player.attackAnim = 0f
-        player.oAttackAnim = 0f
-        player.swinging = false
-        player.deltaMovement = Vec3.ZERO
-    }
-
-    private fun restorePlayerState(player: LocalPlayer, saved: PlayerFreezeState) {
-        player.yRot = saved.yRot
-        player.xRot = saved.xRot
-        player.yBodyRot = saved.yBodyRot
-        player.yBodyRotO = saved.yBodyRotO
-        player.yHeadRot = saved.yHeadRot
-        player.yHeadRotO = saved.yHeadRotO
-        player.pose = saved.pose
-        (player as LocalPlayerAccessor).crouching = saved.crouching
-        val walk = player.walkAnimation
-        walk.setSpeed(saved.walkSpeed)
-        (walk as WalkAnimationStateAccessor).setLastSpeed(saved.walkSpeedOld)
-        walk.setWalkPosition(saved.walkPosition)
-        player.swingTime = saved.swingTime
-        player.attackAnim = saved.attackAnim
-        player.oAttackAnim = saved.oAttackAnim
-        player.swinging = saved.swinging
-        player.deltaMovement = saved.deltaMovement
     }
 
     private fun resolveArmorStack(player: LocalPlayer?, slot: EquipmentSlot, exampleMode: Boolean): ItemStack {

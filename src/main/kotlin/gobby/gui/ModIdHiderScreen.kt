@@ -2,20 +2,29 @@ package gobby.gui
 
 import gg.essential.elementa.ElementaVersion
 import gg.essential.elementa.WindowScreen
-import gg.essential.elementa.components.UIBlock
-import gg.essential.elementa.components.UIRoundedRectangle
-import gg.essential.elementa.components.UIText
-import gg.essential.elementa.components.input.UITextInput
 import gg.essential.elementa.constraints.CenterConstraint
 import gg.essential.elementa.constraints.SiblingConstraint
 import gg.essential.elementa.dsl.*
-import gg.essential.elementa.effects.OutlineEffect
-import gobby.Gobbyclient.Companion.mc
 import gobby.features.skyblock.ModIdHider
-import gobby.gui.components.GobbyScrollPanel
-import gobby.gui.components.ModIdEntryComponent
-import gobby.gui.components.applyHoverColor
+import gobby.gui.components.*
+import gobby.gui.font.StyledFontProvider
 import java.awt.Color
+
+private const val PANEL_WIDTH = 300f
+private const val PANEL_HEIGHT = 260f
+private const val BOTTOM_BAR_HEIGHT = 22f
+private const val INPUT_ROW_Y = 28f
+private const val INPUT_ROW_HEIGHT = 16f
+private const val ADD_BUTTON_WIDTH = 34f
+private const val LIST_TOP = 50f
+private const val LIST_BOTTOM_RESERVED = 78f
+private const val SAVE_BUTTON_WIDTH = 80f
+private const val SAVE_BUTTON_HEIGHT = 16f
+private const val HINT_RIGHT_OFFSET = 88f
+private const val TOOLTIP_BOTTOM_OFFSET = 2f
+private const val ROW_GAP = 2f
+private const val COMPACT_SCROLL_STEP = 30f
+private const val PROTECTED_MOD_ID = "gobbyclient"
 
 class ModIdHiderScreen private constructor() : WindowScreen(
     version = ElementaVersion.V6,
@@ -23,301 +32,125 @@ class ModIdHiderScreen private constructor() : WindowScreen(
 ) {
 
     private val entries = mutableListOf<ModIdEntryComponent>()
-    private var dirty = false
-    private var forceClose = false
 
-    private val overlay by UIBlock(Color(0, 0, 0, 100)).constrain {
-        width = 100.percent
-        height = 100.percent
-    } childOf window
-
-    private val panel by UIRoundedRectangle(5f).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        width = 300.pixels
-        height = 260.pixels
-        color = Color(18, 18, 22, 240).toConstraint()
-    } childOf window
-
-    private val titleBar by UIBlock(Color(26, 26, 32, 255)).constrain {
-        width = 100.percent
-        height = 22.pixels
-    } childOf panel
-
-    private val titleText by UIText("Mod ID Hider", shadow = true).constrain {
-        x = 8.pixels
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-    } childOf titleBar
-
-    private val inputRow by UIBlock(Color(0, 0, 0, 0)).constrain {
-        x = 8.pixels
-        y = 28.pixels
-        width = 100.percent - 16.pixels
-        height = 16.pixels
-    } childOf panel
-
-    private val inputBg by UIRoundedRectangle(3f).constrain {
-        width = 100.percent - 40.pixels
-        height = 100.percent
-        color = Color(12, 12, 16, 220).toConstraint()
-    } childOf inputRow
-
-    private val textInput by UITextInput(placeholder = "Enter mod ID...").constrain {
-        x = 4.pixels
-        y = CenterConstraint()
-        width = 100.percent - 8.pixels
-        height = 9.pixels
-        color = Color(200, 200, 200).toConstraint()
-    } childOf inputBg
-
-    private val addButton by UIRoundedRectangle(3f).constrain {
-        x = 0.pixels(alignOpposite = true)
-        y = CenterConstraint()
-        width = 34.pixels
-        height = 100.percent
-        color = Color(30, 90, 50, 220).toConstraint()
-    } childOf inputRow
-
-    private val addLabel by UIText("Add", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-    } childOf addButton
-
-    private val scrollPanel by GobbyScrollPanel(
-        emptyString = "No hidden mods",
-        innerPadding = 2f,
-        pixelsPerScroll = 30f,
-        scrollAcceleration = 1.8f
+    private val panel = GobbyPanel(
+        window,
+        title = "Mod ID Hider",
+        font = StyledFontProvider,
+        closeButton = false,
+        bottomBarHeight = BOTTOM_BAR_HEIGHT,
+        onDismiss = { tryClose() }
     ).constrain {
-        x = 8.pixels
-        y = 50.pixels
-        width = 100.percent - 16.pixels
-        height = 100.percent - 78.pixels
+        width = PANEL_WIDTH.pixels
+        height = PANEL_HEIGHT.pixels
+    }
+
+    private val textField = GobbyTextField(
+        placeholder = "Enter mod ID...",
+        font = StyledFontProvider,
+        onSubmit = { addCurrentInput() }
+    ).constrain {
+        x = ComponentTheme.SIDE_PAD.pixels
+        y = INPUT_ROW_Y.pixels
+        width = 100.percent - (ComponentTheme.SIDE_PAD * 2 + ADD_BUTTON_WIDTH + ComponentTheme.TITLE_GAP).pixels
+        height = INPUT_ROW_HEIGHT.pixels
     } childOf panel
 
-    private val bottomBar by UIBlock(Color(26, 26, 32, 255)).constrain {
-        y = 0.pixels(alignOpposite = true)
-        width = 100.percent
-        height = 22.pixels
-    } childOf panel
+    private val scrollPanel = panel.contentArea(
+        GobbyScrollPanel(emptyString = "No hidden mods", innerPadding = ROW_GAP, pixelsPerScroll = COMPACT_SCROLL_STEP),
+        LIST_TOP, LIST_BOTTOM_RESERVED
+    )
 
-    private val infoIcon by UIRoundedRectangle(7f).constrain {
-        x = 0.pixels(alignOpposite = true) - 88.pixels
-        y = CenterConstraint()
-        width = 14.pixels
-        height = 14.pixels
-        color = Color(140, 30, 30, 220).toConstraint()
-    } childOf bottomBar
+    private val tooltip = GobbyTooltip(panel, "Requires a game restart to apply!", StyledFontProvider).constrain {
+        x = HINT_RIGHT_OFFSET.pixels(alignOpposite = true)
+        y = TOOLTIP_BOTTOM_OFFSET.pixels(alignOpposite = true)
+    }
 
-    private val infoQuestion by UIText("?", shadow = false).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(255, 255, 255).toConstraint()
-    } childOf infoIcon
+    private val snitchToast = GobbyToast(window, "Why would u snitch on yourself?", StyledFontProvider)
 
-    private val tooltip by UIRoundedRectangle(3f).constrain {
-        x = 0.pixels(alignOpposite = true) - 88.pixels
-        y = 0.pixels(alignOpposite = true) - 2.pixels
-        width = 175.pixels
-        height = 16.pixels
-        color = Color(10, 10, 14, 240).toConstraint()
-    } childOf panel
-
-    private val tooltipText by UIText("Requires a game restart to apply!", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(200, 60, 60).toConstraint()
-        textScale = 0.75.pixels
-    } childOf tooltip
-
-    private val saveButton by UIRoundedRectangle(3f).constrain {
-        x = 0.pixels(alignOpposite = true) - 4.pixels
-        y = CenterConstraint()
-        width = 80.pixels
-        height = 16.pixels
-        color = Color(30, 90, 50, 220).toConstraint()
-    } childOf bottomBar
-
-    private val saveLabel by UIText("Save & Close", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-        textScale = 0.85.pixels
-    } childOf saveButton
-
-    // Easter egg I guess
-    private val snitchPopup by UIRoundedRectangle(5f).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        width = 200.pixels
-        height = 40.pixels
-        color = Color(30, 10, 10, 245).toConstraint()
-    } childOf window
-
-    private val snitchText by UIText("Why would u snitch on yourself?", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(255, 80, 80).toConstraint()
-        textScale = 0.85.pixels
-    } childOf snitchPopup
-
-    private val dialogOverlay by UIBlock(Color(0, 0, 0, 150)).constrain {
-        width = 100.percent
-        height = 100.percent
-    } childOf window
-
-    private val dialogBox by UIRoundedRectangle(5f).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        width = 220.pixels
-        height = 70.pixels
-        color = Color(22, 22, 28, 245).toConstraint()
-    } childOf dialogOverlay
-
-    private val dialogText by UIText("You have unsaved changes!", shadow = true).constrain {
-        x = CenterConstraint()
-        y = 10.pixels
-        color = Color(210, 210, 215).toConstraint()
-        textScale = 0.85.pixels
-    } childOf dialogBox
-
-    private val dialogSaveBtn by UIRoundedRectangle(3f).constrain {
-        x = CenterConstraint() - 50.pixels
-        y = 0.pixels(alignOpposite = true) - 10.pixels
-        width = 70.pixels
-        height = 18.pixels
-        color = Color(30, 90, 50, 220).toConstraint()
-    } childOf dialogBox
-
-    private val dialogSaveLabel by UIText("Save", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-        textScale = 0.85.pixels
-    } childOf dialogSaveBtn
-
-    private val dialogLeaveBtn by UIRoundedRectangle(3f).constrain {
-        x = CenterConstraint() + 50.pixels
-        y = 0.pixels(alignOpposite = true) - 10.pixels
-        width = 70.pixels
-        height = 18.pixels
-        color = Color(120, 30, 30, 220).toConstraint()
-    } childOf dialogBox
-
-    private val dialogLeaveLabel by UIText("Leave", shadow = true).constrain {
-        x = CenterConstraint()
-        y = CenterConstraint()
-        color = Color(210, 210, 215).toConstraint()
-        textScale = 0.85.pixels
-    } childOf dialogLeaveBtn
+    private val guard = UnsavedChangesGuard(
+        window,
+        message = "You have unsaved changes!",
+        discardText = "Leave",
+        keepText = "Save",
+        font = StyledFontProvider,
+        onDiscard = { closeWithoutSaving() },
+        onKeep = { saveAndClose() }
+    )
 
     init {
-        tooltip.hide(instantly = true)
-        snitchPopup.hide(instantly = true)
-        dialogOverlay.hide(instantly = true)
+        GobbyButton("Add", ComponentTheme.ACCENT, ComponentTheme.ACCENT_HOVER, font = StyledFontProvider) { addCurrentInput() }.constrain {
+            x = ComponentTheme.SIDE_PAD.pixels(alignOpposite = true)
+            y = INPUT_ROW_Y.pixels
+            width = ADD_BUTTON_WIDTH.pixels
+            height = INPUT_ROW_HEIGHT.pixels
+        } childOf panel
 
-        infoIcon.onMouseEnter { tooltip.unhide() }
-        infoIcon.onMouseLeave { tooltip.hide() }
+        panel.bottomBar?.let { bar ->
+            GobbyHintIcon(tooltip, StyledFontProvider).constrain {
+                x = HINT_RIGHT_OFFSET.pixels(alignOpposite = true)
+                y = CenterConstraint()
+                width = ComponentTheme.ICON_SIZE.pixels
+                height = ComponentTheme.ICON_SIZE.pixels
+            } childOf bar
 
-        inputBg.enableEffect(OutlineEffect(Color(40, 40, 50), 1f))
-        inputBg.onMouseClick { textInput.grabWindowFocus() }
-
-        addButton.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
-        addButton.onMouseClick { addCurrentInput() }
-
-        textInput.onKeyType { typedChar, _ ->
-            if (typedChar == '\r') addCurrentInput()
+            GobbyButton("Save & Close", ComponentTheme.ACCENT, ComponentTheme.ACCENT_HOVER, font = StyledFontProvider) { saveAndClose() }.constrain {
+                x = ComponentTheme.TITLE_GAP.pixels(alignOpposite = true)
+                y = CenterConstraint()
+                width = SAVE_BUTTON_WIDTH.pixels
+                height = SAVE_BUTTON_HEIGHT.pixels
+            } childOf bar
         }
 
-        saveButton.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
-        saveButton.onMouseClick { saveAndClose() }
-
-        overlay.onMouseClick { tryClose() }
-
-        dialogSaveBtn.applyHoverColor(Color(30, 90, 50, 220), Color(40, 130, 70, 240))
-        dialogSaveBtn.onMouseClick { saveAndClose() }
-
-        dialogLeaveBtn.applyHoverColor(Color(120, 30, 30, 220), Color(180, 40, 40, 240))
-        dialogLeaveBtn.onMouseClick {
-            forceClose = true
-            displayScreen(null)
-        }
-
-        dialogOverlay.onMouseClick { it.stopPropagation() }
-
-        populateEntries()
+        ModIdHider.getHiddenMods().forEach(::addEntry)
     }
 
     override fun onClose() {
-        if (dirty && !forceClose) {
-            dialogOverlay.unhide()
-            return
-        }
+        if (guard.shouldBlockClose()) return
         super.onClose()
     }
 
-    private fun tryClose() {
-        if (dirty) {
-            dialogOverlay.unhide()
-        } else {
-            displayScreen(null)
-        }
-    }
+    private fun tryClose() = guard.requestClose { displayScreen(null) }
 
     private fun addCurrentInput() {
-        val id = textInput.getText().trim().lowercase()
-        if (id.isEmpty()) return
-        if (entries.any { it.modId == id }) return
-
-        addEntry(id)
-        textInput.setText("")
-        dirty = true
+        val modId = textField.getText().trim().lowercase()
+        if (modId.isEmpty() || entries.any { it.modId == modId }) return
+        addEntry(modId)
+        textField.clear()
+        guard.dirty = true
     }
 
     private fun addEntry(modId: String) {
-        val entry = ModIdEntryComponent(modId) { comp ->
-            if (comp.modId == "gobbyclient") {
-                showSnitchPopup()
-                return@ModIdEntryComponent
-            }
-            entries.remove(comp)
-            scrollPanel.scrollArea.removeChild(comp)
-            dirty = true
-        }.constrain {
+        val entry = ModIdEntryComponent(modId, ::removeEntry).constrain {
             x = 0.pixels
-            y = SiblingConstraint(2f)
+            y = SiblingConstraint(ROW_GAP)
         }
-
         entries.add(entry)
         entry childOf scrollPanel.scrollArea
     }
 
-    private fun showSnitchPopup() {
-        snitchPopup.unhide()
-        Thread {
-            Thread.sleep(2000)
-            mc.execute { snitchPopup.hide() }
-        }.apply { isDaemon = true }.start()
+    private fun removeEntry(entry: ModIdEntryComponent) {
+        if (entry.modId == PROTECTED_MOD_ID) {
+            snitchToast.show()
+            return
+        }
+        entries.remove(entry)
+        scrollPanel.scrollArea.removeChild(entry)
+        guard.dirty = true
     }
 
-    private fun populateEntries() {
-        for (modId in ModIdHider.getHiddenMods()) {
-            addEntry(modId)
-        }
+    private fun closeWithoutSaving() {
+        guard.allowClose()
+        displayScreen(null)
     }
 
     private fun saveAndClose() {
         ModIdHider.replaceAll(entries.map { it.modId })
         ModIdHider.save()
-        forceClose = true
-        displayScreen(null)
+        closeWithoutSaving()
     }
 
     companion object {
-        fun open() {
-            displayScreen(ModIdHiderScreen())
-        }
+        fun open() = displayScreen(ModIdHiderScreen())
     }
 }

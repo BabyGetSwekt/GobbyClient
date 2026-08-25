@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  * License: https://github.com/Oxyopiia/ViceMod/blob/master/LICENSE
  * Original source: https://github.com/Oxyopiia/ViceMod/blob/fd8b0db781c0dfd45dc958665ec8ea5d4deb88f1/src/main/java/net/oxyopia/vice/events/core/EventManager.kt
  */
+
 class EventManager {
     data class EventListener(var event: Class<out Events?>, var target: Method, var source: Any)
 
@@ -32,6 +33,7 @@ class EventManager {
      *
      * @param obj the object to be subscribed to events.
      */
+
     fun subscribe(obj: Any) {
         if (!subscribedSources.add(obj)) return
         var clazz: Class<*>? = obj.javaClass
@@ -68,6 +70,7 @@ class EventManager {
      * Hooks an event to all its subscribed listeners.
      * If an exception is thrown during invocation, it is caught and printed to the Minecraft Chat using a Vice Error.
      */
+
     fun <T: Events> publish(event: T): T {
 
         var clazz: Class<*>? = event.javaClass

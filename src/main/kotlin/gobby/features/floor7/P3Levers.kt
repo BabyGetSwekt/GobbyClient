@@ -27,7 +27,6 @@ object P3Levers : Triggerbot(
     val lightsDevice by BooleanSetting("Lights Device", false, desc = "Aura's or uses triggerbot on s2 device (depending on your settings)")
     val p3Levers by BooleanSetting("P3 Levers", false, desc = "Aura's or uses triggerbot on p3 levers (depending on your settings)")
 
-
     private val auraClock = Clock()
     private val auraCooldowns = mutableMapOf<BlockPos, Clock>()
 

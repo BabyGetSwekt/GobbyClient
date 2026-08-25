@@ -5,12 +5,20 @@ import gobby.features.dungeons.DungeonMap
 import gobby.features.dungeons.RoomPathfinder
 import gobby.pathfinder.etherwarp.DungeonRoomPathfinder
 import gobby.pathfinder.etherwarp.DungeonEtherwarpPathfinder
+import gobby.pathfinder.etherwarp.SearchDeadline
+import gobby.pathfinder.etherwarp.DungeonPathPlanningExecutor
+import gobby.pathfinder.etherwarp.DungeonRoomRoutePreparation
+import gobby.pathfinder.etherwarp.DungeonPreparedPathLookup
 import gobby.pathfinder.etherwarp.EtherwarpKind
 import gobby.pathfinder.etherwarp.EtherwarpPathConfig
 import gobby.pathfinder.etherwarp.EtherwarpPathExecutor
-import gobby.pathfinder.etherwarp.EtherwarpPathfinder
+import gobby.pathfinder.etherwarp.EtherwarpNode
+import gobby.pathfinder.etherwarp.EtherwarpPartialRouteObserver
+import gobby.pathfinder.navigation.DungeonRoomGoalResolver
+import gobby.pathfinder.navigation.DungeonRoomEntryPolicy
 import gobby.pathfinder.world.BlockCache
 import gobby.utils.ChatUtils.modMessage
+import gobby.utils.findEtherwarpableHotbarSlot
 import gobby.utils.isHoldingSkyblockItem
 import gobby.utils.skyblock.EtherwarpUtils
 import gobby.utils.timer.Clock
@@ -23,17 +31,14 @@ import gobby.utils.skyblock.dungeon.map.MapConstants.STEP
 import gobby.utils.skyblock.dungeon.map.MapGrid
 import gobby.utils.skyblock.dungeon.map.MapRenderer
 import gobby.utils.skyblock.dungeon.map.MapTile
-import gobby.utils.skyblock.dungeon.tiles.RoomType
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.Vec3
-import kotlin.concurrent.thread
 
 class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
-
     private val grid get() = DungeonMap.grid
     private val allDiscovered = BooleanArray(GRID_SIZE * GRID_SIZE) { true }
     private var reachable: Set<Int> = emptySet()
@@ -41,20 +46,30 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
     private var scale = 1f
     private var originX = 0
     private var originY = 0
+    private var routePlanningContinues = false
 
     override fun isPauseScreen(): Boolean = false
 
     override fun init() {
-        refreshReachability()
+        refreshReachability(force = true)
         val mapSize = MapRenderer.getMapSize()
         scale = (minOf(width, height) * MAP_SCALE_FRACTION / mapSize).coerceAtLeast(1f)
         originX = ((width - mapSize * scale) / 2f).toInt()
         originY = ((height - mapSize * scale) / 2f).toInt()
     }
 
+    override fun onClose() {
+        DungeonRoomRoutePreparation.cancel()
+        if (!routePlanningContinues) {
+            DungeonPathPlanningExecutor.cancel()
+            EtherwarpPathExecutor.cancel()
+        }
+        super.onClose()
+    }
+
     override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         super.extractRenderState(context, mouseX, mouseY, delta)
-        refreshReachability()
+        refreshReachability(priorityCell = cellAt(mouseX.toDouble(), mouseY.toDouble()))
         context.fill(0, 0, width, height, BACKGROUND_GREY)
         drawBorder(context)
         context.pose().pushMatrix()
@@ -65,13 +80,15 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
         context.pose().popMatrix()
     }
 
-    private fun refreshReachability() {
-        if (!reachabilityClock.hasTimePassed(REACHABILITY_INTERVAL_MS, setTime = true)) return
+    private fun refreshReachability(force: Boolean = false, priorityCell: Int? = null) {
+        if (!force && !reachabilityClock.hasTimePassed(REACHABILITY_INTERVAL_MS, setTime = true)) return
         DungeonMap.refreshState()
+        BlockCache.flushDirtyLoadedChunks()
         val playerCell = mc.player?.let { DungeonRooms.roomCellAt(grid, it.x, it.z) }
         reachable = playerCell?.let {
             DungeonRoomPathfinder.reachableCellsFrom(grid, it, opened = { door -> DungeonEtherwarpPathfinder.doorOpen(door) { p -> BlockCache.knownStateAt(p) } })
         }.orEmpty()
+        DungeonRoomRoutePreparation.prepare(reachable, priorityCell)
     }
 
     private fun drawBorder(context: GuiGraphicsExtractor) {
@@ -118,80 +135,105 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
 
     private fun startPathTo(cell: Int) {
         val player = mc.player ?: return
-        if (!isHoldingSkyblockItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END")) return modMessage("§cHold an Aspect of the Void or End to transmit")
+        if (!hasEtherwarpItem()) return modMessage("Hold an Aspect of the Void or End to transmit")
+        cancelPathPlanning()
+        beginInteractiveRoutePlanning()
         val kind = EtherwarpKind.ETHERWARP
-        val from = Vec3(player.x, player.y, player.z)
-        val mapSnapshot = grid.copyOf()
-        val clickedRoom = roomName(cell)
-        println("[GobbyMap] click cell=$cell room='$clickedRoom' playerPos=$from kind=$kind")
-        val enterRoom = canTeleportInto(cell)
-        val config = EtherwarpPathConfig(etherRange = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: EtherwarpKind.ETHERWARP.defaultRange)
+        val route = prepareRoute(cell, Vec3(player.x, player.y, player.z), kind) ?: run { EtherwarpPathExecutor.endPlanningSneak()
+        return }
+        if (startPreparedRoute(route)) return
+        startAsyncRoute(route)
+    }
+
+    private fun hasEtherwarpItem(): Boolean =
+        isHoldingSkyblockItem("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END") || findEtherwarpableHotbarSlot() >= 0
+
+    private fun cancelPathPlanning() {
+        DungeonPathPlanningExecutor.cancel()
+        EtherwarpPathExecutor.cancel()
+    }
+
+    private fun prepareRoute(cell: Int, from: Vec3, kind: EtherwarpKind): PendingRoute? {
+        val snapshot = grid.copyOf()
+        val enterRoom = DungeonRoomEntryPolicy.canTeleportInto(snapshot, cell)
+        val config = EtherwarpPathConfig(etherRange = EtherwarpUtils.currentRange().takeIf { it > 0.0 } ?: kind.defaultRange)
+        val deadline = SearchDeadline(config.timeout)
         val bounds = MapGrid.dungeonChunkBounds()
-        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
-        val goal = roomGoal(cell) ?: return modMessage("Â§cTarget room floor is not loaded yet")
-        if (RoomPathfinder.pathDebug) BlockCache.writeState("click room=$clickedRoom cell=$cell goal=$goal")
-        val cacheSnapshot = BlockCache.freeze()
-        println("[GobbyMap] requested room='$clickedRoom' goal=$goal enterRoom=$enterRoom")
-        thread(name = "gobby-pathfind", isDaemon = true) {
+        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3], refresh = true)
+        val cacheSnapshot = BlockCache.freeze().trackingMissingChunks()
+        val goal = roomGoal(cell, cacheSnapshot) ?: run {
+            modMessage("Target room floor is not loaded yet")
+            return null
+        }
+        return PendingRoute(from, goal, kind, snapshot, enterRoom, config, deadline, cacheSnapshot)
+    }
+
+    private fun startPreparedRoute(route: PendingRoute): Boolean {
+        val path = DungeonPreparedPathLookup.take(route.from, route.goal, route.kind, route.config, route.enterRoom, route.snapshot, route.cacheSnapshot)
+            ?: return false
+        RoomPathfinder.pathPreview = path
+        modMessage("Path found: " + (path.size - 1) + " teleports from prepared cache")
+        EtherwarpPathExecutor.start(path, route.kind, DungeonEtherwarpPathfinder.hopFieldFor(route.goal, route.kind, route.config), observer = partialRouteObserver(route))
+        routePlanningContinues = true
+        return true
+    }
+
+    private fun startAsyncRoute(route: PendingRoute) {
+        DungeonPathPlanningExecutor.submit { requestId ->
             val clock = Clock()
-            val path = DungeonEtherwarpPathfinder.findDungeonPath(from, goal, kind, config, enterRoom, mapSnapshot, { door ->
-                DungeonEtherwarpPathfinder.doorOpen(door) { p -> cacheSnapshot.getBlockState(p) }
-            }, cacheSnapshot)
-            mc.execute {
-                val live = path?.let { EtherwarpPathfinder.revalidateLive(it, kind.searchRange(config), kind, cacheSnapshot) }
-                if (live == null || live.size < 2) {
-                    RoomPathfinder.pathPreview = emptyList()
-                    modMessage(when {
-                        path != null -> "§cPath invalid live (target not reachable), retry"
-                        DungeonEtherwarpPathfinder.lastSearchTimedOut -> "§cSearch timed out before reaching that room, try again"
-                        else -> "§cNo path to that room"
-                    })
-                } else {
-                    RoomPathfinder.pathPreview = live
-                    val dropped = (path?.size ?: 0) - live.size
-                    modMessage("§aPath found: ${live.size - 1} teleports in ${clock.getTime()}ms${if (dropped > 0) " §7(dropped $dropped stale hop${if (dropped > 1) "s" else ""})" else ""}")
-                    EtherwarpPathExecutor.start(live, kind, clickedRoom, DungeonEtherwarpPathfinder.hopFieldFor(goal, kind, config))
-                }
+            val result = runCatching {
+                DungeonEtherwarpPathfinder.findDungeonPath(route.from, route.goal, route.kind, route.config, route.enterRoom, route.snapshot, { door ->
+                    DungeonEtherwarpPathfinder.doorOpen(door) { position -> route.cacheSnapshot.getBlockState(position) }
+                }, route.cacheSnapshot, deadline = route.deadline)
+            }.onFailure { failure ->
+                println("[GobbyClient] route planning to ${route.goal} threw $failure")
+                failure.printStackTrace()
+            }
+            finishAsyncRoute(requestId, result, route, clock, DungeonEtherwarpPathfinder.lastSearchTimedOut)
+        }
+        routePlanningContinues = true
+        beginInteractiveRoutePlanning()
+    }
+
+    private fun finishAsyncRoute(requestId: Long, path: Result<List<EtherwarpNode>?>, route: PendingRoute, clock: Clock, timedOut: Boolean) {
+        mc.execute {
+            if (!DungeonPathPlanningExecutor.isCurrent(requestId)) return@execute
+            val resolvedPath = path.getOrNull()
+            if (path.isFailure) EtherwarpPathExecutor.endPlanningSneak()
+            if (resolvedPath == null || resolvedPath.size < 2) handleFailedRoute(resolvedPath, timedOut, path.exceptionOrNull())
+            else {
+                RoomPathfinder.pathPreview = resolvedPath
+                modMessage("Path found: " + (resolvedPath.size - 1) + " teleports in " + clock.getTime() + "ms")
+                EtherwarpPathExecutor.start(resolvedPath, route.kind, DungeonEtherwarpPathfinder.hopFieldFor(route.goal, route.kind, route.config), observer = partialRouteObserver(route))
             }
         }
     }
 
-    private fun canTeleportInto(cell: Int): Boolean {
-        val data = (grid.getOrNull(cell) as? MapTile.Room)?.data ?: return true
-        return when (data.type) {
-            RoomType.TRAP -> false
-            RoomType.PUZZLE -> data.name in ETHERWARPABLE_PUZZLE_ROOMS
-            else -> true
+    private fun handleFailedRoute(path: List<EtherwarpNode>?, timedOut: Boolean, error: Throwable? = null) {
+        EtherwarpPathExecutor.endPlanningSneak()
+        RoomPathfinder.pathPreview = emptyList()
+        when {
+            error != null -> modMessage("Route planning failed with ${error::class.simpleName}, see the log")
+            timedOut -> modMessage("Search timed out before reaching that room, try again")
+            path != null -> modMessage("Path invalid in the frozen world snapshot, retry")
+            else -> modMessage("No path to that room")
         }
+    }
+
+    private fun partialRouteObserver(route: PendingRoute) = EtherwarpPartialRouteObserver(continueRoute = { restartAfterPartial(route) }); private fun restartAfterPartial(route: PendingRoute) {
+        val player = mc.player ?: return
+        BlockCache.flushDirtyLoadedChunks()
+        val cache = BlockCache.freeze().trackingMissingChunks()
+        startAsyncRoute(route.copy(from = Vec3(player.x, player.y, player.z), snapshot = grid.copyOf(), deadline = SearchDeadline(route.config.timeout), cacheSnapshot = cache))
     }
 
     private fun roomName(cell: Int): String =
         (grid.getOrNull(cell) as? MapTile.Room)?.data?.name ?: "cell-$cell"
 
-    private fun roomGoal(cell: Int): BlockPos? {
-        val target = scannedCellOf(cell)
+    private fun roomGoal(cell: Int, snapshot: BlockCache.SnapshotView): BlockPos? {
         val refY = mc.player?.blockPosition()?.y ?: return null
-        val cells = DungeonRooms.component(grid, target)
-        val bounds = roomBounds(cells)
-        BlockCache.captureLoadedChunks(bounds[0] shr 4, bounds[2] shr 4, bounds[1] shr 4, bounds[3] shr 4, refresh = true)
-        val center = BlockPos(MapGrid.worldX(MapGrid.col(target)), refY, MapGrid.worldZ(MapGrid.row(target)))
-        val goal = EtherwarpUtils.nearestEtherwarpable(center, cached = true) { DungeonRooms.containingRoomCell(grid, it.x + 0.5, it.z + 0.5) in cells }
-        println("[GobbyCache] room goal cell=$cell targetCell=$target center=$center goal=$goal")
-        return goal
+        return DungeonRoomGoalResolver.resolve(cell, refY, grid, snapshot, DungeonMap.revision)
     }
-
-    private fun roomBounds(cells: Set<Int>): IntArray {
-        val x = cells.map { MapGrid.worldX(MapGrid.col(it)) }
-        val z = cells.map { MapGrid.worldZ(MapGrid.row(it)) }
-        val minX = x.minOrNull() ?: return intArrayOf()
-        val maxX = x.maxOrNull() ?: return intArrayOf()
-        val minZ = z.minOrNull() ?: return intArrayOf()
-        val maxZ = z.maxOrNull() ?: return intArrayOf()
-        return intArrayOf(minX - ROOM_HALF_EXTENT, maxX + ROOM_HALF_EXTENT, minZ - ROOM_HALF_EXTENT, maxZ + ROOM_HALF_EXTENT)
-    }
-
-    private fun scannedCellOf(cell: Int): Int =
-        DungeonRooms.component(grid, cell).firstOrNull { (grid.getOrNull(it) as? MapTile.Room)?.core?.let { core -> core != 0 } == true } ?: cell
 
     private fun cellAt(screenX: Double, screenY: Double): Int? {
         val localX = (screenX - originX) / scale
@@ -214,7 +256,6 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
         val neighbours = if (col % CELL_STRIDE == 1) listOf(col - 1 to row, col + 1 to row) else listOf(col to row - 1, col to row + 1)
         return neighbours.firstNotNullOfOrNull { (c, r) -> MapGrid.index(c, r).takeIf { MapGrid.inRange(c, r) && grid.getOrNull(it) is MapTile.Room } }
     }
-
     companion object {
         private const val LEFT_BUTTON = 0
         private const val MAP_SCALE_FRACTION = 0.75f
@@ -224,12 +265,17 @@ class InteractiveMapScreen : Screen(Component.literal("Interactive Map")) {
         private const val BACKGROUND_GREY = 0xC0303030.toInt()
         private const val BORDER_GREY = 0xFFB0B0B0.toInt()
         private const val BORDER_THICKNESS = 2
-        private val ETHERWARPABLE_PUZZLE_ROOMS = setOf(
-            "Creeper Beams", "Higher Blaze", "Ice Fill", "Ice Path",
-            "Lower Blaze", "Quiz", "Three Weirdos", "Tic Tac Toe", "Water Board"
-        )
-        private const val ROOM_HALF_EXTENT = 15
         private const val HOVER_REACHABLE = 0x50FFFFFF
         private const val HOVER_BLOCKED = 0x66FF3030
     }
+    private data class PendingRoute(
+        val from: Vec3,
+        val goal: BlockPos,
+        val kind: EtherwarpKind,
+        val snapshot: Array<MapTile>,
+        val enterRoom: Boolean,
+        val config: EtherwarpPathConfig,
+        val deadline: SearchDeadline,
+        val cacheSnapshot: BlockCache.SnapshotView
+    )
 }

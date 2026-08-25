@@ -11,6 +11,8 @@ object Cells {
     private const val X_BITS = 26
     private const val Y_BITS = 12
     private const val Z_BITS = 26
+    private const val AXIS_SIZE = 3
+    private const val NEIGHBOR_COUNT = 26
     private const val Z_MASK = (1L shl Z_BITS) - 1L
     private const val Y_MASK = (1L shl Y_BITS) - 1L
     private const val X_MASK = (1L shl X_BITS) - 1L
@@ -24,13 +26,21 @@ object Cells {
         0, 0, -1
     )
 
-    val ALL_26_NEIGHBORS: IntArray = run {
-        val out = ArrayList<Int>(78)
-        for (dx in -1..1) for (dy in -1..1) for (dz in -1..1) {
+    val ALL_26_NEIGHBORS: IntArray = buildNeighbors()
+
+    private fun buildNeighbors(): IntArray {
+        val result = IntArray(NEIGHBOR_COUNT * AXIS_SIZE)
+        var output = 0
+        for (cell in 0 until AXIS_SIZE * AXIS_SIZE * AXIS_SIZE) {
+            val dx = cell / (AXIS_SIZE * AXIS_SIZE) - 1
+            val dy = cell / AXIS_SIZE % AXIS_SIZE - 1
+            val dz = cell % AXIS_SIZE - 1
             if (dx == 0 && dy == 0 && dz == 0) continue
-            out += dx; out += dy; out += dz
+            result[output++] = dx
+            result[output++] = dy
+            result[output++] = dz
         }
-        out.toIntArray()
+        return result
     }
 
     fun pack(x: Int, y: Int, z: Int): Long =

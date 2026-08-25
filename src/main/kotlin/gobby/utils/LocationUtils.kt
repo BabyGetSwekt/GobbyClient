@@ -100,57 +100,52 @@ object LocationUtils {
         try {
             TEXT_SCOREBOARD.clear()
             STRING_SCOREBOARD.clear()
-
             val player = client.player ?: return
-
             val scoreboard: Scoreboard = player.connection.scoreboard()
-            val objective: Objective? =
-                scoreboard.getDisplayObjective(DisplaySlot.BY_ID.apply(1))
-
-            val textLines = ObjectArrayList<Component>()
-            val stringLines = ObjectArrayList<String>()
-
-            for (scoreHolder: ScoreHolder in scoreboard.trackedPlayers) {
-                val holderObjectives = scoreboard.listPlayerScores(scoreHolder)
-                if (objective != null && holderObjectives.containsKey(objective)) {
-                    val scObjName = ChatFormatting.stripFormatting(objective.displayName.string)?.uppercase() ?: ""
-                    onSkyblock = scObjName.contains("SKYBLOCK")
-                    val team = scoreboard.getPlayersTeam(scoreHolder.scoreboardName)
-
-                    if (team != null) {
-                        val textLine = Component.empty()
-                            .append(team.playerPrefix.copy())
-                            .append(team.playerSuffix.copy())
-
-                        val strLine = team.playerPrefix.string + team.playerSuffix.string
-
-                        if (strLine.trim().isNotEmpty()) {
-                            val formatted = ChatFormatting.stripFormatting(strLine)
-                            textLines.add(textLine)
-                            stringLines.add(formatted)
-                        }
-                    }
-                }
-            }
-
-            if (objective != null) {
-                stringLines.add(objective.displayName.string)
-                textLines.add(Component.empty().append(objective.displayName.copy()))
-
-                Collections.reverse(stringLines)
-                Collections.reverse(textLines)
-            }
-
-            TEXT_SCOREBOARD.addAll(textLines)
-            STRING_SCOREBOARD.addAll(stringLines)
-
-
+            val lines = collectScoreboardLines(player.connection.scoreboard())
+            TEXT_SCOREBOARD.addAll(lines.text)
+            STRING_SCOREBOARD.addAll(lines.strings)
             area = if (onSkyblock) getIslandArea() else "Unknown"
-
         } catch (e: NullPointerException) {
             modMessage(e)
         }
     }
+
+    private fun collectScoreboardLines(scoreboard: Scoreboard): ScoreboardLines {
+        val objective = scoreboard.getDisplayObjective(DisplaySlot.BY_ID.apply(1))
+        val textLines = ObjectArrayList<Component>()
+        val stringLines = ObjectArrayList<String>()
+        for (scoreHolder: ScoreHolder in scoreboard.trackedPlayers) {
+            appendScoreboardLine(scoreboard, objective, scoreHolder, textLines, stringLines)
+        }
+        if (objective != null) {
+            stringLines.add(objective.displayName.string)
+            textLines.add(Component.empty().append(objective.displayName.copy()))
+            Collections.reverse(stringLines)
+            Collections.reverse(textLines)
+        }
+        return ScoreboardLines(textLines, stringLines)
+    }
+
+    private fun appendScoreboardLine(
+        scoreboard: Scoreboard,
+        objective: Objective?,
+        scoreHolder: ScoreHolder,
+        textLines: MutableList<Component>,
+        stringLines: MutableList<String>
+    ) {
+        if (objective == null || !scoreboard.listPlayerScores(scoreHolder).containsKey(objective)) return
+        val objectiveName = ChatFormatting.stripFormatting(objective.displayName.string)?.uppercase() ?: ""
+        onSkyblock = objectiveName.contains("SKYBLOCK")
+        val team = scoreboard.getPlayersTeam(scoreHolder.scoreboardName) ?: return
+        val textLine = Component.empty().append(team.playerPrefix.copy()).append(team.playerSuffix.copy())
+        val stringLine = team.playerPrefix.string + team.playerSuffix.string
+        if (stringLine.trim().isEmpty()) return
+        textLines.add(textLine)
+        stringLines.add(ChatFormatting.stripFormatting(stringLine) ?: "")
+    }
+
+    private data class ScoreboardLines(val text: List<Component>, val strings: List<String>)
 
     fun updateTablist(client: Minecraft, debug: Boolean = false): List<String>? {
         val tabList = client.connection?.listedOnlinePlayers ?: return emptyList()
@@ -187,7 +182,6 @@ object LocationUtils {
             ?.trim()
             ?: "Unknown"
     }
-
 
     private fun isConnectedToHypixel(client: Minecraft): Boolean {
         val serverAddress = client.currentServer?.ip?.lowercase() ?: ""

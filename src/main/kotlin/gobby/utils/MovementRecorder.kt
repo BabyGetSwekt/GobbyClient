@@ -43,7 +43,8 @@ object MovementRecorder {
     )
 
     fun start(target: BlockPos? = null) {
-        val player = mc.player ?: run { errorMessage("No player"); return }
+        val player = mc.player ?: run { errorMessage("No player")
+        return }
         if (recording) { errorMessage("Already recording. Use /gobby record stop first."); return }
         recording = true
         frames.clear()
@@ -142,5 +143,6 @@ object MovementRecorder {
     }
 
     private fun fmt(d: Double) = "%.3f".format(Locale.US, d)
+
     private fun fmtF(f: Float) = "%.2f".format(Locale.US, f)
 }

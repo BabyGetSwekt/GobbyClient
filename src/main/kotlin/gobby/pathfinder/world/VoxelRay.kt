@@ -45,9 +45,18 @@ class VoxelRay {
     val atEnd: Boolean get() = x == endX && y == endY && z == endZ
 
     fun advance() = when {
-        tMaxX <= tMaxY && tMaxX <= tMaxZ -> { tMaxX += tDeltaX; x += stepX }
-        tMaxY <= tMaxZ -> { tMaxY += tDeltaY; y += stepY }
-        else -> { tMaxZ += tDeltaZ; z += stepZ }
+            tMaxX <= tMaxY && tMaxX <= tMaxZ -> {
+                tMaxX += tDeltaX
+                x += stepX
+            }
+            tMaxY <= tMaxZ -> {
+                tMaxY += tDeltaY
+                y += stepY
+            }
+            else -> {
+                tMaxZ += tDeltaZ
+                z += stepZ
+            }
     }
 
     private fun inv(v: Double) = if (v != 0.0) 1.0 / v else Double.MAX_VALUE

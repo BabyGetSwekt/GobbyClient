@@ -82,7 +82,9 @@ abstract class ChunkAreaScanner {
     }
 
     protected abstract fun scanChunk(cx: Int, cz: Int)
+
     protected abstract fun onScanComplete()
+
     protected open fun onScanProgress(scanned: Int, total: Int) {}
 
     private fun packChunk(cx: Int, cz: Int): Long = (cx.toLong() shl 32) or (cz.toLong() and 0xFFFFFFFFL)

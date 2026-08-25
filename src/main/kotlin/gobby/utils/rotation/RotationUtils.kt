@@ -29,6 +29,10 @@ object RotationUtils {
     private var targetYaw = 0f
     private var targetPitch = 0f
     private val easeClock = Clock()
+    private var entryYaw = 0f
+    private var entryPitch = 0f
+    private var lastYaw = 0f
+    private var lastPitch = 0f
     private var duration = 0L
     private var easingFn: (Float) -> Float = ::easeInOutCubic
 
@@ -39,6 +43,7 @@ object RotationUtils {
     private val lockClock = Clock()
     private const val LOCK_REF_ANGLE = 90f
     private const val LOCK_MAX_FRAME_MS = 100L
+    private const val FULL_TURN = 360f
 
     fun startAngleLock(durationMs: Long, arrival: Float = 0.3f, supplier: () -> Pair<Float, Float>?) {
         lockSpeed = durationMs.coerceAtLeast(1L)
@@ -64,12 +69,16 @@ object RotationUtils {
         onComplete = null
         val player = mc.player ?: return
         if (serverSide) {
-            mc.connection?.send(ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision))
+            val continuousYaw = nearestEquivalentYaw(yaw, player.yRot)
+            mc.connection?.send(ServerboundMovePlayerPacket.Rot(continuousYaw, pitch, player.onGround(), player.horizontalCollision))
         } else {
             player.yRot = yaw
             player.xRot = pitch
         }
     }
+
+    fun nearestEquivalentYaw(targetYaw: Float, referenceYaw: Float): Float =
+        targetYaw + (Math.rint(((referenceYaw - targetYaw) / FULL_TURN).toDouble()) * FULL_TURN).toFloat()
 
     fun easeToBlock(pos: BlockPos, timeMs: Long, ease: (Float) -> Float = ::easeInOutCubic, onComplete: (() -> Unit)? = null) {
         easeToVec(Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5), timeMs, ease, onComplete)
@@ -86,6 +95,8 @@ object RotationUtils {
         startPitch = player.xRot
         targetYaw = startYaw + wrapDelta(yaw - startYaw)
         targetPitch = pitch.coerceIn(-90f, 90f)
+        entryYaw = startYaw + wrapDelta(lastYaw - startYaw)
+        entryPitch = lastPitch
         easeClock.update()
         duration = timeMs
         easingFn = ease
@@ -109,43 +120,53 @@ object RotationUtils {
     }
 
     fun linear(t: Float): Float = t
+
     fun easeOutCubic(t: Float): Float = 1f - (1f - t).let { it * it * it }
+
     fun easeInOutCubic(t: Float): Float =
         if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
 
     @SubscribeEvent
     fun onRender(event: NewRender3DEvent) {
         val player = mc.player ?: return
+        lastYaw = player.yRot
+        lastPitch = player.xRot
+        if (renderAimLock(player, event) || renderAngleLock(player)) return
+        renderEasing(player)
+    }
 
-        val lockTarget = aimLockTarget
-        if (lockTarget != null) {
-            if (!lockTarget.isAlive || lockTarget.isRemoved()) {
-                aimLockTarget = null
-            } else {
-                val delta = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
-                val tx = lockTarget.xOld + (lockTarget.x - lockTarget.xOld) * delta
-                val ty = lockTarget.yOld + (lockTarget.y - lockTarget.yOld) * delta + lockTarget.bbHeight * 0.5
-                val tz = lockTarget.zOld + (lockTarget.z - lockTarget.zOld) * delta
-                val (yaw, pitch) = calcAimAngles(Vec3(tx, ty, tz)) ?: return
-                player.yRot += wrapDelta(yaw - player.yRot) * 0.15f
-                player.xRot += (pitch - player.xRot).coerceIn(-90f, 90f) * 0.15f
-            }
-            return
+    private fun renderAimLock(player: net.minecraft.world.entity.player.Player, event: NewRender3DEvent): Boolean {
+        val target = aimLockTarget ?: return false
+        if (!target.isAlive || target.isRemoved()) {
+            aimLockTarget = null
+            return true
         }
+        val delta = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
+        val targetPosition = Vec3(
+            target.xOld + (target.x - target.xOld) * delta,
+            target.yOld + (target.y - target.yOld) * delta + target.bbHeight * 0.5,
+            target.zOld + (target.z - target.zOld) * delta
+        )
+        val (yaw, pitch) = calcAimAngles(targetPosition) ?: return true
+        player.yRot += wrapDelta(yaw - player.yRot) * 0.15f
+        player.xRot += (pitch - player.xRot).coerceIn(-90f, 90f) * 0.15f
+        return true
+    }
 
-        angleLock?.let { supplier ->
-            val dt = lockClock.getTime().coerceIn(1L, LOCK_MAX_FRAME_MS)
-            lockClock.update()
-            supplier()?.let { (yaw, pitch) ->
-                val maxStep = LOCK_REF_ANGLE * dt.toFloat() / lockSpeed.toFloat()
-                player.yRot += (wrapDelta(yaw - player.yRot) * lockArrival).coerceIn(-maxStep, maxStep)
-                player.xRot += ((pitch.coerceIn(-90f, 90f) - player.xRot) * lockArrival).coerceIn(-maxStep, maxStep)
-            }
-            return
+    private fun renderAngleLock(player: net.minecraft.world.entity.player.Player): Boolean {
+        val supplier = angleLock ?: return false
+        val delta = lockClock.getTime().coerceIn(1L, LOCK_MAX_FRAME_MS)
+        lockClock.update()
+        supplier()?.let { (yaw, pitch) ->
+            val maxStep = LOCK_REF_ANGLE * delta.toFloat() / lockSpeed.toFloat()
+            player.yRot += (wrapDelta(yaw - player.yRot) * lockArrival).coerceIn(-maxStep, maxStep)
+            player.xRot += ((pitch.coerceIn(-90f, 90f) - player.xRot) * lockArrival).coerceIn(-maxStep, maxStep)
         }
+        return true
+    }
 
+    private fun renderEasing(player: net.minecraft.world.entity.player.Player) {
         if (!easing) return
-
         val elapsed = easeClock.getTime()
         if (elapsed >= duration) {
             player.yRot = targetYaw
@@ -155,10 +176,9 @@ object RotationUtils {
             onComplete = null
             return
         }
-
         val progress = easingFn((elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f))
-        player.yRot = startYaw + (targetYaw - startYaw) * progress
-        player.xRot = startPitch + (targetPitch - startPitch) * progress
+        player.yRot = CatmullRom.settle(entryYaw, startYaw, targetYaw, progress)
+        player.xRot = CatmullRom.settle(entryPitch, startPitch, targetPitch, progress)
     }
 
     @SubscribeEvent
@@ -220,7 +240,9 @@ object RotationUtils {
                     out += Triple(x, y, z)
                 }
         return out.sortedBy {
-            val dx = it.first - 0.5; val dy = it.second - 0.5; val dz = it.third - 0.5
+            val dx = it.first - 0.5
+            val dy = it.second - 0.5
+            val dz = it.third - 0.5
             dx * dx + dy * dy + dz * dz
         }
     }
@@ -259,8 +281,12 @@ object RotationUtils {
         var vx = dir.x * BowSimulator.SHORTBOW_VELOCITY
         var vy = dir.y * BowSimulator.SHORTBOW_VELOCITY
         var vz = dir.z * BowSimulator.SHORTBOW_VELOCITY
-        var x = eye.x; var y = eye.y; var z = eye.z
-        var prevX: Double; var prevY: Double; var prevZ: Double
+        var x = eye.x
+        var y = eye.y
+        var z = eye.z
+        var prevX: Double
+        var prevY: Double
+        var prevZ: Double
         repeat(SIM_TICKS) {
             prevX = x; prevY = y; prevZ = z
             x += vx; y += vy; z += vz

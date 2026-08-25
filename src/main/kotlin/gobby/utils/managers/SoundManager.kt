@@ -13,12 +13,14 @@ object SoundManager {
 
     fun playCustomSound(id: String, pitch: Float, volume: Float) {
         val location = parse(id) ?: return
-        val player = mc.player ?: return
-        mc.level?.playLocalSound(
-            player.x, player.y, player.z,
-            SoundEvent.createVariableRangeEvent(location), SoundSource.PLAYERS,
-            volume, pitch, false
-        )
+        mc.execute {
+            val player = mc.player ?: return@execute
+            mc.level?.playLocalSound(
+                player.x, player.y, player.z,
+                SoundEvent.createVariableRangeEvent(location), SoundSource.PLAYERS,
+                volume, pitch, false
+            )
+        }
     }
 
     private fun parse(id: String): ResourceLocation? =

@@ -1,109 +1,11 @@
 package gobby.utils.managers
 
-import gobby.Gobbyclient.Companion.mc
-import gobby.events.ClientTickEvent
-import gobby.events.PacketReceivedEvent
-import gobby.events.WorldLoadEvent
-import gobby.events.core.SubscribeEvent
-import gobby.utils.ChatUtils
-import gobby.utils.LocationUtils
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
-import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
-import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
-import net.minecraft.world.inventory.ContainerInput
-import net.minecraft.network.HashedStack
+private const val SCREEN_TITLE = "Wardrobe"
+private const val COMMAND = "wardrobe"
+private const val SLOT_OFFSET = 36
+private const val MAX_SLOT = 45
 
-object WardrobeManager {
+object WardrobeManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND, MAX_SLOT) {
 
-    private const val SLOT_OFFSET = 36
-    private const val MAX_SLOT = 45
-    private const val TIMEOUT_TICKS = 60
-
-    private enum class State { IDLE, WAITING_SCREEN, WAITING_SLOT }
-
-    private const val COOLDOWN_TICKS = 1
-
-    private var state = State.IDLE
-    private var targetSlot = 0
-    private var syncId = -1
-    private var ticksWaiting = 0
-    private var cooldownTicks = 0
-    private var pendingSlot = -1
-
-    fun swap(wardrobeSlot: Int) {
-        if (state != State.IDLE || cooldownTicks > 0) {
-            pendingSlot = wardrobeSlot
-            return
-        }
-        startSwap(wardrobeSlot)
-    }
-
-    private fun startSwap(wardrobeSlot: Int) {
-        if (!LocationUtils.onSkyblock) return
-        targetSlot = SLOT_OFFSET + wardrobeSlot - 1
-        state = State.WAITING_SCREEN
-        ticksWaiting = 0
-        ChatUtils.sendCommand("wardrobe")
-    }
-
-    @SubscribeEvent
-    fun onPacket(event: PacketReceivedEvent) {
-        when (val packet = event.packet) {
-            is ClientboundOpenScreenPacket -> {
-                if (state != State.WAITING_SCREEN) return
-                if (!packet.title.string.contains("Wardrobe")) { reset(); return }
-                syncId = packet.containerId
-                state = State.WAITING_SLOT
-                event.cancel()
-            }
-
-            is ClientboundContainerSetSlotPacket -> {
-                if (state != State.WAITING_SLOT) return
-                if (packet.containerId != syncId) return
-                val slot = packet.slot
-                if (slot == targetSlot) {
-                    mc.connection?.send(
-                        ServerboundContainerClickPacket(syncId, 0, slot.toShort(), 0.toByte(), ContainerInput.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
-                    )
-                    mc.connection?.send(ServerboundContainerClosePacket(syncId))
-                    reset()
-                }
-                if (slot > MAX_SLOT) reset()
-            }
-        }
-    }
-
-    @SubscribeEvent
-    fun onTick(event: ClientTickEvent.Post) {
-        if (cooldownTicks > 0) {
-            cooldownTicks--
-            if (cooldownTicks == 0 && pendingSlot != -1) {
-                val slot = pendingSlot
-                pendingSlot = -1
-                startSwap(slot)
-            }
-            return
-        }
-        if (state == State.IDLE) return
-        if (++ticksWaiting > TIMEOUT_TICKS) reset()
-    }
-
-    @SubscribeEvent
-    fun onWorldUnload(event: WorldLoadEvent) {
-        reset()
-        clearQueue()
-    }
-
-    private fun reset() {
-        if (state != State.IDLE) cooldownTicks = COOLDOWN_TICKS
-        state = State.IDLE
-        syncId = -1
-        ticksWaiting = 0
-    }
-
-    private fun clearQueue() {
-        pendingSlot = -1
-    }
+    fun swap(wardrobeSlot: Int) = request { openFor(SLOT_OFFSET + wardrobeSlot - 1) }
 }

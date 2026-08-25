@@ -64,6 +64,7 @@ abstract class RegionBlockCopier : ChunkAreaScanner() {
     }
 
     protected abstract fun chunkBounds(cx: Int, cz: Int): IntBounds?
+
     protected open fun scanExtras(cx: Int, cz: Int) {}
 
     data class IntBounds(val minX: Int, val maxX: Int, val minY: Int, val maxY: Int, val minZ: Int, val maxZ: Int)

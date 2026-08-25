@@ -46,9 +46,14 @@ abstract class ChunkScopedCache {
     }
 
     protected open fun onChunkEvicted(chunkX: Int, chunkZ: Int) {}
+
     protected open fun onChunkLoaded(chunkX: Int, chunkZ: Int) {}
+
     protected open fun onLoadedChunk(chunk: LevelChunk) = onChunkLoaded(chunk.pos.x, chunk.pos.z)
+
     protected abstract fun onPosEvicted(pos: BlockPos, newState: BlockState)
+
     protected open fun onPosApplied(pos: BlockPos, newState: BlockState) {}
+
     protected abstract fun onAllEvicted()
 }

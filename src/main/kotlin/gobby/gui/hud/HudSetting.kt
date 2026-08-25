@@ -38,6 +38,7 @@ class HudSetting(
     operator fun getValue(thisRef: Any?, property: KProperty<*>): HudSetting = this
 
     fun getWidth(): Int = lastWidth
+
     fun getHeight(): Int = lastHeight
 
     fun setSize(width: Int, height: Int) {

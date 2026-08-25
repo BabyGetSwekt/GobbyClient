@@ -1,6 +1,7 @@
 package gobby.pathfinder.prediction
 
 import gobby.pathfinder.world.BlockCache
+import gobby.utils.BlockBox
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -66,32 +67,32 @@ object MovementSimulator {
         val groundAccel = groundSpeedAttribute * (GROUND_ACCEL_MAGIC / (GROUND_FRICTION * GROUND_FRICTION * GROUND_FRICTION)) * INPUT_SCALE
         val airAccel = (if (sprinting) SPRINT_AIR_ACCEL else AIR_ACCEL) * INPUT_SCALE
 
+        return simulateTicks(pos, nx, nz, sprinting, jumpVelocity, autoJump, maxClimb, groundAccel, airAccel, vx, vz, vy)
+    }
+
+    private fun simulateTicks(pos: Vec3, nx: Double, nz: Double, sprinting: Boolean, jumpVelocity: Double, autoJump: Boolean, maxClimb: Double, groundAccel: Double, airAccel: Double, initialVx: Double, initialVz: Double, initialVy: Double): JumpSimulation {
         val body = Body(pos.x, pos.y, pos.z)
+        var vx = initialVx
+        var vz = initialVz
+        var vy = initialVy
         var grounded = true
         var apex = pos.y
         var chained = false
         val positions = ArrayList<Vec3>(MAX_SIM_TICKS)
-
         repeat(MAX_SIM_TICKS) { tick ->
             val wasGrounded = grounded
             val accel = if (wasGrounded) groundAccel else airAccel
             vx += nx * accel
             vz += nz * accel
-
             val result = collideMove(body, vx, vy, vz, allowStep = wasGrounded)
             if (body.y > apex) apex = body.y
             positions += Vec3(body.x, body.y, body.z)
-
             if (result.hitCeiling) vy = 0.0
             if (result.hitX) vx = 0.0
             if (result.hitZ) vz = 0.0
             grounded = result.hitGround && vy <= 0.0
-
             if (grounded && tick > 0) {
-                val chainAutoJump = autoJump && (result.hitX || result.hitZ) && climbableAhead(body, nx, nz, maxClimb)
-                if (!chainAutoJump) {
-                    return JumpSimulation(Vec3(body.x, body.y, body.z), tick + 1, apex, positions, chained)
-                }
+                if (!autoJump || !(result.hitX || result.hitZ) || !climbableAhead(body, nx, nz, maxClimb)) return JumpSimulation(Vec3(body.x, body.y, body.z), tick + 1, apex, positions, chained)
                 chained = true
                 grounded = false
                 vy = jumpVelocity
@@ -100,7 +101,6 @@ object MovementSimulator {
                     vz += nz * SPRINT_JUMP_BOOST
                 }
             }
-
             vy = if (grounded) 0.0 else (vy - GRAVITY) * VERTICAL_DRAG
             val friction = if (wasGrounded) GROUND_FRICTION else AIR_FRICTION
             vx *= friction
@@ -166,20 +166,22 @@ object MovementSimulator {
     private fun clipAxis(box: AABB, move: Double, axis: Axis): Double {
         if (move == 0.0) return 0.0
         var allowed = move
-        val sweep = sweepBounds(box, move, axis)
+        val bounds = BlockBox.covering(sweepBounds(box, move, axis))
         val cursor = BlockPos.MutableBlockPos()
-        for (bx in floor(sweep.minX).toInt()..floor(sweep.maxX).toInt()) {
-            for (by in floor(sweep.minY).toInt()..floor(sweep.maxY).toInt()) {
-                for (bz in floor(sweep.minZ).toInt()..floor(sweep.maxZ).toInt()) {
-                    for (shape in BlockCache.getShapeAabbs(cursor.set(bx, by, bz))) {
-                        val world = shape.move(bx.toDouble(), by.toDouble(), bz.toDouble())
-                        allowed = clipAgainst(box, world, allowed, axis)
-                        if (abs(allowed) < CONTACT_EPSILON) return 0.0
-                    }
-                }
-            }
+        for (index in 0 until bounds.cellCount) {
+            val bx = bounds.xAt(index)
+            val by = bounds.yAt(index)
+            val bz = bounds.zAt(index)
+            allowed = clipCell(box, cursor.set(bx, by, bz), bx, by, bz, allowed, axis)
+            if (abs(allowed) < CONTACT_EPSILON) return 0.0
         }
         return allowed
+    }
+
+    private fun clipCell(box: AABB, pos: BlockPos, bx: Int, by: Int, bz: Int, allowed: Double, axis: Axis): Double {
+        var result = allowed
+        BlockCache.getShapeAabbs(pos).forEach { shape -> result = clipAgainst(box, shape.move(bx.toDouble(), by.toDouble(), bz.toDouble()), result, axis) }
+        return result
     }
 
     private fun sweepBounds(box: AABB, move: Double, axis: Axis): AABB = when (axis) {

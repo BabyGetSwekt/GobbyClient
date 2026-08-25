@@ -46,19 +46,40 @@ class Raycasts(
             val dz = DoubleArray(total)
             val yaws = FloatArray(total)
             val pitches = FloatArray(total)
-            bandPitch.indices.forEach { band ->
-                repeat(bandSize[band]) { slot ->
-                    val index = bandStart[band] + slot
-                    val yaw = slot * bandYawStep[band]
-                    val look = directionFromAngles(yaw, bandPitch[band])
-                    dx[index] = look.x * scale
-                    dy[index] = look.y * scale
-                    dz[index] = look.z * scale
-                    yaws[index] = yaw
-                    pitches[index] = bandPitch[band]
-                }
-            }
+            fillRayTable(dx, dy, dz, yaws, pitches, bandPitch, bandStart, bandSize, bandYawStep, scale)
             return Raycasts(dx, dy, dz, yaws, pitches, scale, bandStart, bandSize, bandYawStep, bandPitch)
+        }
+
+        private fun fillRayTable(
+            dx: DoubleArray,
+            dy: DoubleArray,
+            dz: DoubleArray,
+            yaws: FloatArray,
+            pitches: FloatArray,
+            bandPitch: FloatArray,
+            bandStart: IntArray,
+            bandSize: IntArray,
+            bandYawStep: FloatArray,
+            scale: Double
+        ) {
+            var band = 0
+            var slot = 0
+            var index = 0
+            while (index < dx.size) {
+                if (slot == bandSize[band]) {
+                    band++
+                    slot = 0
+                }
+                val yaw = slot * bandYawStep[band]
+                val look = directionFromAngles(yaw, bandPitch[band])
+                dx[index] = look.x * scale
+                dy[index] = look.y * scale
+                dz[index] = look.z * scale
+                yaws[index] = yaw
+                pitches[index] = bandPitch[band]
+                slot++
+                index++
+            }
         }
 
         private fun pitches(step: Float, scale: Double): FloatArray {

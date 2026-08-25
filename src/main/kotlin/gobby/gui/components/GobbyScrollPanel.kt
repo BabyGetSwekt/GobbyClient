@@ -14,6 +14,7 @@ const val SCROLL_BAR_RESERVE = 14f
  * Reusable scroll panel with a styled scroll track and grip.
  * Add children to [scrollArea] to populate the scrollable content.
  */
+
 class GobbyScrollPanel(
     emptyString: String = "",
     innerPadding: Float = 4f,

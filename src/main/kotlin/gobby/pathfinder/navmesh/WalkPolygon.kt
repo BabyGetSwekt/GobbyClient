@@ -35,6 +35,7 @@ class WalkPolygon(
 
     companion object {
         private val ID_GEN = AtomicInteger(0)
+
         fun resetIds() = ID_GEN.set(0)
 
         fun feetVec(pos: BlockPos, y: Double): Vec3 = Vec3(pos.x + 0.5, y, pos.z + 0.5)

@@ -12,21 +12,25 @@ class EtherwarpContext(
     val raycasts: Raycasts,
     private val deadline: SearchDeadline,
     val reached: (BlockPos) -> Boolean = { it == goal },
-    val maxLandingY: Int = Int.MAX_VALUE
+    val landingPolicy: LandingPolicy = LandingPolicy.UNBOUNDED
 ) {
     private val openSet = PriorityQueue<EtherwarpNode>()
     private val nodeMap = Long2ObjectOpenHashMap<EtherwarpNode>()
     private var activeCount = 0
 
     @Volatile var solved = false
+
     @Volatile var timedOut = false
+
     @Volatile var result: List<EtherwarpNode>? = null
     val processed = AtomicInteger(0)
 
     val elapsed: Long get() = deadline.elapsed
+    val remainingNanos: Long get() = deadline.remainingNanos
     val expired: Boolean get() = deadline.expired
 
     val done: Boolean
+
         @Synchronized get() = openSet.isEmpty() && activeCount == 0
 
     @Synchronized
@@ -51,10 +55,15 @@ class EtherwarpContext(
         if (solved) return
         val key = node.pos.asLong()
         val existing = nodeMap.get(key)
+        if (existing == null && nodeMap.size >= MAX_TRACKED_NODES) return
         if (existing == null || node.g < existing.g) {
             nodeMap.put(key, node)
             openSet.add(node)
         }
+    }
+
+    private companion object {
+        const val MAX_TRACKED_NODES = 250_000
     }
 
     @Synchronized

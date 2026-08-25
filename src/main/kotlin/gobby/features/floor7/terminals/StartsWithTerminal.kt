@@ -12,6 +12,7 @@ object StartsWithTerminal : TerminalSolver() {
     private val titleRegex = Regex("What starts with: \\W(\\w)\\W")
 
     override val isEnabled get() = true
+
     override fun matchesTitle(title: String) = titleRegex.containsMatchIn(ChatFormatting.stripFormatting(title) ?: "")
 
     override fun solve(screen: ContainerScreen): TerminalClick? {

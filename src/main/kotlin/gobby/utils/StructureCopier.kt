@@ -36,6 +36,7 @@ object StructureCopier : RegionBlockCopier() {
     private const val COMMANDS_PER_TICK = 5
 
     private data class ArmorStandData(val nbt: String)
+
     private class StructureData(
         val origin: IntArray,
         val blocks: Map<String, List<IntArray>>,
@@ -59,14 +60,16 @@ object StructureCopier : RegionBlockCopier() {
     }
 
     fun setPos1() {
-        val p = currentPos() ?: run { errorMessage("No player"); return }
+        val p = currentPos() ?: run { errorMessage("No player")
+        return }
         pos1 = p
         modMessage("§aPos 1 set to §f(${p.x}, ${p.y}, ${p.z})")
         tryStart()
     }
 
     fun setPos2() {
-        val p = currentPos() ?: run { errorMessage("No player"); return }
+        val p = currentPos() ?: run { errorMessage("No player")
+        return }
         pos2 = p
         modMessage("§aPos 2 set to §f(${p.x}, ${p.y}, ${p.z})")
         tryStart()
@@ -112,15 +115,22 @@ object StructureCopier : RegionBlockCopier() {
         val world = mc.level ?: return
         val p1 = pos1 ?: return
         val p2 = pos2 ?: return
-        val minX = min(p1.x, p2.x).toDouble(); val maxX = (max(p1.x, p2.x) + 1).toDouble()
-        val minY = min(p1.y, p2.y).toDouble(); val maxY = (max(p1.y, p2.y) + 1).toDouble()
-        val minZ = min(p1.z, p2.z).toDouble(); val maxZ = (max(p1.z, p2.z) + 1).toDouble()
-        val chunkMinX = (cx shl 4).toDouble(); val chunkMaxX = chunkMinX + 16.0
-        val chunkMinZ = (cz shl 4).toDouble(); val chunkMaxZ = chunkMinZ + 16.0
+        val minX = min(p1.x, p2.x).toDouble()
+        val maxX = (max(p1.x, p2.x) + 1).toDouble()
+        val minY = min(p1.y, p2.y).toDouble()
+        val maxY = (max(p1.y, p2.y) + 1).toDouble()
+        val minZ = min(p1.z, p2.z).toDouble()
+        val maxZ = (max(p1.z, p2.z) + 1).toDouble()
+        val chunkMinX = (cx shl 4).toDouble()
+        val chunkMaxX = chunkMinX + 16.0
+        val chunkMinZ = (cz shl 4).toDouble()
+        val chunkMaxZ = chunkMinZ + 16.0
 
         for (entity in world.entitiesForRendering()) {
             if (entity !is ArmorStand) continue
-            val ex = entity.x; val ey = entity.y; val ez = entity.z
+            val ex = entity.x
+            val ey = entity.y
+            val ez = entity.z
             if (ex !in chunkMinX..chunkMaxX || ez !in chunkMinZ..chunkMaxZ) continue
             if (ex !in minX..maxX || ey !in minY..maxY || ez !in minZ..maxZ) continue
             ArmorStandCodec.encode(entity, LOGGER)?.let { cachedArmorStands.add(ArmorStandData(it)) }

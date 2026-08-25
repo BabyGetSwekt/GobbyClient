@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
 	id("net.fabricmc.fabric-loom") version "1.17.10"
 	id("maven-publish")
@@ -74,6 +76,80 @@ dependencies {
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+val maxHandwrittenLines = 400
+val maxUtilLines = 1000
+val maxFunctionLines = 40
+
+val verifyPathfinderStructure by tasks.registering {
+	val sourceRoots = listOf(
+		layout.projectDirectory.dir("src/main/kotlin").asFile,
+		layout.projectDirectory.dir("src/test/kotlin").asFile,
+		layout.projectDirectory.dir("src/main/java").asFile,
+		layout.projectDirectory.dir("src/test/java").asFile,
+	)
+	doLast {
+		val violations = sourceRoots.asSequence()
+			.filter(File::exists)
+			.flatMap { root -> root.walkTopDown() }
+			.filter { it.isFile && it.extension in setOf("kt", "java") }
+			.mapNotNull { file ->
+				val lines = file.readLines().size
+				val limit = if (isUtilFile(file)) maxUtilLines else maxHandwrittenLines
+				file.takeIf { lines > limit }?.let { "$file has $lines physical lines, maximum is $limit" }
+			}
+			.toList()
+		val functionViolations = sourceRoots.asSequence()
+			.filter(File::exists)
+			.flatMap { root -> root.walkTopDown() }
+			.filter { it.isFile && it.extension == "kt" && isUtilFile(it) }
+			.flatMap { file -> oversizedFunctions(file).asSequence() }
+			.toList()
+		if (violations.isNotEmpty() || functionViolations.isNotEmpty()) {
+			throw GradleException((violations + functionViolations).joinToString(System.lineSeparator()))
+		}
+	}
+}
+
+fun isUtilFile(file: File): Boolean = file.path.contains("\\utils\\") || file.path.contains("/utils/")
+
+fun oversizedFunctions(file: File): List<String> {
+	val lines = file.readLines()
+	val result = mutableListOf<String>()
+	val declaration = Regex("^\\s*(?:(?:public|private|internal|protected|override|tailrec|suspend|inline|operator|infix|open)\\s+)*fun\\s+[A-Za-z_][A-Za-z0-9_]*")
+	lines.forEachIndexed { index, line ->
+		if (!declaration.containsMatchIn(line)) return@forEachIndexed
+		val end = functionEnd(lines, index)
+		val size = end - index + 1
+		if (size > maxFunctionLines) result += "$file:${index + 1} has $size function lines, maximum is $maxFunctionLines"
+	}
+	return result
+}
+
+fun functionEnd(lines: List<String>, start: Int): Int {
+	var depth = lines.take(start).sumOf { line ->
+		val clean = line.substringBefore("//")
+		clean.count { it == '{' } - clean.count { it == '}' }
+	}
+	val baseDepth = depth
+	val declaration = Regex("^\\s*(?:(?:public|private|internal|protected|override|tailrec|suspend|inline|operator|infix|open)\\s+)*fun\\s+[A-Za-z_][A-Za-z0-9_]*")
+	val expressionBody = Regex(".*\\)\\s*(?::\\s*[^=]+)?=\\s*.*").matches(lines[start].trim())
+	if (expressionBody && !lines[start].trim().endsWith("=")) return start
+	var opened = false
+	for (index in start until lines.size) {
+		if (index > start && (expressionBody || !opened) && declaration.containsMatchIn(lines[index])) return index - 1
+		if (expressionBody) continue
+		val clean = lines[index].substringBefore("//")
+		depth += clean.count { it == '{' } - clean.count { it == '}' }
+		if (clean.contains('{')) opened = true
+		if (opened && depth <= baseDepth) return index
+	}
+	return lines.lastIndex
+}
+
+tasks.named("check") {
+	dependsOn(verifyPathfinderStructure)
 }
 
 val generateBuildConfig by tasks.registering {
