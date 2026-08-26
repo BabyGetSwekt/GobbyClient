@@ -104,11 +104,14 @@ object ModuleGridComponent {
         if (my !in gui.contentY..(gui.contentY + gui.contentH)) return false
         val hit = gui.visibleModules().zip(layout(gui)).firstOrNull { (_, r) -> (mx to my) in r } ?: return false
         val (mod, card) = hit
-        if (mod.canToggle() && (mx to my) in togglePill(card)) {
-            mod.enabled = !mod.enabled
-            ConfigManager.save()
-        } else {
-            gui.openSettings(mod)
+        val opensScreen = mod.onLeftClick
+        when {
+            mod.canToggle() && (mx to my) in togglePill(card) -> {
+                mod.enabled = !mod.enabled
+                ConfigManager.save()
+            }
+            opensScreen != null -> opensScreen()
+            else -> gui.openSettings(mod)
         }
         return true
     }

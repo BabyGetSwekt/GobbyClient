@@ -8,6 +8,7 @@ enum class Category(val displayName: String, iconName: String) {
     SKYBLOCK("Skyblock", "skyblock"),
     MINING("Mining", "mining"),
     RENDER("Render", "render"),
+    COMMANDS("Commands", "commands"),
     DEVELOPER("Developer", "developer");
 
     val iconTexture: ResourceLocation =

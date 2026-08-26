@@ -1,12 +1,8 @@
 package gobby.gui.click
 
-import gobby.utils.Utils
 import gobby.utils.render.Animation
 import gobby.utils.render.CursorStyle
-import gobby.utils.render.TextureRegistry
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.resources.Identifier as ResourceLocation
 import org.lwjgl.glfw.GLFW
 
 private const val ICON = 13
@@ -23,7 +19,6 @@ private const val PLACEHOLDER = "Search modules"
 
 internal object SearchBar {
 
-    private val icon: ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/search")
     private val expand = Animation(EXPAND_MS)
     private val input = TextField(::sanitize, MAX_LENGTH)
 
@@ -66,10 +61,9 @@ internal object SearchBar {
     }
 
     private fun drawIcon(ctx: GuiGraphicsExtractor, r: Rect) {
-        TextureRegistry.ensureRegistered(listOf(icon))
         val x = r.x + expand.lerp(0, SIDE_PAD)
         val y = r.y + (r.h - ICON) / 2
-        ctx.blit(RenderPipelines.GUI_TEXTURED, icon, x, y, 0f, 0f, ICON, ICON, ICON, ICON, if (open) cInkSoft else cInkFaint)
+        GobbyTextures.search(ctx, x, y, ICON, if (open) cInkSoft else cInkFaint)
     }
 
     private fun textLeft(r: Rect): Int = r.x + expand.lerp(0, SIDE_PAD) + ICON + ICON_GAP
@@ -120,21 +114,11 @@ internal object SearchBar {
 
     fun handleKey(key: Int): Boolean {
         if (!open) return false
-        val ctrl = Modifiers.ctrl()
-        when {
-            key == GLFW.GLFW_KEY_ESCAPE -> close()
-            ctrl && key == GLFW.GLFW_KEY_A -> input.selectAll()
-            ctrl && key == GLFW.GLFW_KEY_C -> Utils.setClipboard(input.selectedText())
-            ctrl && key == GLFW.GLFW_KEY_V -> input.insert(Utils.getClipboard())
-            key == GLFW.GLFW_KEY_BACKSPACE -> input.deleteBackward()
-            key == GLFW.GLFW_KEY_DELETE -> input.deleteForward()
-            key == GLFW.GLFW_KEY_LEFT -> input.placeCaret(input.caret - 1, Modifiers.shift())
-            key == GLFW.GLFW_KEY_RIGHT -> input.placeCaret(input.caret + 1, Modifiers.shift())
-            key == GLFW.GLFW_KEY_HOME -> input.placeCaret(0, Modifiers.shift())
-            key == GLFW.GLFW_KEY_END -> input.placeCaret(input.text.length, Modifiers.shift())
-            else -> return false
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            close()
+            return true
         }
-        return true
+        return TextFieldKeys.handle(input, key, allowUndo = false)
     }
 
     fun handleChar(chr: Char): Boolean {

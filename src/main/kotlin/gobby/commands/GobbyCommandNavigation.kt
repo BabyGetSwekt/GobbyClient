@@ -2,40 +2,20 @@ package gobby.commands
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.CommandRegisterEvent
-import gobby.events.core.SubscribeEvent
 import com.mojang.brigadier.Command
-import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import gobby.gui.ModIdHiderScreen
-import gobby.gui.MobEspScreen
-import gobby.gui.brush.BlockSelector
-import gobby.gui.click.ClickGUI
 import gobby.features.dungeons.DungeonMap
-import gobby.utils.skyblock.dungeon.map.DungeonRooms
-import gobby.utils.skyblock.dungeon.map.MapCheckmarks
-import gobby.utils.skyblock.dungeon.map.MapScanner
-import gobby.utils.skyblock.dungeon.map.MapTile
-import gobby.utils.skyblock.dungeon.tiles.RoomType
 
 //import gobby.features.force.AutoUpdater
-import gobby.utils.skyblock.dungeon.DungeonMapSaver
 import gobby.gui.hud.HudEditor
 import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.getRelativeCoords
 import gobby.utils.skyblock.dungeon.ScanUtils
 import gobby.pathfinder.PathExecutor
-import gobby.pathfinder.PlanStats
-import gobby.pathfinder.RouteEngine
-import gobby.pathfinder.RoutePlan
 import gobby.pathfinder.TravelMode
-import gobby.utils.timer.Clock
-import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.Utils.executeLater
 import gobby.utils.ChatUtils.modMessage
-import gobby.utils.ChatUtils.sendMessage
-import gobby.utils.parseAbilities
-import gobby.utils.skyblockID
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.HoverEvent
@@ -45,19 +25,7 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
-import gobby.pathfinder.navmesh.WalkMeshScanner
-import gobby.pathfinder.navmesh.WalkPolygon
-import gobby.pathfinder.world.BlockCache
-import gobby.utils.skyblock.dungeon.map.MapGrid
-import gobby.utils.StructureCopier
-import gobby.utils.MovementRecorder
-import gobby.utils.skyblock.dungeon.RoomCopier
-import com.mojang.brigadier.context.CommandContext
-import java.io.File
-import java.util.Locale
-import kotlin.math.abs
 
 internal object GobbyCommandNavigation {
 

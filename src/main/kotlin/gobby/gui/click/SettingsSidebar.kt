@@ -28,7 +28,7 @@ private const val EDGE = 1
 
 private val GROUPS = listOf(
     "Gameplay" to listOf(Category.DUNGEONS, Category.FLOOR7, Category.SKYBLOCK, Category.MINING),
-    "Client" to listOf(Category.RENDER, Category.DEVELOPER)
+    "Client" to listOf(Category.RENDER, Category.COMMANDS, Category.DEVELOPER)
 )
 
 internal object SettingsSidebar {

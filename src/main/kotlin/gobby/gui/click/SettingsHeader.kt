@@ -33,6 +33,7 @@ internal object SettingsHeader {
 
     private val logo: ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/logo")
     private val backIcon: ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/back")
+    private val cancelIcon: ResourceLocation = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/cancel")
     private val clockFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
 
     fun logoWidth(height: Int): Int = height * LOGO_TEX_W / LOGO_TEX_H
@@ -65,11 +66,16 @@ internal object SettingsHeader {
         }
     }
 
-    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mod: Module, mx: Int, my: Int) {
+    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mod: Module, mx: Int, my: Int) =
+        draw(ctx, gui, mod.category.iconTexture, mod.name, mod.description, mx, my)
+
+    fun draw(
+        ctx: GuiGraphicsExtractor, gui: ClickGUI, icon: ResourceLocation,
+        title: String, subtitle: String, mx: Int, my: Int, leading: ResourceLocation = backIcon
+    ) {
         val left = drawShell(ctx, gui)
-        drawBack(ctx, gui, mx, my)
-        drawIdentity(ctx, gui, mod.category.iconTexture, mod.name, mod.description,
-            left + SETTINGS_SIDE_PAD + BACK_SIZE + BACK_GAP, accountPillRect(gui).x)
+        drawBack(ctx, gui, mx, my, leading)
+        drawIdentity(ctx, gui, icon, title, subtitle, left + SETTINGS_SIDE_PAD + BACK_SIZE + BACK_GAP, accountPillRect(gui).x)
         drawAccount(ctx, gui, mx, my)
     }
 
@@ -84,30 +90,33 @@ internal object SettingsHeader {
     }
 
     private fun drawShell(ctx: GuiGraphicsExtractor, gui: ClickGUI): Int {
-        val left = gui.panelX + SIDEBAR_W_SETTINGS
-        val width = PANEL_W - SIDEBAR_W_SETTINGS
+        val standalone = gui.sidebarWidth == 0
+        val left = gui.panelX + gui.sidebarWidth + if (standalone) HEADER_EDGE else 0
+        val width = gui.panelX + PANEL_W - HEADER_EDGE - left
         GobbyTextures.roundedRect(
-            ctx, left, gui.panelY + HEADER_EDGE, width - HEADER_EDGE, SETTINGS_HEADER_H - HEADER_EDGE, SETTINGS_PANEL_RADIUS, cHeadBg,
-            topLeft = false, bottomLeft = false, bottomRight = false
+            ctx, left, gui.panelY + HEADER_EDGE, width, SETTINGS_HEADER_H - HEADER_EDGE, SETTINGS_PANEL_RADIUS, cHeadBg,
+            topLeft = standalone, bottomLeft = false, bottomRight = false
         )
         ctx.fill(left, gui.panelY + SETTINGS_HEADER_H, left + width, gui.panelY + SETTINGS_HEADER_H + 1, cShellEdge)
-        return left
+        return gui.panelX + gui.sidebarWidth
     }
 
     fun backRect(gui: ClickGUI): Rect = Rect(
-        gui.panelX + SIDEBAR_W_SETTINGS + SETTINGS_SIDE_PAD,
+        gui.panelX + gui.sidebarWidth + SETTINGS_SIDE_PAD,
         gui.panelY + (SETTINGS_HEADER_H - BACK_SIZE) / 2,
         BACK_SIZE, BACK_SIZE
     )
 
-    private fun drawBack(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int) {
-        TextureRegistry.ensureRegistered(listOf(backIcon))
+    fun cancelIcon(): ResourceLocation = cancelIcon
+
+    private fun drawBack(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int, icon: ResourceLocation) {
+        TextureRegistry.ensureRegistered(listOf(icon))
         val r = backRect(gui)
         val hovered = (mx to my) in r
         CursorStyle.requestHandIf(hovered)
         GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, PILL_RADIUS, if (hovered) cSidebarActive else cIconTile)
         ctx.blit(
-            RenderPipelines.GUI_TEXTURED, backIcon,
+            RenderPipelines.GUI_TEXTURED, icon,
             r.x + (r.w - BACK_ICON) / 2, r.y + (r.h - BACK_ICON) / 2, 0f, 0f,
             BACK_ICON, BACK_ICON, BACK_ICON, BACK_ICON, if (hovered) cInk else cInkSoft
         )

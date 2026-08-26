@@ -18,6 +18,8 @@ object InputHandler {
         gui.numberEditSetting = null
         gui.stringEditSetting?.let { StringInput.commit(gui, it) }
 
+        gui.view?.let { return it.handleClick(gui, mx, my) }
+
         if (mx <= gui.panelX + SIDEBAR_W_SETTINGS) return SettingsSidebar.handleClick(gui, mx, my)
 
         if (gui.settingsModule == null && SearchBar.handleClick(gui, mx, my)) {
@@ -121,6 +123,7 @@ object InputHandler {
     }
 
     fun handleScroll(gui: ClickGUI, mouseX: Int, mouseY: Int, verticalAmount: Double): Boolean {
+        gui.view?.let { return it.handleScroll(gui, mouseX, mouseY, verticalAmount) }
         val mod = gui.settingsModule
         return if (mod != null) {
             ModuleSettingsComponent.handleScroll(gui, mod, mouseX, mouseY, verticalAmount)
@@ -130,6 +133,7 @@ object InputHandler {
     }
 
     fun handleKeyPress(gui: ClickGUI, key: Int): Boolean {
+        gui.view?.let { if (it.handleKey(gui, key)) return true }
         gui.listeningKeybind?.let { kb ->
             if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE) {
                 kb.value = 0
@@ -175,6 +179,7 @@ object InputHandler {
             gui.suppressNextChar = false
             return true
         }
+        gui.view?.let { return it.handleChar(chr) }
         if (gui.listeningKeybind != null) return true
 
         gui.hexEditSetting?.let { return HexInput.handleChar(gui, it, chr) }

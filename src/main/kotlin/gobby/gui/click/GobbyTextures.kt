@@ -15,10 +15,27 @@ object GobbyTextures {
     private val arrow = texture("triangle")
     private val resetIcon = texture("reset")
     private val gearIcon = texture("gear")
+    private val trashIcon = texture("trash")
+    private val checkOn = texture("check_on")
+    private val checkOff = texture("check_off")
+    private val addIcon = texture("add")
+    private val searchIcon = texture("search")
+    private val lockIcon = texture("lock")
 
     private fun texture(name: String) = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/$name")
 
     fun gear(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, gearIcon, x, y, size, size, color)
+
+    fun trash(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, trashIcon, x, y, size, size, color)
+
+    fun plus(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, addIcon, x, y, size, size, color)
+
+    fun search(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, searchIcon, x, y, size, size, color)
+
+    fun lock(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, lockIcon, x, y, size, size, color)
+
+    fun checkbox(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, checked: Boolean, color: Int) =
+        blit(ctx, if (checked) checkOn else checkOff, x, y, size, size, color)
 
     fun reset(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, resetIcon, x, y, size, size, color)
 

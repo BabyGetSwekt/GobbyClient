@@ -1,22 +1,16 @@
 package gobby.features.render
 
-import gobby.Gobbyclient.Companion.mc
-import gobby.gui.MobEspScreen
-import gobby.gui.click.ActionSetting
 import gobby.gui.click.AlwaysEnabled
 import gobby.gui.click.Category
+import gobby.gui.screen.mobesp.openMobEspList
 import net.minecraft.world.entity.Entity
 import java.awt.Color
 
 @AlwaysEnabled
-object MobEsp : EntityHighlighter("Mob ESP", "Highlights mobs whose name matches your configured list", Category.RENDER) {
-
-    val open by ActionSetting("Open", desc = "Opens the Mob ESP list (click the module or /gobby mobesp)") {
-        mc.execute { MobEspScreen.open() }
-    }
+object MobEsp : EntityHighlighter("Mob ESP", "Highlights mobs whose name matches your configured list", Category.COMMANDS) {
 
     init {
-        onLeftClick = { mc.execute { MobEspScreen.open() } }
+        onLeftClick = { openMobEspList() }
     }
 
     override fun shouldHighlight(entity: Entity): Boolean {

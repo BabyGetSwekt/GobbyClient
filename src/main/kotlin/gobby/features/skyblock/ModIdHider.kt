@@ -11,29 +11,34 @@ object ModIdHider {
     private val modIds get() = config.data
 
     init {
-        if (config.isNew) {
-            addDefaults()
+        if (config.isNew) addDefaults()
+        val stored = ModIdRules.storable(modIds)
+        if (stored != modIds.toList()) {
+            modIds.clear()
+            modIds.addAll(stored)
             save()
         }
     }
 
     @JvmStatic
-    fun getHiddenMods(): List<String> = modIds.toList()
+    fun getHiddenMods(): List<String> = ModIdRules.effective(modIds)
 
     fun addMod(id: String) {
-        val trimmed = id.trim().lowercase()
-        if (trimmed.isNotEmpty() && trimmed !in modIds) {
+        val trimmed = ModIdRules.clean(id)
+        if (trimmed.isNotEmpty() && !ModIdRules.isProtected(trimmed) && trimmed !in modIds) {
             modIds.add(trimmed)
         }
     }
 
     fun removeMod(id: String) {
-        modIds.remove(id)
+        if (ModIdRules.isProtected(id)) return
+        modIds.remove(ModIdRules.clean(id))
     }
 
     fun replaceAll(ids: List<String>) {
+        val kept = ModIdRules.storable(ids)
         modIds.clear()
-        ids.forEach { addMod(it) }
+        modIds.addAll(kept)
     }
 
     fun save() {
@@ -59,7 +64,8 @@ object ModIdHider {
 
             @Suppress("UNCHECKED_CAST")
             val mods = modsField.get(loader) as MutableList<ModContainer>
-            val removed = mods.removeAll { it.metadata.id in modIds }
+            val hidden = getHiddenMods()
+            val removed = mods.removeAll { it.metadata.id in hidden }
 
             if (removed) {
                 logger.info("Successfully hid mods from loader")
@@ -70,7 +76,6 @@ object ModIdHider {
     }
 
     private fun addDefaults() {
-        modIds.add("gobbyclient")
         modIds.add("devoniandoogan") // shoutout to devoniandoogan
     }
 }

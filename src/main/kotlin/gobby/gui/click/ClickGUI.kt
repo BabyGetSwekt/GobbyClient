@@ -24,13 +24,17 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     internal val frame: PanelFrame get() = PanelFrame(panelX, panelY)
     internal val panelX = 0
     internal val panelY = 0
-    internal val contentX: Int get() = panelX + SIDEBAR_W_SETTINGS + SETTINGS_SIDE_PAD
+    internal val sidebarWidth: Int get() = if (view?.hidesSidebar == true) 0 else SIDEBAR_W_SETTINGS
+    internal val contentX: Int get() = panelX + sidebarWidth + SETTINGS_SIDE_PAD
     internal val contentY: Int get() = panelY + SETTINGS_HEADER_H + SETTINGS_SIDE_PAD
-    internal val contentW: Int get() = PANEL_W - SIDEBAR_W_SETTINGS - SETTINGS_SIDE_PAD * 2
+    internal val contentW: Int get() = PANEL_W - sidebarWidth - SETTINGS_SIDE_PAD * 2
     internal val contentH: Int get() = PANEL_H - SETTINGS_HEADER_H - SETTINGS_SIDE_PAD * 2
 
     internal var currentCategory: Category = lastCategory ?: Category.entries.first()
     internal var settingsModule: Module? = lastSettingsModule
+    internal var view: ClickView? = null
+        private set
+    private var viewStandalone = false
 
     internal var suppressNextChar = false
     internal var draggingSearch = false
@@ -109,6 +113,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     fun toGuiY(screenY: Double): Int = ((screenY - drawOffsetY) / guiScale).toInt()
 
     override fun onClose() {
+        closeView()
         SearchBar.close()
         SelectorPopup.forget()
         CursorStyle.reset()
@@ -118,6 +123,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
     }
 
     fun openSettings(module: Module) {
+        closeView()
         shownQuery = ""
         SearchBar.close()
         SelectorPopup.forget()
@@ -131,6 +137,27 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         draggingPreview = null
         draggingHex = false
         stringEditSetting = null
+    }
+
+    fun openView(next: ClickView, standalone: Boolean = false) {
+        closeView()
+        settingsModule = null
+        view = next
+        viewStandalone = standalone
+        resetScroll()
+        next.onOpened()
+    }
+
+    fun closeView() {
+        val active = view ?: return
+        view = null
+        viewStandalone = false
+        resetScroll()
+        active.onClosed()
+    }
+
+    fun dismissView() {
+        if (viewStandalone) onClose() else closeView()
     }
 
     fun closeSettings() {
@@ -174,7 +201,11 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
         context.pose().scale(guiScale, guiScale)
 
         val mod = settingsModule
-        if (mod != null) {
+        val active = view
+        if (active != null) {
+            drawSettingsShell(context)
+            active.draw(context, this, gmx, gmy)
+        } else if (mod != null) {
             drawSettingsShell(context)
             SettingsSidebar.draw(context, this, gmx, gmy)
             ModuleSettingsComponent.draw(context, this, mod, gmx, gmy)

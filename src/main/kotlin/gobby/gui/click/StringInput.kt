@@ -1,6 +1,5 @@
 package gobby.gui.click
 
-import gobby.utils.Utils
 import org.lwjgl.glfw.GLFW
 
 private const val ALLOWED_SYMBOLS = "._:/-"
@@ -27,21 +26,10 @@ object StringInput {
     }
 
     fun handleKey(gui: ClickGUI, setting: StringSetting, key: Int): Boolean {
-        val field = gui.stringField
-        val ctrl = Modifiers.ctrl()
-        when {
-            key == GLFW.GLFW_KEY_ESCAPE -> gui.stringEditSetting = null
-            key == GLFW.GLFW_KEY_ENTER -> commit(gui, setting)
-            ctrl && key == GLFW.GLFW_KEY_A -> field.selectAll()
-            ctrl && key == GLFW.GLFW_KEY_C -> Utils.setClipboard(field.selectedText())
-            ctrl && key == GLFW.GLFW_KEY_V -> field.insert(Utils.getClipboard())
-            ctrl && key == GLFW.GLFW_KEY_Z -> field.undo()
-            key == GLFW.GLFW_KEY_BACKSPACE -> field.deleteBackward()
-            key == GLFW.GLFW_KEY_DELETE -> field.deleteForward()
-            key == GLFW.GLFW_KEY_LEFT -> field.placeCaret(field.caret - 1, Modifiers.shift())
-            key == GLFW.GLFW_KEY_RIGHT -> field.placeCaret(field.caret + 1, Modifiers.shift())
-            key == GLFW.GLFW_KEY_HOME -> field.placeCaret(0, Modifiers.shift())
-            key == GLFW.GLFW_KEY_END -> field.placeCaret(field.text.length, Modifiers.shift())
+        when (key) {
+            GLFW.GLFW_KEY_ESCAPE -> gui.stringEditSetting = null
+            GLFW.GLFW_KEY_ENTER -> commit(gui, setting)
+            else -> TextFieldKeys.handle(gui.stringField, key)
         }
         return true
     }

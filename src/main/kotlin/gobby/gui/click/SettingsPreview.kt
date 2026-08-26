@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import net.minecraft.world.entity.EntitySpawnReason
+import net.minecraft.world.entity.EntitySpawnRequest
 import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.LivingEntity
 import java.awt.Color
@@ -24,6 +25,8 @@ private const val PARTIAL_TICK = 1f
 private const val BODY_ROT_BASE = 180f
 private const val HEAD_ALIGNED = 0f
 private const val PREVIEW_ENTITY_ID = -1
+private const val NO_WORLD = "Join a world to preview"
+private const val NO_MODEL = "Preview unavailable"
 
 private const val LIMB_POSITION = 1.0f
 private const val LIMB_AMOUNT = 0.3f
@@ -48,7 +51,7 @@ internal object SettingsPreview {
     private fun subject(): LivingEntity? {
         val level = mc.level ?: return null
         subject?.takeIf { it.level() === level }?.let { return it }
-        return EntityTypes.ZOMBIE.create(level, EntitySpawnReason.COMMAND)?.also {
+        return EntityTypes.ZOMBIE.create(level, EntitySpawnRequest(EntitySpawnReason.COMMAND, true))?.also {
             it.setId(PREVIEW_ENTITY_ID)
             it.walkAnimation.setSpeed(LIMB_AMOUNT)
             (it.walkAnimation as WalkAnimationStateAccessor).apply {
@@ -63,8 +66,8 @@ internal object SettingsPreview {
         GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, SETTINGS_CARD_RADIUS, cCard)
         GobbyDraw.roundedOutline(ctx, r.x, r.y, r.w, r.h, SETTINGS_CARD_RADIUS, cCardEdge)
 
-        val entity = subject() ?: return drawUnavailable(ctx, r)
-        val state = renderState(entity, setting) ?: return drawUnavailable(ctx, r)
+        val entity = subject() ?: return drawUnavailable(ctx, r, if (mc.level == null) NO_WORLD else NO_MODEL)
+        val state = renderState(entity, setting) ?: return drawUnavailable(ctx, r, NO_MODEL)
         val stage = Rect(r.x + STAGE_PAD, r.y + STAGE_PAD, r.w - STAGE_PAD * 2, r.h - STAGE_PAD * 2)
         val localScale = (stage.h / BASE_SCALE_DIVISOR).coerceAtLeast(MIN_MODEL_SCALE) * setting.zoom
         val tint = setting.color.value
@@ -142,8 +145,7 @@ internal object SettingsPreview {
         GobbyTextures.reset(ctx, r.x + (r.w - RESET_ICON) / 2, r.y + (r.h - RESET_ICON) / 2, RESET_ICON, if (hovered) cInk else cInkSoft)
     }
 
-    private fun drawUnavailable(ctx: GuiGraphicsExtractor, r: Rect) {
-        val text = "Join a world to preview"
+    private fun drawUnavailable(ctx: GuiGraphicsExtractor, r: Rect, text: String) {
         val tw = textWScaled(text, SETTINGS_VALUE_SCALE)
         val th = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
         drawTextScaled(ctx, r.x + (r.w - tw) / 2, r.y + (r.h - th) / 2, text, SETTINGS_VALUE_SCALE, cInkGhost, false)
