@@ -26,7 +26,7 @@ import net.minecraft.world.item.ItemStack
 
 const val PETS_FOLDER = "pets"
 
-private val PET_SLOTS: List<Int> = listOf(10..16, 19..25, 28..34, 37..43).flatMap { it }
+private val PET_SLOTS: List<Int> = listOf(10..16, 19..25, 28..34, 37..43).flatten()
 
 private val ItemStack.petId: String?
     get() = itemDataJson("petInfo")?.stringOrNull("uniqueId")
