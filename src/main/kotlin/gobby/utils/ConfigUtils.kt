@@ -31,15 +31,9 @@ object ConfigUtils {
         JsonConfig(jsonFile(name, folder), object : TypeToken<T>() {}.type, default)
 }
 
-/**
- * Reads a JSON object out of arbitrary text, giving null when the text is not one.
- */
 fun parseJsonObject(raw: String): JsonObject? =
     runCatching { JsonParser.parseString(raw).asJsonObject }.getOrNull()
 
-/**
- * Reads a string field, giving null when it is absent, null or empty.
- */
 fun JsonObject.stringOrNull(key: String): String? =
     get(key)?.takeUnless { it.isJsonNull }?.asString?.takeUnless { it.isEmpty() }
 

@@ -15,9 +15,6 @@ const val MIDDLE_BUTTON = 2
 
 object ContainerClicks {
 
-    /**
-     * Left-clicks a slot in a container the client never opened, so there is no menu to keep in sync.
-     */
     fun pickup(syncId: Int, slot: Int) {
         mc.connection?.send(
             ServerboundContainerClickPacket(
@@ -31,17 +28,11 @@ object ContainerClicks {
         mc.connection?.send(ServerboundContainerClosePacket(syncId))
     }
 
-    /**
-     * Clicks a slot of the open screen through vanilla, which applies the click and reports it for us.
-     */
     fun input(syncId: Int, slot: Int, button: Int = MIDDLE_BUTTON, action: ContainerInput = ContainerInput.CLONE) {
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(syncId, slot, button, action, player)
     }
 
-    /**
-     * Middle-clicks a slot of an open menu and reports every slot the click changed.
-     */
     fun clone(menu: AbstractContainerMenu, slot: Int) {
         val connection = mc.connection ?: return
         val player = mc.player ?: return

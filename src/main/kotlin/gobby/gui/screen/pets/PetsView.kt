@@ -6,6 +6,7 @@ import gobby.utils.managers.PETS_FOLDER
 import gobby.utils.managers.PetManager
 import gobby.utils.render.FaceTextures
 import gobby.gui.click.*
+import gobby.gui.screen.petrules.openPetRules
 import gobby.utils.render.CursorStyle
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
@@ -15,6 +16,7 @@ private const val ROW_RADIUS = 5
 private const val RESET_ICON = 10
 private const val BAR_RADIUS = 5
 private const val REFRESH_ICON = 10
+private const val RULES_ICON = 13
 private const val CHECK_SIZE = 12
 private const val SCROLL_STEP = 26f
 private const val EMPTY_TOP = 18
@@ -50,6 +52,7 @@ internal object PetsView : SearchableView() {
         drawToggle(ctx, PetsLayout.toggleRect(gui, 1), "Close If Equipped", PetManager.closeIfEquipped, mx, my)
         drawToggle(ctx, PetsLayout.toggleRect(gui, 2), "Swapping outside of Pets menu", PetManager.swapOutsideMenu, mx, my)
         drawSearch(ctx, PetsLayout.searchRect(gui), mx, my)
+        drawRules(ctx, PetsLayout.rulesRect(gui), mx, my)
         if (PetsList.visiblePets().isEmpty()) drawEmpty(ctx, gui)
         Scrollbar.draw(ctx, gui, totalHeight())
     }
@@ -66,6 +69,13 @@ internal object PetsView : SearchableView() {
         GobbyTextures.reset(ctx, iconX, r.y + (r.h - REFRESH_ICON) / 2, REFRESH_ICON, tint)
         val h = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
         drawTextScaled(ctx, iconX + REFRESH_ICON + COL_GAP / 2, r.y + (r.h - h) / 2, "Refresh", SETTINGS_VALUE_SCALE, tint, false)
+    }
+
+    private fun drawRules(ctx: GuiGraphicsExtractor, r: Rect, mx: Int, my: Int) {
+        val hovered = (mx to my) in r
+        CursorStyle.requestHandIf(hovered)
+        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, BAR_RADIUS, if (hovered) cViolet else cValueBox)
+        GobbyTextures.rules(ctx, r.x + (r.w - RULES_ICON) / 2, r.y + (r.h - RULES_ICON) / 2, RULES_ICON, -1)
     }
 
     private fun drawToggle(ctx: GuiGraphicsExtractor, r: Rect, label: String, on: Boolean, mx: Int, my: Int) {
@@ -159,6 +169,10 @@ internal object PetsView : SearchableView() {
         }
         PetsList.listening?.let { return PetsList.bindMouse(button) }
         PetsList.blurSearch()
+        if ((mx to my) in PetsLayout.rulesRect(gui)) {
+            openPetRules()
+            return true
+        }
         if ((mx to my) in PetsLayout.refreshRect(gui)) {
             if (!PetsList.scanning) PetsList.refresh()
             return true

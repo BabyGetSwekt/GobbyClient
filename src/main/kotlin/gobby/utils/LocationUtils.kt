@@ -61,6 +61,8 @@ object LocationUtils {
     var inDungeons: Boolean
         get() = _inDungeons || (DevMode.enabled && DevMode.forceDungeons)
         set(value) { _inDungeons = value }
+    var masterMode = false
+        private set
     private var _dungeonFloor = -1
     var dungeonFloor: Int
         get() = if (DevMode.enabled && DevMode.forceDungeons && DevMode.forceFloor7) 7 else _dungeonFloor
@@ -94,6 +96,7 @@ object LocationUtils {
         area = "Unknown"
         inDungeons = false
         dungeonFloor = -1
+        masterMode = false
     }
 
     fun updateScoreboard(client: Minecraft) {
@@ -204,8 +207,9 @@ object LocationUtils {
         }
 
         floorRegex.find(area)?.groupValues?.get(1)?.let {
+            masterMode = it.startsWith("M")
             dungeonFloor = when (it) {
-                "Entrance" -> 0
+                "E", "Entrance" -> 0
                 else -> it.drop(1).toIntOrNull() ?: -1
             }
         }

@@ -6,6 +6,8 @@ import gobby.commands.developer.ClipCommand
 import gobby.commands.developer.SimulateCommand
 import gobby.events.core.EventDispatcher
 import gobby.features.developer.*
+import gobby.features.petrules.DungeonStart
+import gobby.features.petrules.PetRules
 import gobby.features.dungeons.*
 import gobby.features.dungeons.puzzles.*
 import gobby.features.floor7.*
@@ -57,6 +59,8 @@ object ModuleManager {
         LeapManager,
         EquipmentManager,
         PetManager,
+        DungeonStart,
+        PetRules,
         AbilityManager,
         InvincibilityManager,
             PacketOrderManager,

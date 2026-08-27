@@ -21,6 +21,7 @@ object GobbyTextures {
     private val addIcon = texture("add")
     private val searchIcon = texture("search")
     private val lockIcon = texture("lock")
+    private val rulesIcon = texture("rules")
 
     private fun texture(name: String) = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/gui/$name")
 
@@ -33,6 +34,8 @@ object GobbyTextures {
     fun search(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, searchIcon, x, y, size, size, color)
 
     fun lock(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, lockIcon, x, y, size, size, color)
+
+    fun rules(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, color: Int) = blit(ctx, rulesIcon, x, y, size, size, color)
 
     fun checkbox(ctx: GuiGraphicsExtractor, x: Int, y: Int, size: Int, checked: Boolean, color: Int) =
         blit(ctx, if (checked) checkOn else checkOff, x, y, size, size, color)

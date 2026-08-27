@@ -14,17 +14,21 @@ private const val KEY_H = 15
 private const val RESET_W = 14
 private const val EQUIP_W = 46
 private const val REFRESH_W = 78
+private const val RULES_W = 26
 private const val NAME_MIN_W = 40
 private const val SCROLL_TAIL = 6
 private const val TOGGLE_COUNT = 3
 
 internal object PetsLayout {
 
-    fun refreshRect(gui: ClickGUI) = Rect(gui.contentX, gui.contentY, REFRESH_W, BAR_H)
+    fun searchRect(gui: ClickGUI) =
+        Rect(gui.contentX, gui.contentY, gui.contentW - REFRESH_W - RULES_W - COL_GAP * 2, BAR_H)
 
-    fun searchRect(gui: ClickGUI) = Rect(
-        gui.contentX + REFRESH_W + COL_GAP, gui.contentY, gui.contentW - REFRESH_W - COL_GAP, BAR_H
-    )
+    fun refreshRect(gui: ClickGUI) =
+        Rect(searchRect(gui).let { it.x + it.w } + COL_GAP, gui.contentY, REFRESH_W, BAR_H)
+
+    fun rulesRect(gui: ClickGUI) =
+        Rect(refreshRect(gui).let { it.x + it.w } + COL_GAP, gui.contentY, RULES_W, BAR_H)
 
     fun toggleRect(gui: ClickGUI, index: Int): Rect {
         val width = (gui.contentW - COL_GAP * (TOGGLE_COUNT - 1)) / TOGGLE_COUNT

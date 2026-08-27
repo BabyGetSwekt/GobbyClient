@@ -18,32 +18,18 @@ import net.minecraft.nbt.NbtOps
 import net.minecraft.world.item.component.ResolvableProfile
 import java.util.Base64
 
-/**
- * Function to get the item data (NBT) from an item stack.
- */
-
 @SuppressWarnings("deprecation")
 val DataComponentHolder.getItemData: CompoundTag
     get() = this.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
 
-/**
- * Returns the skyblock ID of the item.
- */
 val DataComponentHolder.skyblockID: String
     get() = this.getItemData.getStringOr("id", "")
 
-/**
- * Returns the UUID of the item, if it exists.
- */
 val DataComponentHolder.getItemUUID: String?
     get() {
         val uuid = this.getItemData.getStringOr("uuid", "")
         return uuid.ifEmpty { null }
     }
-
-/**
- * Checks if the component holder is holding an item with the specified skyblock ID.
- */
 
 fun DataComponentHolder.isHolding(id: String): Boolean =
     this.skyblockID == id
@@ -51,10 +37,6 @@ fun DataComponentHolder.isHolding(id: String): Boolean =
 fun ItemStack.getItemID(): String {
     return BuiltInRegistries.ITEM.getKey(this.item).toString()
 }
-/**
- * Checks if the item stack’s Minecraft ID matches the given string.
- * Example: "minecraft:bow", "minecraft:blaze_rod"
- */
 
 fun ItemStack.hasItemID(id: String): Boolean {
     val itemId = BuiltInRegistries.ITEM.getKey(this.item).toString()
@@ -223,32 +205,17 @@ private fun <T : Any> ItemStack.encodeWith(ops: DynamicOps<T>): T? {
     return ItemStack.CODEC.encodeStart(registries.createSerializationContext(ops), this).result().orElse(null)
 }
 
-/**
- * Encodes the full item, components included, as an NBT string.
- */
 fun ItemStack.encodeNbt(): String? = encodeWith(NbtOps.INSTANCE)?.toString()
 
-/**
- * Encodes the full item, components included, as indented JSON.
- */
 fun ItemStack.encodeJson(): String? = encodeWith(JsonOps.INSTANCE)?.let(ConfigUtils.gson::toJson)
 
-/**
- * Reads a JSON blob that Hypixel stored as a string inside the item data.
- */
 fun DataComponentHolder.itemDataJson(key: String): JsonObject? =
     getItemData.getStringOr(key, "").takeUnless { it.isEmpty() }?.let(::parseJsonObject)
 
-/**
- * Decodes the texture payload of a game profile, which holds the skin url among other things.
- */
 fun ResolvableProfile.textureJson(): String? {
     val encoded = partialProfile().properties[PROFILE_TEXTURES].firstOrNull()?.value ?: return null
     return runCatching { String(Base64.getDecoder().decode(encoded)) }.getOrNull()
 }
 
-/**
- * Reads the skin url off a player head.
- */
 val DataComponentHolder.skinUrl: String?
     get() = get(DataComponents.PROFILE)?.textureJson()?.let { SKIN_URL.find(it)?.value }

@@ -124,7 +124,11 @@ object PetManager {
     }
 
     private fun equip(screen: AbstractContainerScreen<*>, pet: PetEntry) {
-        val slot = PET_SLOTS.firstOrNull { screen.menu.slots.getOrNull(it)?.item?.petId == pet.uuid } ?: return
+        val slot = PET_SLOTS.firstOrNull { screen.menu.slots.getOrNull(it)?.item?.petId == pet.uuid }
+        if (slot == null) {
+            screen.onClose()
+            return errorMessage("Pet not found, refresh it")
+        }
         if (isEquipped(screen.menu.slots[slot].item)) {
             if (closeIfEquipped) return screen.onClose()
             if (preventUnequip) return errorMessage("Pet already equipped!")
@@ -134,6 +138,8 @@ object PetManager {
 
     private fun isEquipped(stack: ItemStack): Boolean =
         stack.getLoreStrings().any { it.contains("Click to despawn!") }
+
+    fun holdingItem(stack: ItemStack): String? = stack.itemDataJson("petInfo")?.stringOrNull("heldItem")
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
@@ -189,8 +195,8 @@ object PetManager {
     }
 
     private fun finish() {
-        pendingEquip?.let {
-            errorMessage("Could not find ${it.name} in the Pets menu")
+        if (pendingEquip != null) {
+            errorMessage("Pet not found, refresh it")
             return closeAndReset()
         }
         val found = PET_SLOTS.mapNotNull { slot -> collected[slot]?.let(::toEntry) }

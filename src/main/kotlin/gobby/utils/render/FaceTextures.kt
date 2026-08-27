@@ -19,10 +19,6 @@ private const val HAT_X = 40
 private const val SKIN_WIDTH = 64
 private const val FACE_SCALE = 8
 
-/**
- * Keeps the cropped face of a skin on disk per folder, so head icons survive restarts and are
- * downloaded only when the skin behind them actually changed.
- */
 object FaceTextures {
 
     private val ready = ConcurrentHashMap.newKeySet<String>()
@@ -36,10 +32,6 @@ object FaceTextures {
         return id
     }
 
-    /**
-     * Brings the folder in line with the wanted skins, downloading what is missing or changed and
-     * dropping what nobody asks for any more.
-     */
     fun sync(folder: String, skins: Map<String, String>) {
         indexFolder(folder)
         val index = ConfigUtils.makeConfig("index", folder) { HashMap<String, String>() }
@@ -53,9 +45,6 @@ object FaceTextures {
         CompletableFuture.runAsync { missing.forEach { (key, url) -> download(folder, key, url) } }
     }
 
-    /**
-     * Picks up the faces an earlier session already downloaded, once per folder.
-     */
     private fun indexFolder(folder: String) {
         if (!indexed.add(folder)) return
         ConfigUtils.directory(folder).listFiles { file -> file.extension == "png" }

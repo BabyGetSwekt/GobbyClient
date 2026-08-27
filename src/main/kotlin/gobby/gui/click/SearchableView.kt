@@ -9,10 +9,6 @@ private const val PLUS_ICON = 7
 private const val CONTROL_RADIUS = 5
 private const val ICON_GAP = 8
 
-/**
- * A view with a search bar over a scrolling list. Every drawing method is open, so a view that
- * wants a different look keeps the behaviour and replaces only the paint.
- */
 internal abstract class SearchableView : ClickView {
 
     protected abstract val searchField: TextField
@@ -21,9 +17,6 @@ internal abstract class SearchableView : ClickView {
 
     private var shownQuery = ""
 
-    /**
-     * Sends the list back to the top whenever the query changed since the previous frame.
-     */
     protected fun followSearch(gui: ClickGUI) {
         if (searchField.text == shownQuery) return
         shownQuery = searchField.text

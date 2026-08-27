@@ -12,6 +12,7 @@ import gobby.utils.LocationUtils
 import gobby.utils.skyblock.dungeon.DungeonListener.endDialogues
 import net.minecraft.network.protocol.common.ClientboundPingPacket
 import net.minecraft.network.protocol.game.ClientboundSoundPacket
+import gobby.events.DungeonStartEvent
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket
 
 object EventDispatcher {
@@ -32,6 +33,9 @@ object EventDispatcher {
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
+        if (event.message == "Here, I found this map when I first entered the dungeon") {
+            Gobbyclient.EVENT_MANAGER.publish(DungeonStartEvent(LocationUtils.dungeonFloor, LocationUtils.masterMode))
+        }
         val floor = LocationUtils.dungeonFloor
         if (floor == -1 ) return
         val dialogues = endDialogues[floor] ?: return
