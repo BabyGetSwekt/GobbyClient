@@ -56,6 +56,7 @@ object ModuleManager {
         WardrobeManager,
         LeapManager,
         EquipmentManager,
+        PetManager,
         AbilityManager,
         InvincibilityManager,
             PacketOrderManager,
@@ -160,6 +161,7 @@ object ModuleManager {
         DevMode,
         DrawSlotNumbers,
         CopyGui,
+        CopyItemNbt,
         ArmorStandSaver,
         MessageDebugger,
         ParticleDebugger,
@@ -167,6 +169,7 @@ object ModuleManager {
         SystemChatDebugger,
         RenderHealth,
         ModIdHiderModule,
+        PetsKeybind,
         Welcome
     ).forEach(EVENT_MANAGER::subscribe)
 }

@@ -9,6 +9,7 @@ import gobby.gui.brush.BlockSelector
 import gobby.gui.click.ClickGUI
 import gobby.gui.screen.mobesp.openMobEspList
 import gobby.gui.screen.modhider.openModIdList
+import gobby.gui.screen.pets.openPetsList
 
 //import gobby.features.force.AutoUpdater
 import gobby.pathfinder.PathExecutor
@@ -91,6 +92,17 @@ internal object GobbyCommandBasic {
                 ClientCommands.literal("modid")
                     .executes {
                         mc.executeLater { openModIdList() }
+                        Command.SINGLE_SUCCESS
+                    }
+            )
+    }
+
+    private fun petsCommand(): LiteralArgumentBuilder<FabricClientCommandSource?> {
+        return ClientCommands.literal("gobby")
+            .then(
+                ClientCommands.literal("pets")
+                    .executes {
+                        mc.executeLater { openPetsList() }
                         Command.SINGLE_SUCCESS
                     }
             )
@@ -182,6 +194,7 @@ internal object GobbyCommandBasic {
         event.register(helpCommand())
         event.register(modIdCommand())
         event.register(mobEspCommand())
+        event.register(petsCommand())
         event.register(pathCommand())
         event.register(pathStopCommand())
         event.register(recordCommand())

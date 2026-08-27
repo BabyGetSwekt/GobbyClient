@@ -11,6 +11,12 @@ import net.minecraft.world.item.component.ItemLore
 import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.core.registries.BuiltInRegistries
+import com.google.gson.JsonObject
+import com.mojang.serialization.DynamicOps
+import com.mojang.serialization.JsonOps
+import net.minecraft.nbt.NbtOps
+import net.minecraft.world.item.component.ResolvableProfile
+import java.util.Base64
 
 /**
  * Function to get the item data (NBT) from an item stack.
@@ -95,6 +101,8 @@ private val ABILITY_HEADER_REGEX = Regex("^Ability:\\s+(.+?)\\s*$")
 private const val BASE_INSTANT_TRANSMISSION_RANGE = 8
 private const val BASE_ETHER_TRANSMISSION_RANGE = 57
 private const val ETHERMERGE_ENABLED = 1
+private const val PROFILE_TEXTURES = "textures"
+private val SKIN_URL = Regex("""https?://[^"]+""")
 
 private fun splitNameAndTrigger(raw: String): Pair<String, String?> {
     for (trigger in ABILITY_TRIGGERS) {
@@ -209,3 +217,38 @@ fun countInHotbar(id: String): Int {
 
 fun isHoldingAOTV(): Boolean =
     mc.player?.mainHandItem?.skyblockID == "ASPECT_OF_THE_VOID"
+
+private fun <T : Any> ItemStack.encodeWith(ops: DynamicOps<T>): T? {
+    val registries = mc.level?.registryAccess() ?: return null
+    return ItemStack.CODEC.encodeStart(registries.createSerializationContext(ops), this).result().orElse(null)
+}
+
+/**
+ * Encodes the full item, components included, as an NBT string.
+ */
+fun ItemStack.encodeNbt(): String? = encodeWith(NbtOps.INSTANCE)?.toString()
+
+/**
+ * Encodes the full item, components included, as indented JSON.
+ */
+fun ItemStack.encodeJson(): String? = encodeWith(JsonOps.INSTANCE)?.let(ConfigUtils.gson::toJson)
+
+/**
+ * Reads a JSON blob that Hypixel stored as a string inside the item data.
+ */
+fun DataComponentHolder.itemDataJson(key: String): JsonObject? =
+    getItemData.getStringOr(key, "").takeUnless { it.isEmpty() }?.let(::parseJsonObject)
+
+/**
+ * Decodes the texture payload of a game profile, which holds the skin url among other things.
+ */
+fun ResolvableProfile.textureJson(): String? {
+    val encoded = partialProfile().properties[PROFILE_TEXTURES].firstOrNull()?.value ?: return null
+    return runCatching { String(Base64.getDecoder().decode(encoded)) }.getOrNull()
+}
+
+/**
+ * Reads the skin url off a player head.
+ */
+val DataComponentHolder.skinUrl: String?
+    get() = get(DataComponents.PROFILE)?.textureJson()?.let { SKIN_URL.find(it)?.value }

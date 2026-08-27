@@ -11,8 +11,7 @@ import gobby.utils.ChatUtils.modMessage
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.component.ItemLore
-import net.minecraft.world.item.ItemStack
-import net.minecraft.nbt.NbtOps
+import gobby.utils.encodeNbt
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.ChatFormatting
 import java.io.File
@@ -58,7 +57,7 @@ object CopyGui : Module("Copy GUI", "Press the keybind in a GUI to dump its cont
             val name = ChatFormatting.stripFormatting(stack.hoverName.string) ?: ""
             val lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).styledLines()
                 .map { ChatFormatting.stripFormatting(it.string) ?: "" }
-            val nbt = encodeStack(stack)
+            val nbt = stack.encodeNbt().orEmpty()
             val comma = if (i < nonEmpty.size - 1) "," else ""
 
             sb.appendLine("    {")
@@ -78,16 +77,6 @@ object CopyGui : Module("Copy GUI", "Press the keybind in a GUI to dump its cont
         val file = File(schematicsDir, "gui_${safeTitle}_${System.currentTimeMillis()}.json")
         file.writeText(sb.toString())
         modMessage("§aCopied GUI §f\"$title\" §a(${nonEmpty.size}/${handler.slots.size} slots) to §e${file.name}")
-    }
-
-    private fun encodeStack(stack: ItemStack): String {
-        val registries = mc.level?.registryAccess() ?: return ""
-        return try {
-            ItemStack.CODEC.encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), stack)
-                .result().orElse(null)?.toString() ?: ""
-        } catch (_: Exception) {
-            ""
-        }
     }
 
     private fun jsonString(s: String): String {

@@ -15,25 +15,22 @@ private const val TRASH_W = 14
 private const val TRASH_ICON = 10
 private const val BAR_H = 20
 private const val BAR_RADIUS = 5
-private const val PLUS_ICON = 7
 private const val ADD_SHARE = 3
 private const val BAR_PARTS = 4
-private const val SEARCH_ICON = 11
-private const val SEARCH_PAD = 6
 private const val SCROLL_STEP = 26f
 private const val SCROLL_TAIL = 6
 private const val EMPTY_TOP = 18
 private const val NAME_MIN_W = 40
-private const val ADD_LABEL = "Add mod ID"
-private const val SEARCH_HINT = "Search"
 private const val EMPTY_LABEL = "No hidden mods yet."
 private const val PLACEHOLDER = "Type a mod ID"
 private const val RESTART_HINT = "Hidden mods apply after a game restart"
 private const val LOCK_ICON = 10
 
-internal object ModIdView : ClickView {
+internal object ModIdView : SearchableView() {
 
-    private var shownQuery = ""
+    override val searchField get() = ModIdList.searchField
+
+    override val searchFocused get() = ModIdList.searchFocused
 
     override fun onOpened() = ModIdList.load()
 
@@ -61,8 +58,6 @@ internal object ModIdView : ClickView {
     private fun idRect(r: Rect) =
         Rect(r.x + ROW_PAD, r.y, (trashRect(r).x - COL_GAP - r.x - ROW_PAD).coerceAtLeast(NAME_MIN_W), r.h)
 
-    private fun searchTextX(gui: ClickGUI): Int = searchRect(gui).x + SEARCH_PAD + SEARCH_ICON + SEARCH_PAD
-
     override fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int) {
         val subtitle = ModIdList.notice() ?: RESTART_HINT
         SettingsHeader.draw(ctx, gui, ModIdHiderModule.category.iconTexture, ModIdHiderModule.name, subtitle, mx, my, SettingsHeader.cancelIcon())
@@ -71,46 +66,16 @@ internal object ModIdView : ClickView {
 
         val bottom = gui.contentY + gui.contentH
         ctx.enableScissor(gui.contentX, gui.contentY, gui.contentX + gui.contentW, bottom)
-        drawAdd(ctx, gui, mx, my)
+        drawAdd(ctx, addRect(gui), "Add mod ID", mx, my)
         ModIdList.visibleRows().forEachIndexed { index, row ->
             val r = rowRect(gui, index)
             if (r.y + r.h >= gui.contentY && r.y <= bottom) drawRow(ctx, row, r, mx, my)
         }
         ctx.disableScissor()
 
-        drawSearch(ctx, gui, mx, my)
+        drawSearch(ctx, searchRect(gui), mx, my)
         if (ModIdList.visibleRows().isEmpty()) drawEmpty(ctx, gui)
         Scrollbar.draw(ctx, gui, totalHeight())
-    }
-
-    private fun followSearch(gui: ClickGUI) {
-        if (ModIdList.searchField.text == shownQuery) return
-        shownQuery = ModIdList.searchField.text
-        gui.resetScroll()
-    }
-
-    private fun drawAdd(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int) {
-        val r = addRect(gui)
-        val hovered = (mx to my) in r
-        CursorStyle.requestHandIf(hovered)
-        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, BAR_RADIUS, if (hovered) cViolet else cValueBox)
-        val labelW = textWScaled(ADD_LABEL, SETTINGS_VALUE_SCALE)
-        val plusX = r.x + (r.w - labelW - PLUS_ICON - COL_GAP) / 2
-        GobbyTextures.plus(ctx, plusX, r.y + (r.h - PLUS_ICON) / 2, PLUS_ICON, cInk)
-        val h = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
-        drawTextScaled(ctx, plusX + PLUS_ICON + COL_GAP, r.y + (r.h - h) / 2, ADD_LABEL, SETTINGS_VALUE_SCALE, cInk, false)
-    }
-
-    private fun drawSearch(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int) {
-        val r = searchRect(gui)
-        val focused = ModIdList.searchFocused
-        CursorStyle.requestHandIf((mx to my) in r)
-        GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, BAR_RADIUS, cValueBox, if (focused) cViolet else cCardEdge)
-        GobbyTextures.search(ctx, r.x + SEARCH_PAD, r.y + (r.h - SEARCH_ICON) / 2, SEARCH_ICON, if (focused) cInkSoft else cInkFaint)
-        val textX = searchTextX(gui)
-        ctx.enableScissor(textX, r.y, r.x + r.w - SEARCH_PAD, r.y + r.h)
-        TextFieldView.draw(ctx, ModIdList.searchField, textX, r.y, r.h, SETTINGS_VALUE_SCALE, cInk, focused, placeholder = SEARCH_HINT)
-        ctx.disableScissor()
     }
 
     private fun drawRow(ctx: GuiGraphicsExtractor, row: ModIdRow, r: Rect, mx: Int, my: Int) {
@@ -153,15 +118,14 @@ internal object ModIdView : ClickView {
         )
     }
 
-    override fun handleClick(gui: ClickGUI, mx: Int, my: Int): Boolean {
+    override fun handleClick(gui: ClickGUI, mx: Int, my: Int, button: Int): Boolean {
         if ((mx to my) in SettingsHeader.backRect(gui)) {
             gui.dismissView()
             return true
         }
         if ((mx to my) in searchRect(gui)) {
             ModIdList.focusSearch()
-            val field = ModIdList.searchField
-            field.placeCaret(TextFieldView.caretIndexAt(field.text, searchTextX(gui), mx, SETTINGS_VALUE_SCALE), extend = false)
+            placeSearchCaret(searchRect(gui), mx)
             return true
         }
         ModIdList.blurSearch()

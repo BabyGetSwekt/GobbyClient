@@ -9,18 +9,12 @@ import gobby.utils.ChatUtils.modMessage
 import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.world.inventory.AbstractContainerMenu
-import net.minecraft.world.inventory.ContainerInput
-import net.minecraft.network.HashedStack
 import net.minecraft.ChatFormatting
+import gobby.utils.ContainerClicks
 
 object LeapManager {
 
@@ -117,44 +111,16 @@ object LeapManager {
         val itemName = ChatFormatting.stripFormatting(packet.item.hoverName.string) ?: return
         if (packet.item.item != Items.PLAYER_HEAD || !itemName.equals(leapTarget, ignoreCase = true)) return
         state = State.LEAPING
-        sendWindowClick(packet.slot, mc.player ?: return, handler)
+        ContainerClicks.clone(handler, packet.slot)
+        ContainerClicks.close(handler.containerId)
         modMessage("[Leap] Sent a packet to slot " + packet.slot)
         modMessage("Auto leaped to " + leapTarget + "!")
         reset()
     }
 
-    private fun sendWindowClick(slotNumber: Int, player: Player, handler: AbstractContainerMenu) {
-        val connection = mc.connection ?: return
-        val slots = handler.slots
-        val before = slots.map { it.item.copy() }
-
-        handler.clicked(slotNumber, 0, ContainerInput.CLONE, player)
-
-        val changed = Int2ObjectOpenHashMap<HashedStack>()
-        for (i in before.indices) {
-            if (!ItemStack.matches(before[i], slots[i].item)) {
-                changed.put(i, HashedStack.create(slots[i].item, connection.decoratedHashOpsGenenerator()))
-            }
-        }
-
-        val cursorHash = HashedStack.create(handler.carried, connection.decoratedHashOpsGenenerator())
-        connection.send(
-            ServerboundContainerClickPacket(
-                handler.containerId,
-                handler.stateId,
-                slotNumber.toShort(),
-                0.toByte(),
-                ContainerInput.CLONE,
-                changed,
-                cursorHash
-            )
-        )
-        connection.send(ServerboundContainerClosePacket(handler.containerId))
-    }
 
     private fun close() {
-        val handler = container ?: return
-        mc.connection?.send(ServerboundContainerClosePacket(handler.containerId))
+        ContainerClicks.close(container?.containerId ?: return)
         reset()
     }
 

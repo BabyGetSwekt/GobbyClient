@@ -18,7 +18,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.world.inventory.ChestMenu
-import net.minecraft.world.inventory.ContainerInput
+import gobby.utils.ContainerClicks
 
 object AutoExperiments : Module("Auto Experiments", "Automatically does experiments", Category.SKYBLOCK) {
 
@@ -122,8 +122,7 @@ object AutoExperiments : Module("Auto Experiments", "Automatically does experime
         if (!packetClock.hasTimePassed(delayMs.toLong())) return
         val slotIdx = sequence[sentCount]
         PacketOrderManager.register(PacketOrderManager.Phase.ITEM_USE) {
-            val player = mc.player ?: return@register
-            mc.gameMode?.handleContainerInput(h.containerId, slotIdx, 2, ContainerInput.CLONE, player)
+            ContainerClicks.input(h.containerId, slotIdx)
         }
         packetClock.update()
         sentCount++

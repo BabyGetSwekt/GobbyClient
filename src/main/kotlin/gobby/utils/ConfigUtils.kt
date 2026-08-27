@@ -2,6 +2,8 @@ package gobby.utils
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import gobby.Gobbyclient.Companion.MOD_ID
 import org.slf4j.LoggerFactory
@@ -28,6 +30,18 @@ object ConfigUtils {
     inline fun <reified T : Any> makeConfig(name: String, folder: String = "", noinline default: () -> T): JsonConfig<T> =
         JsonConfig(jsonFile(name, folder), object : TypeToken<T>() {}.type, default)
 }
+
+/**
+ * Reads a JSON object out of arbitrary text, giving null when the text is not one.
+ */
+fun parseJsonObject(raw: String): JsonObject? =
+    runCatching { JsonParser.parseString(raw).asJsonObject }.getOrNull()
+
+/**
+ * Reads a string field, giving null when it is absent, null or empty.
+ */
+fun JsonObject.stringOrNull(key: String): String? =
+    get(key)?.takeUnless { it.isJsonNull }?.asString?.takeUnless { it.isEmpty() }
 
 class JsonConfig<T : Any>(
     val file: File,

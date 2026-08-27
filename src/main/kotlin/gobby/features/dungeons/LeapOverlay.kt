@@ -12,12 +12,8 @@ import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonTeammate
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
-import net.minecraft.world.item.ItemStack
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-import net.minecraft.world.inventory.ContainerInput
-import net.minecraft.network.HashedStack
 import net.minecraft.ChatFormatting
+import gobby.utils.ContainerClicks
 
 object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes easier", Category.DUNGEONS,) {
 
@@ -133,14 +129,10 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             it.width > 0 && it.height > 0 &&
                 mouseX in it.x..(it.x + it.width) && mouseY in it.y..(it.y + it.height)
         } ?: return
-        val screen = mc.gui.screen() as? ContainerScreen ?: return
-        val handler = screen.menu
-        val player = mc.player ?: return
-        val connection = mc.connection ?: return
-
+        val handler = (mc.gui.screen() as? ContainerScreen)?.menu ?: return
         val slotId = findSlotId(handler, button.targetName)
         if (slotId < 0) return
-        sendContainerClick(handler, player, connection, slotId)
+        ContainerClicks.clone(handler, slotId)
     }
 
     private fun findSlotId(handler: net.minecraft.world.inventory.AbstractContainerMenu, targetName: String): Int =
@@ -149,28 +141,4 @@ object LeapOverlay : Module("Spirit Leap Overlay", "Overlay to leap to classes e
             !stack.isEmpty && ChatFormatting.stripFormatting(stack.hoverName.string)?.trim()?.equals(targetName, true) == true
         }?.index ?: -1
 
-    private fun sendContainerClick(handler: net.minecraft.world.inventory.AbstractContainerMenu, player: net.minecraft.world.entity.player.Player, connection: net.minecraft.client.multiplayer.ClientPacketListener, slotId: Int) {
-        val slots = handler.slots
-        val before = slots.map { it.item.copy() }
-        handler.clicked(slotId, 0, ContainerInput.CLONE, player)
-
-        val changed = Int2ObjectOpenHashMap<HashedStack>()
-        for (i in before.indices) {
-            if (!ItemStack.matches(before[i], slots[i].item)) {
-                changed.put(i, HashedStack.create(slots[i].item, connection.decoratedHashOpsGenenerator()))
-            }
-        }
-
-        connection.send(
-            ServerboundContainerClickPacket(
-                handler.containerId,
-                handler.stateId,
-                slotId.toShort(),
-                0.toByte(),
-                ContainerInput.CLONE,
-                changed,
-                HashedStack.create(handler.carried, connection.decoratedHashOpsGenenerator())
-            )
-        )
-    }
 }

@@ -1,19 +1,14 @@
 package gobby.utils.managers
 
-import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
+import gobby.utils.ContainerClicks
 import gobby.utils.LocationUtils
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import net.minecraft.network.HashedStack
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
-import net.minecraft.world.inventory.ContainerInput
 
 abstract class ContainerSlotClicker(
     private val screenTitle: String,
@@ -54,10 +49,8 @@ abstract class ContainerSlotClicker(
     protected open fun sendOpenCommand(command: String) = ChatUtils.sendCommand(command)
 
     protected open fun sendClick(syncId: Int, slot: Int) {
-        mc.connection?.send(
-            ServerboundContainerClickPacket(syncId, NO_STATE_ID, slot.toShort(), LEFT_BUTTON, ContainerInput.PICKUP, Int2ObjectOpenHashMap<HashedStack>(), HashedStack.EMPTY)
-        )
-        mc.connection?.send(ServerboundContainerClosePacket(syncId))
+        ContainerClicks.pickup(syncId, slot)
+        ContainerClicks.close(syncId)
     }
 
     @SubscribeEvent
@@ -124,7 +117,5 @@ abstract class ContainerSlotClicker(
         const val NO_ABANDON_SLOT = -1
         private const val TIMEOUT_TICKS = 60
         private const val COOLDOWN_TICKS = 1
-        private const val NO_STATE_ID = 0
-        private const val LEFT_BUTTON: Byte = 0
     }
 }

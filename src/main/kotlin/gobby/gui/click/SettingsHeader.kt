@@ -126,6 +126,7 @@ internal object SettingsHeader {
         ctx: GuiGraphicsExtractor, gui: ClickGUI, icon: ResourceLocation,
         title: String, subtitle: String, tileX: Int, rightBound: Int
     ) {
+        TextureRegistry.ensureRegistered(listOf(icon))
         val tileY = gui.panelY + (SETTINGS_HEADER_H - SETTINGS_ICON) / 2
         GobbyDraw.roundedRect(ctx, tileX, tileY, SETTINGS_ICON, SETTINGS_ICON, PILL_RADIUS, cIconTile)
         val inner = SETTINGS_ICON - ICON_INSET * 2

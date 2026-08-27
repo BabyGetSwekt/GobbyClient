@@ -12,7 +12,7 @@ interface ClickView {
 
     fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int)
 
-    fun handleClick(gui: ClickGUI, mx: Int, my: Int): Boolean
+    fun handleClick(gui: ClickGUI, mx: Int, my: Int, button: Int): Boolean
 
     fun handleScroll(gui: ClickGUI, mx: Int, my: Int, amount: Double): Boolean
 

@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
+import gobby.utils.ContainerClicks
 
 object TerminalOverlay : Module("Terminal Overlay", "Custom terminal overlay", Category.FLOOR7) {
     val scale by NumberSetting("Scale", 150, 100, 300, 10, desc = "Scale of the overlay UI (percent)")
@@ -94,7 +95,7 @@ object TerminalOverlay : Module("Terminal Overlay", "Custom terminal overlay", C
         val slot = TerminalOverlayLayout.compactToSlot(type, cx, cy)
         val player = mc.player ?: return
         if (type == TerminalType.RUBIX) clickRubix(screen, slot, leftReleased, rightReleased, player)
-        else mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, 2, ContainerInput.CLONE, player)
+        else ContainerClicks.input(screen.menu.containerId, slot)
     }
 
     private fun clickRubix(screen: ContainerScreen, slot: Int, leftReleased: Boolean, rightReleased: Boolean, player: net.minecraft.client.player.LocalPlayer) {
@@ -105,7 +106,7 @@ object TerminalOverlay : Module("Terminal Overlay", "Custom terminal overlay", C
             leftReleased && clicks < 0 || rightReleased && clicks > 0 -> 1
             else -> -1
         }
-        if (button >= 0) mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, button, ContainerInput.PICKUP, player)
+        if (button >= 0) ContainerClicks.input(screen.menu.containerId, slot, button, ContainerInput.PICKUP)
     }
 
     private fun detect(title: String): TerminalType? = when {

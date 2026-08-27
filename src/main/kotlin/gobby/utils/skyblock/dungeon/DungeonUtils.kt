@@ -1,11 +1,8 @@
 package gobby.utils.skyblock.dungeon
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.utils.ChatUtils.errorMessage
-import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
-import gobby.utils.PlayerUtils.rightClick
 import gobby.utils.Utils.equalsOneOf
 import gobby.utils.Utils.getBlockAtPos
 import gobby.utils.Utils.posX
@@ -16,9 +13,7 @@ import gobby.utils.VecUtils.rotateAroundNorth
 import gobby.utils.VecUtils.rotateToNorth
 import gobby.utils.VecUtils.subtractVec
 import gobby.utils.VecUtils.toBlockPos
-import gobby.utils.isHoldingSkyblockItem
 import gobby.utils.skyblockID
-import gobby.utils.swapToSkyblockItem
 import gobby.utils.skyblock.dungeon.tiles.Room
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.AbstractSkullBlock
@@ -27,7 +22,7 @@ import net.minecraft.world.level.block.entity.SkullBlockEntity
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.Vec3i
-import java.util.Base64
+import gobby.utils.textureJson
 
 object DungeonUtils {
 
@@ -97,8 +92,7 @@ object DungeonUtils {
     }
 
     fun isSecretSkull(skull: SkullBlockEntity): Boolean {
-        val texture = skull.ownerProfile?.partialProfile()?.properties?.get("textures")?.firstOrNull()?.value ?: return false
-        val decoded = runCatching { String(Base64.getDecoder().decode(texture)) }.getOrNull() ?: return false
+        val decoded = skull.ownerProfile?.textureJson() ?: return false
         return SECRET_SKULL_TEXTURES.any { it in decoded }
     }
 

@@ -18,7 +18,7 @@ object InputHandler {
         gui.numberEditSetting = null
         gui.stringEditSetting?.let { StringInput.commit(gui, it) }
 
-        gui.view?.let { return it.handleClick(gui, mx, my) }
+        gui.view?.let { return it.handleClick(gui, mx, my, button) }
 
         if (mx <= gui.panelX + SIDEBAR_W_SETTINGS) return SettingsSidebar.handleClick(gui, mx, my)
 

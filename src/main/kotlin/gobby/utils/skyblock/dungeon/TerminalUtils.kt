@@ -1,6 +1,5 @@
 package gobby.utils.skyblock.dungeon
 
-import gobby.Gobbyclient.Companion.mc
 import gobby.events.PacketReceivedEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.floor7.terminals.AutoTerminals
@@ -13,6 +12,8 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.world.inventory.ContainerInput
+import gobby.utils.MIDDLE_BUTTON
+import gobby.utils.ContainerClicks
 
 object TerminalUtils {
 
@@ -101,18 +102,14 @@ object TerminalUtils {
         return true
     }
 
-    fun clickSlot(syncId: Int, slotId: Int, button: Int = 2) {
-        val action = if (button == 2) ContainerInput.CLONE else ContainerInput.PICKUP
-        val player = mc.player ?: return
-        mc.gameMode?.handleContainerInput(syncId, slotId, button, action, player)
+    fun clickSlot(syncId: Int, slotId: Int, button: Int = MIDDLE_BUTTON) {
+        val action = if (button == MIDDLE_BUTTON) ContainerInput.CLONE else ContainerInput.PICKUP
+        ContainerClicks.input(syncId, slotId, button, action)
         clickClock.update()
         isFirstClick = false
     }
 
-    fun clickSlotDirect(syncId: Int, slotId: Int) {
-        val player = mc.player ?: return
-        mc.gameMode?.handleContainerInput(syncId, slotId, 2, ContainerInput.CLONE, player)
-    }
+    fun clickSlotDirect(syncId: Int, slotId: Int) = ContainerClicks.input(syncId, slotId)
 
     fun isItemDone(slot: Int, stack: ItemStack): Boolean =
         slot in clickedSlots || isTerminalItemDone(stack)
