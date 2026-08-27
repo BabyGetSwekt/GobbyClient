@@ -26,8 +26,10 @@ private const val FACE_SCALE = 8
 object FaceTextures {
 
     private val ready = ConcurrentHashMap.newKeySet<String>()
+    private val indexed = ConcurrentHashMap.newKeySet<String>()
 
     fun textureFor(folder: String, key: String): ResourceLocation? {
+        indexFolder(folder)
         if (cacheKey(folder, key) !in ready) return null
         val id = idOf(folder, key)
         TextureRegistry.ensureRegistered(id, fileFor(folder, key))
@@ -39,6 +41,7 @@ object FaceTextures {
      * dropping what nobody asks for any more.
      */
     fun sync(folder: String, skins: Map<String, String>) {
+        indexFolder(folder)
         val index = ConfigUtils.makeConfig("index", folder) { HashMap<String, String>() }
         val known = index.data
         known.keys.filterNot { it in skins }.forEach { forget(folder, it) }
@@ -48,6 +51,15 @@ object FaceTextures {
         val missing = skins.filterKeys { cacheKey(folder, it) !in ready }
         if (missing.isEmpty()) return
         CompletableFuture.runAsync { missing.forEach { (key, url) -> download(folder, key, url) } }
+    }
+
+    /**
+     * Picks up the faces an earlier session already downloaded, once per folder.
+     */
+    private fun indexFolder(folder: String) {
+        if (!indexed.add(folder)) return
+        ConfigUtils.directory(folder).listFiles { file -> file.extension == "png" }
+            ?.forEach { ready += cacheKey(folder, it.nameWithoutExtension) }
     }
 
     private fun forget(folder: String, key: String) {
