@@ -170,6 +170,7 @@ object ModuleManager {
         RenderHealth,
         ModIdHiderModule,
         PetsKeybind,
+        HideProfileId,
         Welcome
     ).forEach(EVENT_MANAGER::subscribe)
 }
