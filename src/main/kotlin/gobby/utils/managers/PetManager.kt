@@ -2,6 +2,7 @@ package gobby.utils.managers
 
 import gobby.Gobbyclient.Companion.logger
 import gobby.Gobbyclient.Companion.mc
+import gobby.events.ChatReceivedEvent
 import gobby.events.ClientTickEvent
 import gobby.events.KeyPressGuiEvent
 import gobby.events.PacketReceivedEvent
@@ -10,6 +11,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.features.skyblock.PetsKeybind
 import gobby.utils.ChatUtils
 import gobby.utils.ChatUtils.errorMessage
+import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ConfigUtils
 import gobby.utils.ContainerClicks
 import gobby.utils.LocationUtils
@@ -47,6 +49,7 @@ data class PetsData(
     var preventUnequip: Boolean = false,
     var closeIfEquipped: Boolean = false,
     var swapOutsideMenu: Boolean = false,
+    var equippedUuid: String = "",
     val pets: MutableList<PetEntry> = mutableListOf()
 )
 
@@ -62,10 +65,14 @@ object PetManager {
     private var ticks = 0
     private var quiet = 0
     private var pendingEquip: PetEntry? = null
+    private var awaitingSummon: PetEntry? = null
+    private var summonTicks = 0
 
     val pets: List<PetEntry> get() = config.data.pets
 
     val scanned: Boolean get() = config.data.lastScan != 0L
+
+    val equipped: PetEntry? get() = pets.firstOrNull { it.uuid == config.data.equippedUuid }
 
     val isScanning: Boolean get() = state != State.IDLE
 
@@ -92,6 +99,10 @@ object PetManager {
     }
 
     fun requestEquip(pet: PetEntry) {
+        if (equipped?.uuid == pet.uuid && (preventUnequip || closeIfEquipped)) {
+            if (preventUnequip) errorMessage("Pet already equipped!")
+            return
+        }
         val screen = petsScreen()
         if (screen != null) return equip(screen, pet)
         if (isScanning) return
@@ -129,11 +140,44 @@ object PetManager {
             screen.onClose()
             return errorMessage("Pet not found, refresh it")
         }
-        if (isEquipped(screen.menu.slots[slot].item)) {
+        val alreadyOn = isEquipped(screen.menu.slots[slot].item)
+        if (alreadyOn) {
+            rememberEquipped(pet.uuid)
             if (closeIfEquipped) return screen.onClose()
             if (preventUnequip) return errorMessage("Pet already equipped!")
         }
         ContainerClicks.pickup(screen.menu.containerId, slot)
+        if (alreadyOn) rememberEquipped("") else expectSummon(pet)
+    }
+
+    private fun expectSummon(pet: PetEntry) {
+        awaitingSummon = pet
+        summonTicks = 60
+    }
+
+    @SubscribeEvent
+    fun onChat(event: ChatReceivedEvent) {
+        val text = event.message.trim()
+        if (text.startsWith("You despawned your ")) return rememberEquipped("")
+        if (!text.startsWith("You summoned your ") || !text.endsWith("!")) return
+        val name = text.removeSurrounding("You summoned your ", "!")
+        val pet = awaitingSummon?.takeIf { it.name == name } ?: pets.filter { it.name == name }.singleOrNull()
+        rememberEquipped(pet?.uuid.orEmpty())
+        val ours = awaitingSummon ?: return
+        awaitingSummon = null
+        event.cancel()
+        modMessage("§aSummoned §6${ours.label}§a!")
+    }
+
+    private fun readEquippedFrom(screen: AbstractContainerScreen<*>) {
+        val items = PET_SLOTS.mapNotNull { screen.menu.slots.getOrNull(it)?.item?.takeUnless(ItemStack::isEmpty) }
+        if (items.isEmpty()) return
+        rememberEquipped(items.firstOrNull(::isEquipped)?.petId.orEmpty())
+    }
+
+    private fun rememberEquipped(uuid: String) {
+        if (config.data.equippedUuid == uuid) return
+        config.edit { this.equippedUuid = uuid }
     }
 
     private fun isEquipped(stack: ItemStack): Boolean =
@@ -181,11 +225,14 @@ object PetManager {
     private fun tryPendingEquip() {
         val pet = pendingEquip ?: return
         val hit = collected.entries.firstOrNull { it.value.petId == pet.uuid } ?: return
-        if (isEquipped(hit.value)) {
+        val alreadyOn = isEquipped(hit.value)
+        if (alreadyOn) {
+            rememberEquipped(pet.uuid)
             if (preventUnequip) errorMessage("Pet already equipped!")
             if (preventUnequip || closeIfEquipped) return closeAndReset()
         }
         ContainerClicks.pickup(syncId, hit.key)
+        if (alreadyOn) rememberEquipped("") else expectSummon(pet)
         closeAndReset()
     }
 
@@ -200,13 +247,14 @@ object PetManager {
             return closeAndReset()
         }
         val found = PET_SLOTS.mapNotNull { slot -> collected[slot]?.let(::toEntry) }
-        store(found)
+        store(found, collected.values.firstOrNull(::isEquipped)?.petId.orEmpty())
         FaceTextures.sync(PETS_FOLDER, collected.values.mapNotNull { stack -> stack.petId?.let { id -> stack.skinUrl?.let { id to it } } }.toMap())
         logger.info("[GobbyPets] scan done: {} filled pet slots, {} pets parsed", collected.size, found.size)
         closeAndReset()
     }
 
-    private fun store(found: List<PetEntry>) = config.edit {
+    private fun store(found: List<PetEntry>, equippedUuid: String) = config.edit {
+        this.equippedUuid = equippedUuid
         val keys = this.pets.associate { it.uuid to it.key }
         this.pets.clear()
         this.pets.addAll(found.map { it.copy(key = keys[it.uuid] ?: it.key) })
@@ -221,6 +269,8 @@ object PetManager {
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
+        if (awaitingSummon != null && --summonTicks <= 0) awaitingSummon = null
+        petsScreen()?.let(::readEquippedFrom)
         if (state == State.IDLE) return
         val expired = ++ticks > 100
         if (state != State.COLLECTING) return if (expired) reset() else Unit
@@ -228,7 +278,10 @@ object PetManager {
     }
 
     @SubscribeEvent
-    fun onWorldLoad(event: WorldLoadEvent) = reset()
+    fun onWorldLoad(event: WorldLoadEvent) {
+        awaitingSummon = null
+        reset()
+    }
 
     private fun reset() {
         state = State.IDLE

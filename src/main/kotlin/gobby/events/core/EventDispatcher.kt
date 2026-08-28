@@ -22,10 +22,11 @@ object EventDispatcher {
         when (val p = event.packet) {
             is ClientboundPingPacket -> Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent(p.id))
             is ClientboundSystemChatPacket -> {
-                if (!p.overlay() && Gobbyclient.EVENT_MANAGER.publish(ChatReceivedEvent(p.content().string)).isCanceled) {
+                val plain = p.content().string.noControlCodes
+                if (!p.overlay() && Gobbyclient.EVENT_MANAGER.publish(ChatReceivedEvent(plain)).isCanceled) {
                     ChatSuppressor.hide(p.content())
                 }
-                if (Gobbyclient.EVENT_MANAGER.publish(SystemChatReceivedEvent(p.content().string.noControlCodes, p.content(), p.overlay())).isCanceled) event.cancel()
+                if (Gobbyclient.EVENT_MANAGER.publish(SystemChatReceivedEvent(plain, p.content(), p.overlay())).isCanceled) event.cancel()
             }
             is ClientboundSoundPacket -> {
                 if (Gobbyclient.EVENT_MANAGER.publish(ClientSoundReceivedEvent(p.sound.value(), p.pitch, p.volume)).isCanceled) event.cancel()

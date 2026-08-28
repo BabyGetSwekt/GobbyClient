@@ -1,5 +1,6 @@
 package gobby.gui.click
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.utils.render.Animations
 import gobby.utils.render.CursorStyle
 import kotlin.math.abs
@@ -190,7 +191,7 @@ class ClickGUI : Screen(Component.literal("GobbyClient")) {
             lastHeight = height
         }
 
-        extractBlurredBackground(context)
+        if (mc.options.getMenuBackgroundBlurriness() < 1) context.blurBeforeThisStratum()
         fill(context, 0, 0, width, height, 0x66000000.toInt())
 
         val gmx = toGuiX(mouseX.toDouble())

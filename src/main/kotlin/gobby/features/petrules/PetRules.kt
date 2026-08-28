@@ -41,6 +41,7 @@ object PetRules {
     fun fire(category: TriggerCategory, option: String) {
         val rule = rules.firstOrNull { it.category == category.id && it.option == option } ?: return
         val pet = petFor(rule) ?: return modMessage("A pet rule points at a pet you no longer own")
+        if (PetManager.equipped?.uuid == pet.uuid) return
         pending = pet
         delay = getRandomInt(MIN_SWAP_DELAY, MAX_SWAP_DELAY)
     }
