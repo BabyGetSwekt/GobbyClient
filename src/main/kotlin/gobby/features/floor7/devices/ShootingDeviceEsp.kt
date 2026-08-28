@@ -4,7 +4,9 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.BlockStateChangeEvent
 import gobby.events.ChatReceivedEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.features.render.BlockHighlighter
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.render.BlockRenderUtils.draw3DBox
@@ -53,7 +55,8 @@ object ShootingDeviceEsp : BlockHighlighter() {
     }
 
     @SubscribeEvent
-    fun onRenderAimTarget(event: NewRender3DEvent) {
+    fun onRenderAimTarget(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!isEnabled()) return
 
         if (!AutoPre4.isPlateDown()) {

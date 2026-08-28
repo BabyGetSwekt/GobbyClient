@@ -2,7 +2,7 @@ package gobby.features.skyblock
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
@@ -16,7 +16,8 @@ object TerminatorAC : Module("Terminator Autoclick", "Automatically left clicks 
     private var nextClickTime = 0.0
 
     @SubscribeEvent
-    fun onRenderWorld(event: NewRender3DEvent) {
+    fun onRenderWorld(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         val player = mc.player ?: return
         if (mc.level == null || mc.gui.screen() != null || !enabled) return
         if (!player.mainHandItem.isHolding("TERMINATOR") || !mc.options.keyUse.isDown) return

@@ -10,7 +10,9 @@ import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.map.InteractiveMapScreen
 import gobby.pathfinder.etherwarp.EtherwarpNode
 import gobby.pathfinder.etherwarp.EtherwarpExecutionMode
@@ -76,19 +78,17 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
-        if (!enabled) return
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
+        if (!enabled || !pathDebug) return
         val path = pathPreview
-        if (path.size >= 2) {
-            (0 until path.size - 1).forEach { i ->
-                BlockRenderUtils.drawLine3D(event.matrixStack, event.camera, path[i].eye, path[i + 1].eye, PATH_LINE_COLOR)
-            }
-            if (pathDebug) path.forEach { node ->
-                val box = AABB(node.x - NODE_HALF, node.y - NODE_HALF, node.z - NODE_HALF, node.x + NODE_HALF, node.y + NODE_HALF, node.z + NODE_HALF)
-                BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, PATH_NODE_COLOR, filled = true)
-            }
+        path.zipWithNext { from, to ->
+            BlockRenderUtils.drawLine3D(event.matrixStack, event.camera, from.eye, to.eye, PATH_LINE_COLOR)
         }
-        if (!pathDebug) return
+        path.forEach { node ->
+            val box = AABB(node.x - NODE_HALF, node.y - NODE_HALF, node.z - NODE_HALF, node.x + NODE_HALF, node.y + NODE_HALF, node.z + NODE_HALF)
+            BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, PATH_NODE_COLOR, filled = true)
+        }
         missedNode?.let { n ->
             val box = AABB(n.x - MISS_HALF, n.y - MISS_HALF, n.z - MISS_HALF, n.x + MISS_HALF, n.y + MISS_HALF, n.z + MISS_HALF)
             BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, MISS_NODE_COLOR, filled = true)

@@ -6,7 +6,9 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -145,7 +147,8 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
 
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled || !inDungeons || !solver) return
         val nodes = path ?: return
         val done = Floor.entries.associateWith(::isFloorDone)
@@ -155,7 +158,7 @@ object IceFill : Module("Ice Fill", "Solves (and auto-completes) Ice Fill puzzle
         }
     }
 
-    private fun renderSegment(event: NewRender3DEvent, from: Vec3, to: Vec3) {
+    private fun renderSegment(event: Render3DEvent, from: Vec3, to: Vec3) {
         val color = colorAt(from.y)
         if (from.y == to.y) {
             drawLine3D(event.matrixStack, event.camera, from, to, color, depthTest = true)

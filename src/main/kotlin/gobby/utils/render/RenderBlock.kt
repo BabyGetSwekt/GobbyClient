@@ -1,7 +1,9 @@
 package gobby.utils.render
 
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import net.minecraft.client.Camera
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.core.BlockPos
@@ -31,7 +33,8 @@ object RenderBlock {
     }
 
     @SubscribeEvent
-    fun onRender(event: NewRender3DEvent) {
+    fun onRender(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         for (block in blocks) {
             renderBlock(event.matrixStack, event.camera, block)
         }

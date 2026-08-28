@@ -5,7 +5,9 @@ import gobby.events.PacketSentEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
 import gobby.events.network.ClientSoundReceivedEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.DropDownSetting
@@ -96,7 +98,8 @@ object Etherwarp : Module("Etherwarp", "Etherwarp highlighter, death prevention 
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled || !highlighter) return
         val player = mc.player ?: return
         if (!player.isShiftKeyDown || !player.mainHandItem.isEtherwarpable()) return

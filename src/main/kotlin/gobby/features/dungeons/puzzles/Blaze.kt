@@ -6,7 +6,7 @@ import gobby.events.SpawnParticleEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -51,19 +51,21 @@ object Blaze : Module("Blaze", "Highlights blaze kill order in blaze puzzle", Ca
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
-        if (!enabled || !inDungeons || !inBlazeRoom) return
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity || !enabled || !inDungeons || !inBlazeRoom) return
         val all = scanTargets()
         if (all.isEmpty()) return
 
+        val poseStack = event.context.poseStack()
+        val camera = mc.gameRenderer.mainCamera()
         all.forEachIndexed { i, mob ->
             val color = if (i < 3) COLORS[i] else WHITE
-            draw3DBox(event.matrixStack, event.camera, mob.boundingBox, color, filled = true, depthTest = false)
+            draw3DBox(poseStack, camera, mob.boundingBox, color, filled = true, depthTest = false)
         }
         all.take(3).zipWithNext().forEachIndexed { i, (a, b) ->
             val from = Interpolate.interpolateEntity(a).add(0.0, a.bbHeight / 2.0, 0.0)
             val to = Interpolate.interpolateEntity(b).add(0.0, b.bbHeight / 2.0, 0.0)
-            drawLine3D(event.matrixStack, event.camera, from, to, COLORS[i + 1], depthTest = false)
+            drawLine3D(poseStack, camera, from, to, COLORS[i + 1], depthTest = false)
         }
     }
 

@@ -7,7 +7,9 @@ import gobby.events.ClientTickEvent
 import gobby.events.KeyPressGuiEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.DropDownSetting
@@ -253,7 +255,8 @@ object SimonSays : Module(
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled) return
         val player = mc.player ?: return
         if (player.distanceToSqr(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) > 1600) return

@@ -3,7 +3,8 @@ package gobby.utils.rotation
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.renderTickCounter
 import gobby.utils.BowSimulator
 import gobby.utils.PlayerUtils.getEyePosition
 import gobby.utils.rotation.AngleUtils.calcAimAngles
@@ -127,7 +128,8 @@ object RotationUtils {
         if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
 
     @SubscribeEvent
-    fun onRender(event: NewRender3DEvent) {
+    fun onRender(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         val player = mc.player ?: return
         lastYaw = player.yRot
         lastPitch = player.xRot
@@ -135,7 +137,7 @@ object RotationUtils {
         renderEasing(player)
     }
 
-    private fun renderAimLock(player: net.minecraft.world.entity.player.Player, event: NewRender3DEvent): Boolean {
+    private fun renderAimLock(player: net.minecraft.world.entity.player.Player, event: Render3DEvent): Boolean {
         val target = aimLockTarget ?: return false
         if (!target.isAlive || target.isRemoved()) {
             aimLockTarget = null

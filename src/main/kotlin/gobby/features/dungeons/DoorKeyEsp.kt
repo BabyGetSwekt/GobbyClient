@@ -2,7 +2,9 @@ package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.LocationUtils.inDungeons
@@ -21,7 +23,8 @@ object DoorKeyEsp : Module("Door Key ESP", "Highlights a box around wither keys 
     private val bloodColor = Color(250, 0, 0, 51)
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled || !inDungeons) return
         val stands = mc.level?.entitiesForRendering()?.filterIsInstance<ArmorStand>() ?: return
         stands.forEach { label ->

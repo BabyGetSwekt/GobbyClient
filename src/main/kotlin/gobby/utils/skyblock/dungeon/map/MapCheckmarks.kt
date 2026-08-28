@@ -17,6 +17,7 @@ object MapCheckmarks {
     private const val ROOM_GREEN_MAX = 31
     private const val ROOM_UNOPENED: Byte = 85
     private const val ROOM_SPACING = 4
+    private val CONNECTOR_EDGE_INSET = listOf(1, -2)
     private const val ROOM_SIZE_MIN = 6
     private const val CHECK_WHITE_MIN = 33
     private const val CHECK_WHITE_MAX = 35
@@ -153,11 +154,46 @@ object MapCheckmarks {
     fun doorByte(col: Int, row: Int): Byte? {
         val state = mc.player?.let { findMapState(it) } ?: return null
         if (mapOffsetX < 0) return null
-        val mjx = mapOffsetX + (col / 2 - entranceCol) * roomGap + (col and 1) * roomPixelSize
-        val mjz = mapOffsetZ + (row / 2 - entranceRow) * roomGap + (row and 1) * roomPixelSize
-        val mdx = mjx + (row and 1) * roomPixelSize / 2
-        val mdz = mjz + (col and 1) * roomPixelSize / 2
-        return state.colors.getOrNull(mdx + mdz * MAP_SIZE)
+        return state.colors.pixel(originX(col) + (row and 1) * roomPixelSize / 2, originZ(row) + (col and 1) * roomPixelSize / 2)
+    }
+
+    private fun originX(col: Int): Int = mapOffsetX + (col / 2 - entranceCol) * roomGap + (col and 1) * roomPixelSize
+
+    private fun originZ(row: Int): Int = mapOffsetZ + (row / 2 - entranceRow) * roomGap + (row and 1) * roomPixelSize
+
+    private fun ByteArray.pixel(x: Int, z: Int): Byte? =
+        if (x !in 0 until MAP_SIZE || z !in 0 until MAP_SIZE) null else getOrNull(x + z * MAP_SIZE)
+
+    fun connectedRooms(col: Int, row: Int): Boolean? {
+        if (mapOffsetX < 0) return null
+        val alongZ = col % 2 != 0
+        val first = roomByte(if (alongZ) col - 1 else col, if (alongZ) row else row - 1) ?: return null
+        val second = roomByte(if (alongZ) col + 1 else col, if (alongZ) row else row + 1) ?: return null
+        if (first == EMPTY_COLOR || second == EMPTY_COLOR || first != second) return null
+        return connectorIsFilled(col, row, first)
+    }
+
+    private fun connectorIsFilled(col: Int, row: Int, roomColor: Byte): Boolean? {
+        val state = mc.player?.let { findMapState(it) } ?: return null
+        val alongZ = col % 2 != 0
+        val gapX = originX(col)
+        val gapZ = originZ(row)
+        return CONNECTOR_EDGE_INSET.all { inset ->
+            val offset = if (inset < 0) roomPixelSize + inset else inset
+            val px = if (alongZ) gapX else gapX + offset
+            val pz = if (alongZ) gapZ + offset else gapZ
+            state.colors.pixel(px, pz) == roomColor
+        }
+    }
+
+    fun hasRoomOnMap(col: Int, row: Int): Boolean? {
+        if (mapOffsetX < 0) return null
+        return roomByte(col, row)?.let { it != EMPTY_COLOR }
+    }
+
+    private fun roomByte(col: Int, row: Int): Byte? {
+        val state = mc.player?.let { findMapState(it) } ?: return null
+        return state.colors.pixel(originX(col) + roomPixelSize / 2, originZ(row) + roomPixelSize / 2)
     }
 
     fun debugInfo(): String {

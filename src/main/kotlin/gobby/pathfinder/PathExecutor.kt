@@ -4,7 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
 import gobby.pathfinder.movement.InputManager
 import gobby.pathfinder.prediction.JumpTracker
 import gobby.pathfinder.prediction.PredictionLogger
@@ -261,7 +261,8 @@ object PathExecutor {
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         val active = plan
         if (active is RoutePlan.Failed) return
         steering.applyYawEasing()

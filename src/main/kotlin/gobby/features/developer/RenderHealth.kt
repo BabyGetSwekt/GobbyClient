@@ -2,7 +2,9 @@ package gobby.features.developer
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.render.Interpolate
@@ -30,7 +32,8 @@ object RenderHealth : Module("Render Health", "Renders the current/max health on
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled) return
         val world = mc.level ?: return
         val player = mc.player ?: return

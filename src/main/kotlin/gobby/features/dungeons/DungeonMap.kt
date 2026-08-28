@@ -52,9 +52,22 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon.", 
 
     fun refreshState() {
         MapCheckmarks.update(grid, checkmarks, discovered)
+        if (scanMap()) preparePathfinder()
         MapDoors.updateFromMap(grid, openedDoors)
         markLocalRoom()
         updatePathRevision()
+    }
+
+    private fun scanMap(): Boolean {
+        if (!inDungeons || inBoss || isScanning) return false
+        isScanning = true
+        return try {
+            val complete = MapScanner.scan(grid)
+            hasScanned = hasScanned || complete
+            complete
+        } finally {
+            isScanning = false
+        }
     }
 
     private fun markLocalRoom() {
@@ -123,26 +136,23 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon.", 
 
     @SubscribeEvent
     fun onChunkLoad(event: ChunkLoadEvent) {
-        if (!inDungeons || inBoss || isScanning) return
-        isScanning = true
-        val scanComplete = MapScanner.scan(grid)
-        hasScanned = hasScanned || scanComplete
-        if (scanComplete) {
-            updatePathRevision()
-            val bounds = MapGrid.dungeonChunkBounds()
-            BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
-            if (warmedPathfinderRevision != revision && warmingPathfinderRevision != revision) {
-                val requestedRevision = revision
-                warmingPathfinderRevision = requestedRevision
-                EtherwarpPathfinder.preloadAsync(BlockCache.freeze(), grid.copyOf(), requestedRevision) { succeeded ->
-                    if (warmingPathfinderRevision != requestedRevision) return@preloadAsync
-                    warmingPathfinderRevision = Long.MIN_VALUE
-                    if (succeeded && revision == requestedRevision) warmedPathfinderRevision = requestedRevision
-                }
+        if (scanMap()) preparePathfinder()
+    }
+
+    private fun preparePathfinder() {
+        updatePathRevision()
+        val bounds = MapGrid.dungeonChunkBounds()
+        BlockCache.captureLoadedChunks(bounds[0], bounds[1], bounds[2], bounds[3])
+        if (warmedPathfinderRevision != revision && warmingPathfinderRevision != revision) {
+            val requestedRevision = revision
+            warmingPathfinderRevision = requestedRevision
+            EtherwarpPathfinder.preloadAsync(BlockCache.freeze(), grid.copyOf(), requestedRevision) { succeeded ->
+                if (warmingPathfinderRevision != requestedRevision) return@preloadAsync
+                warmingPathfinderRevision = Long.MIN_VALUE
+                if (succeeded && revision == requestedRevision) warmedPathfinderRevision = requestedRevision
             }
-            prewarmReachableRoutes()
         }
-        isScanning = false
+        prewarmReachableRoutes()
     }
 
     fun printGrid() {

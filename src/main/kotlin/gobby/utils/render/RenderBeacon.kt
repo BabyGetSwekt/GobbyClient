@@ -4,11 +4,14 @@ import gobby.utils.Utils.cameraPos
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.utils.render.BlockRenderUtils.buildLine3D
 import gobby.utils.timer.Clock
 import net.minecraft.client.gui.Font
 import net.minecraft.client.Camera
+import net.minecraft.client.renderer.SubmitNodeCollector
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.core.BlockPos
 import com.mojang.math.Axis
@@ -58,7 +61,8 @@ object RenderBeacon {
     }
 
     @SubscribeEvent
-    fun onRender(event: NewRender3DEvent) {
+    fun onRender(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (beacons.isEmpty()) return
 
         if (cleanupClock.hasTimePassed(30_000, setTime = true)) {
@@ -91,7 +95,7 @@ object RenderBeacon {
 
     private fun drawBeamLayer(
         matrixStack: PoseStack,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        collector: SubmitNodeCollector,
         x: Double,
         y: Double,
         z: Double,
@@ -102,7 +106,7 @@ object RenderBeacon {
         bottomAlpha: Float,
         topAlpha: Float
     ) {
-        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_QUADS) { pose, buffer ->
+        collector.submitGeometry(matrixStack, ItemBlockRenderTypes.ESP_QUADS) { pose, buffer ->
             for (index in 0 until SEGMENTS) {
                 val first = index * 2.0 * Math.PI / SEGMENTS
                 val second = (index + 1) * 2.0 * Math.PI / SEGMENTS
@@ -139,10 +143,10 @@ object RenderBeacon {
     private fun renderBeamOutline(
         matrixStack: PoseStack,
         camera: Camera,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        collector: SubmitNodeCollector,
         beacon: BeaconData
     ) {
-        collector.submitCustomGeometry(matrixStack, ItemBlockRenderTypes.ESP_LINES) { pose, buffer ->
+        collector.submitGeometry(matrixStack, ItemBlockRenderTypes.ESP_LINES) { pose, buffer ->
             val base = beacon.pos.y + 1.0
             val half = 0.3
             val x = beacon.pos.x + 0.5

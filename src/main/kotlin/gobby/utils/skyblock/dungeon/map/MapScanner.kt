@@ -12,6 +12,7 @@ object MapScanner {
 
     private const val CHUNK_SHIFT = 4
     private const val COORDS_PER_CELL = 2
+    private val SEAM_SAMPLES = listOf(-10, -5, 0, 5, 10)
 
     /**
      * Two-pass scan: rooms first at even grid positions, then gaps resolved by neighbors.
@@ -23,7 +24,7 @@ object MapScanner {
         var allLoaded = true
 
         MapGrid.roomCells.forEach { cell ->
-            if (grid[cell.index] !is MapTile.Empty) return@forEach
+            if (!isUnscanned(grid[cell.index])) return@forEach
             when (val scanned = scanRoomCell(world, cell)) {
                 ScanResult.ChunkMissing -> allLoaded = false
                 ScanResult.NoRoom -> Unit
@@ -31,7 +32,8 @@ object MapScanner {
             }
         }
 
-        RoomInference.infer(grid, ::isRoomFloor)
+        RoomInference.infer(grid, { col, row -> seamAt(grid, col, row) }, ::mapShowsRoom)
+        RoomInference.fillUnscanned(grid, { col, row -> seamAt(grid, col, row) }, ::mapShowsRoom)
 
         MapGrid.gapCells.forEach { cell ->
             if (grid[cell.index] !is MapTile.Empty) return@forEach
@@ -60,12 +62,37 @@ object MapScanner {
         return ScanResult.Found(MapTile.Room(roomData, core))
     }
 
-    private fun isRoomFloor(col: Int, row: Int): Boolean {
-        val world = mc.level ?: return false
-        val x = MapGrid.worldX(col)
-        val z = MapGrid.worldZ(row)
-        if (world.chunkSource.getChunk(x shr CHUNK_SHIFT, z shr CHUNK_SHIFT, false) == null) return false
-        return DungeonDoorDetector.isOpenFloor(x, z) { world.getBlockState(it) }
+    internal fun isUnscanned(tile: MapTile): Boolean =
+        tile is MapTile.Empty || (tile is MapTile.Room && (tile.data.name == UNKNOWN_ROOM_NAME || tile.core == MapConstants.UNKNOWN_CORE))
+
+    private fun mapShowsRoom(col: Int, row: Int): Boolean = MapCheckmarks.hasRoomOnMap(col, row) == true
+
+    private fun seamAt(grid: Array<MapTile>, col: Int, row: Int): SeamState {
+        if (isDistinctRoomBoundary(grid, col, row)) return SeamState.BLOCKED
+        MapCheckmarks.connectedRooms(col, row)?.let { return if (it) SeamState.CONNECTED else SeamState.BLOCKED }
+        return seamInWorld(col, row)
+    }
+
+    internal fun isDistinctRoomBoundary(grid: Array<MapTile>, col: Int, row: Int): Boolean {
+        val rooms = if (col % CELL_STRIDE != 0) {
+            listOf(roomAt(grid, col - 1, row), roomAt(grid, col + 1, row))
+        } else {
+            listOf(roomAt(grid, col, row - 1), roomAt(grid, col, row + 1))
+        }
+        return rooms.all { it != null } && rooms[0]!!.data !== rooms[1]!!.data
+    }
+
+    private fun seamInWorld(col: Int, row: Int): SeamState {
+        val world = mc.level ?: return SeamState.UNKNOWN
+        val alongZ = col % CELL_STRIDE != 0
+        var open = true
+        SEAM_SAMPLES.forEach { offset ->
+            val x = MapGrid.worldX(col) + if (alongZ) 0 else offset
+            val z = MapGrid.worldZ(row) + if (alongZ) offset else 0
+            if (world.chunkSource.getChunk(x shr CHUNK_SHIFT, z shr CHUNK_SHIFT, false) == null) return SeamState.UNKNOWN
+            if (!DungeonDoorDetector.isOpenFloor(x, z) { world.getBlockState(it) }) open = false
+        }
+        return if (open) SeamState.CONNECTED else SeamState.BLOCKED
     }
 
     private fun resolveGap(grid: Array<MapTile>, col: Int, row: Int): MapTile? {
@@ -89,11 +116,12 @@ object MapScanner {
             roomAt(grid, col - 1, row + 1), roomAt(grid, col + 1, row + 1)
         )
         val first = corners.firstOrNull() ?: return null
+        if (first.data.name == UNKNOWN_ROOM_NAME) return null
         val shared = corners.all { it != null && it.data === first.data }
         return if (shared) MapTile.Connection(first.data) else null
     }
 
-    private fun resolveNeighbors(roomA: MapTile.Room?, roomB: MapTile.Room?, col: Int, row: Int): MapTile? {
+    internal fun resolveNeighbors(roomA: MapTile.Room?, roomB: MapTile.Room?, col: Int, row: Int): MapTile? {
         if (roomA == null && roomB == null) return null
         if (roomA != null && roomB != null && roomA.data === roomB.data) return MapTile.Connection(roomA.data)
         return detectDoor(col, row)

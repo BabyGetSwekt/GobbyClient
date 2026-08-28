@@ -2,7 +2,9 @@ package gobby.features.dungeons
 
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.LocationUtils.inDungeons
 import gobby.utils.render.BlockRenderUtils.draw3DBox
@@ -33,7 +35,8 @@ object EtherwarpEsp {
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!isEnabled() || positions.isEmpty()) return
         val color = EtherwarpTriggerbot.espColor
         positions.forEach { pos ->

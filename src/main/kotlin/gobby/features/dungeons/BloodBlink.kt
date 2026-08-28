@@ -3,7 +3,7 @@ package gobby.features.dungeons
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.*
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
 import gobby.gui.click.*
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
@@ -189,8 +189,8 @@ object BloodBlink : Module("Blood Blink", "Auto navigates to the Blood Room", Ca
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
-        if (!enabled) return
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity || !enabled) return
         val room = startRoom ?: ScanUtils.currentRoom ?: return
         if (room.data.type != RoomType.ENTRANCE) return
         BloodBlinkSupport.renderSlabs(event, room)

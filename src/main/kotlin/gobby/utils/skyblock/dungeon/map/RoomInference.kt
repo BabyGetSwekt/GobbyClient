@@ -1,31 +1,105 @@
 package gobby.utils.skyblock.dungeon.map
 
 import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_STRIDE
+import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
 import gobby.utils.skyblock.dungeon.tiles.RoomData
+import gobby.utils.skyblock.dungeon.tiles.RoomType
 
 private const val COORDS_PER_CELL = 2
+const val UNKNOWN_ROOM_NAME = ""
+
+enum class SeamState { CONNECTED, BLOCKED, UNKNOWN }
+
+private const val MAX_ROOM_CELLS = 4
 
 internal object RoomInference {
 
-    fun infer(grid: Array<MapTile>, isRoomFloor: (Int, Int) -> Boolean) {
-        while (inferencePass(grid, isRoomFloor)) continue
+    fun infer(grid: Array<MapTile>, seamAt: (Int, Int) -> SeamState, mapHasRoom: (Int, Int) -> Boolean?) {
+        while (inferencePass(grid, seamAt, mapHasRoom)) continue
     }
 
-    private fun inferencePass(grid: Array<MapTile>, isRoomFloor: (Int, Int) -> Boolean): Boolean =
-        MapGrid.roomCells.fold(false) { changed, cell -> inferCell(grid, cell, isRoomFloor) || changed }
+    fun fillUnscanned(grid: Array<MapTile>, seamAt: (Int, Int) -> SeamState, mapHasRoom: (Int, Int) -> Boolean) {
+        MapGrid.roomCells.forEach { cell ->
+            if (grid[cell.index] !is MapTile.Empty || !mapHasRoom(cell.col, cell.row)) return@forEach
+            val linked = unscannedComponent(grid, cell, seamAt, mapHasRoom)
+            if (linked.size > MAX_ROOM_CELLS) {
+                linked.forEach { grid[it] = MapTile.Room(unknownRoom(1), MapConstants.UNKNOWN_CORE) }
+                return@forEach
+            }
+            val data = unknownRoom(linked.size)
+            linked.forEach { grid[it] = MapTile.Room(data, MapConstants.UNKNOWN_CORE) }
+        }
+    }
 
-    private fun inferCell(grid: Array<MapTile>, cell: GridCell, isRoomFloor: (Int, Int) -> Boolean): Boolean {
+    private fun unscannedComponent(
+        grid: Array<MapTile>,
+        start: GridCell,
+        seamAt: (Int, Int) -> SeamState,
+        mapHasRoom: (Int, Int) -> Boolean
+    ): Set<Int> {
+        val found = linkedSetOf(start.index)
+        val queue = ArrayDeque(listOf(start.col to start.row))
+        while (queue.isNotEmpty()) {
+            val (col, row) = queue.removeFirst()
+            neighbours(col, row).forEach { (target, gap) ->
+                val (nextCol, nextRow) = target
+                if (!MapGrid.inRange(nextCol, nextRow)) return@forEach
+                val index = MapGrid.index(nextCol, nextRow)
+                if (index in found || grid[index] !is MapTile.Empty) return@forEach
+                if (!mapHasRoom(nextCol, nextRow) || seamAt(gap.first, gap.second) != SeamState.CONNECTED) return@forEach
+                found += index
+                queue += nextCol to nextRow
+            }
+        }
+        return found
+    }
+
+    private fun unknownRoom(cells: Int): RoomData =
+        RoomData(UNKNOWN_ROOM_NAME, RoomType.NORMAL, emptyList(), 0, 0, 0, shapeFor(cells))
+
+    private fun shapeFor(size: Int): String = when (size) {
+        2 -> "1x2"
+        3 -> "L"
+        4 -> "2x2"
+        else -> "1x1"
+    }
+
+    private fun neighbours(col: Int, row: Int): List<Pair<Pair<Int, Int>, Pair<Int, Int>>> = listOf(
+        (col - CELL_STRIDE to row) to (col - 1 to row),
+        (col + CELL_STRIDE to row) to (col + 1 to row),
+        (col to row - CELL_STRIDE) to (col to row - 1),
+        (col to row + CELL_STRIDE) to (col to row + 1)
+    )
+
+    private fun inferencePass(grid: Array<MapTile>, seamAt: (Int, Int) -> SeamState, mapHasRoom: (Int, Int) -> Boolean?): Boolean =
+        MapGrid.roomCells.fold(false) { changed, cell -> inferCell(grid, cell, seamAt, mapHasRoom) || changed }
+
+    private fun inferCell(grid: Array<MapTile>, cell: GridCell, seamAt: (Int, Int) -> SeamState, mapHasRoom: (Int, Int) -> Boolean?): Boolean {
         val room = grid[cell.index] as? MapTile.Room ?: return false
-        val known = cluster(grid, cell, room.data)
+        val known = cluster(grid, cell, room.data, seamAt)
         if (known.size >= shapeSize(room.data.shape)) return false
         val arrangements = getArrangements(room.data.shape, cell.col, cell.row) ?: return false
-        val block = arrangements.singleOrNull { candidate ->
-            blockIndices(candidate).containsAll(known) &&
-                isValidBlock(grid, room.data, candidate) &&
-                !wouldBlockOtherRoom(grid, room.data, candidate) &&
-                gapsAreRoomFloor(candidate, isRoomFloor)
-        } ?: return false
+        val block = selectArrangement(grid, room.data, known, arrangements, mapHasRoom) ?: return false
         return fillEmptyCells(grid, room.data, block).isNotEmpty()
+    }
+
+    private fun selectArrangement(
+        grid: Array<MapTile>,
+        data: RoomData,
+        known: Set<Int>,
+        arrangements: List<IntArray>,
+        mapHasRoom: (Int, Int) -> Boolean?
+    ): IntArray? {
+        val valid = arrangements.filter { candidate ->
+            blockIndices(candidate).containsAll(known) &&
+                isValidBlock(grid, data, candidate)
+        }
+        val mapMatches = valid.filter { matchesMap(it, mapHasRoom) }
+        return when {
+            mapMatches.size == 1 -> mapMatches.single()
+            valid.size == 1 -> valid.single()
+            else -> null
+        }
     }
 
     private fun shapeSize(shape: String): Int = when (shape) {
@@ -35,20 +109,21 @@ internal object RoomInference {
         else -> 1
     }
 
-    private fun cluster(grid: Array<MapTile>, start: GridCell, data: RoomData): Set<Int> {
+    private fun cluster(grid: Array<MapTile>, start: GridCell, data: RoomData, seamAt: (Int, Int) -> SeamState): Set<Int> {
         val found = linkedSetOf(start.index)
         val queue = ArrayDeque(listOf(start.col to start.row))
         while (queue.isNotEmpty()) {
             val (col, row) = queue.removeFirst()
-            listOf(col - CELL_STRIDE to row, col + CELL_STRIDE to row, col to row - CELL_STRIDE, col to row + CELL_STRIDE)
-                .filter { (c, r) -> MapGrid.inRange(c, r) }
-                .forEach { (c, r) ->
-                    val index = MapGrid.index(c, r)
-                    if (index !in found && (grid[index] as? MapTile.Room)?.data === data) {
-                        found += index
-                        queue += c to r
-                    }
+            neighbours(col, row).forEach { (target, gap) ->
+                val (nextCol, nextRow) = target
+                if (!MapGrid.inRange(nextCol, nextRow)) return@forEach
+                val index = MapGrid.index(nextCol, nextRow)
+                if (index in found || seamAt(gap.first, gap.second) != SeamState.CONNECTED) return@forEach
+                if ((grid[index] as? MapTile.Room)?.data === data) {
+                    found += index
+                    queue += nextCol to nextRow
                 }
+            }
         }
         return found
     }
@@ -56,23 +131,19 @@ internal object RoomInference {
     private fun blockIndices(block: IntArray): List<Int> =
         (block.indices step COORDS_PER_CELL).map { MapGrid.index(block[it], block[it + 1]) }
 
+    private fun matchesMap(block: IntArray, mapHasRoom: (Int, Int) -> Boolean?): Boolean =
+        (block.indices step COORDS_PER_CELL).all { slot ->
+            mapHasRoom(block[slot], block[slot + 1]) != false
+        }
+
     private fun fillEmptyCells(grid: Array<MapTile>, data: RoomData, block: IntArray): List<Int> =
-        blockIndices(block).filter { grid[it] is MapTile.Empty }
+        blockIndices(block).filter { isMissing(grid[it]) }
             .onEach { grid[it] = MapTile.Room(data, MapConstants.UNKNOWN_CORE) }
 
-
-    private fun wouldBlockOtherRoom(grid: Array<MapTile>, data: RoomData, block: IntArray): Boolean {
-        val tentative = fillEmptyCells(grid, data, block)
-        val blocked = MapGrid.roomCells.any { cell -> leavesNoArrangement(grid, data, cell) }
-        tentative.forEach { grid[it] = MapTile.Empty }
-        return blocked
-    }
-
-    private fun leavesNoArrangement(grid: Array<MapTile>, data: RoomData, cell: GridCell): Boolean {
-        val other = grid[cell.index] as? MapTile.Room ?: return false
-        if (other.data === data) return false
-        val arrangements = getArrangements(other.data.shape, cell.col, cell.row) ?: return false
-        return arrangements.none { isValidBlock(grid, other.data, it) }
+    private fun isMissing(tile: MapTile): Boolean = when (tile) {
+        MapTile.Empty -> true
+        is MapTile.Room -> tile.data.name == UNKNOWN_ROOM_NAME
+        else -> false
     }
 
 
@@ -133,14 +204,7 @@ internal object RoomInference {
     private fun cellAllows(grid: Array<MapTile>, data: RoomData, col: Int, row: Int): Boolean {
         if (!MapGrid.inRange(col, row)) return false
         val tile = grid[MapGrid.index(col, row)]
-        return tile !is MapTile.Room || tile.data === data
+        return tile !is MapTile.Room || tile.data === data || tile.data.name == UNKNOWN_ROOM_NAME
     }
 
-    private fun gapsAreRoomFloor(block: IntArray, isRoomFloor: (Int, Int) -> Boolean): Boolean {
-        val cells = (block.indices step COORDS_PER_CELL).map { block[it] to block[it + 1] }.toHashSet()
-        return cells.all { (col, row) ->
-            ((col + CELL_STRIDE to row) !in cells || isRoomFloor(col + 1, row)) &&
-                ((col to row + CELL_STRIDE) !in cells || isRoomFloor(col, row + 1))
-        }
-    }
 }

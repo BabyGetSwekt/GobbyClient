@@ -43,7 +43,6 @@
     "render.MixinEntityRenderState",
     "render.MixinEntityRenderer",
     "render.MixinHud",
-    "render.MixinLevelRenderer",
     "render.MixinLightmapRenderStateExtractor",
     "render.MixinLivingEntityRenderer",
     "render.MixinScreenEffectRenderer",

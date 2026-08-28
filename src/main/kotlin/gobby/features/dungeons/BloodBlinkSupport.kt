@@ -1,6 +1,8 @@
 package gobby.features.dungeons
 
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.skyblock.dungeon.map.MapConstants
 import gobby.utils.skyblock.dungeon.map.MapTile
@@ -16,7 +18,7 @@ internal object BloodBlinkSupport {
             .mapNotNull { (row, col) -> bloodTarget(grid, row, col) }
             .firstOrNull()
 
-    fun renderSlabs(event: NewRender3DEvent, room: Room) {
+    fun renderSlabs(event: Render3DEvent, room: Room) {
         BloodBlink.Slab.entries.forEach { slab ->
             val position = room.getRealCoords(slab.offset)
             val box = AABB(

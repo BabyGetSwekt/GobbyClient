@@ -3,7 +3,10 @@ package gobby.features.render
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ServerTickEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
+import gobby.events.render.renderTickCounter
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.ColorSetting
@@ -52,7 +55,8 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled) return
         val player = mc.player ?: return
         val held = player.mainHandItem.takeUnless { it.isEmpty } ?: return
@@ -68,7 +72,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
         }
     }
 
-    private fun renderBow(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3, isShortbow: Boolean, isTerminator: Boolean) {
+    private fun renderBow(event: Render3DEvent, yaw: Float, pitch: Float, eye: Vec3, isShortbow: Boolean, isTerminator: Boolean) {
         if (isTerminator) {
             TERMINATOR_OFFSETS.forEach { offset ->
                 val origin = if (offset == 0f) eye else eye.subtract(0.0, SIDE_ARROW_Y_DROP, 0.0)
@@ -83,7 +87,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
         renderHit(event, outcome)
     }
 
-    private fun renderPearl(event: NewRender3DEvent, yaw: Float, pitch: Float, eye: Vec3) {
+    private fun renderPearl(event: Render3DEvent, yaw: Float, pitch: Float, eye: Vec3) {
         val origin = eye.add(handOffset(yaw))
         val outcome = BowSimulator.simulate(origin, AngleUtils.directionFromAngles(yaw, pitch).scale(BowSimulator.PEARL_VELOCITY), BowSimulator.PEARL_GRAVITY, simulationTicks, checkEntities = false)
         renderTrail(event, outcome.trail)
@@ -95,7 +99,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
         return Vec3(-cos(rad) * HAND_LATERAL, -HAND_Y_DROP, -sin(rad) * HAND_LATERAL)
     }
 
-    private fun renderHit(event: NewRender3DEvent, outcome: BowSimulator.Outcome) {
+    private fun renderHit(event: Render3DEvent, outcome: BowSimulator.Outcome) {
         outcome.hitEntity?.let { entity ->
             draw3DBox(event.matrixStack, event.camera, entity.boundingBox, boxColor, filled = false, depthTest = true)
             return
@@ -105,7 +109,7 @@ object Trajectory : Module("Trajectory", "Renders the predicted impact box of bo
         }
     }
 
-    private fun renderTrail(event: NewRender3DEvent, trail: List<Vec3>) =
+    private fun renderTrail(event: Render3DEvent, trail: List<Vec3>) =
         trail.zipWithNext { a, b -> drawLine3D(event.matrixStack, event.camera, a, b, lineColor, depthTest = true) }
 
     private fun currentBowVelocity(): Double {

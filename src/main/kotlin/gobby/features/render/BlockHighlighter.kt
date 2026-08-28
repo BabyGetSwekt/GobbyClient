@@ -3,7 +3,9 @@ package gobby.features.render
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ChunkLoadEvent
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.events.util.ChunkScopedCache
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
@@ -88,7 +90,8 @@ abstract class BlockHighlighter : ChunkScopedCache() {
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!isEnabled()) return
         val world = mc.level ?: return
 

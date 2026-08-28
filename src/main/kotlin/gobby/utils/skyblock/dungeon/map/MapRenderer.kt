@@ -78,6 +78,7 @@ object MapRenderer {
     }
 
     private fun roomFill(data: RoomData, discovered: Boolean, legit: Boolean): Int = when {
+        data.name == UNKNOWN_ROOM_NAME -> COL_UNKNOWN.rgb
         discovered || data.type == RoomType.ENTRANCE -> roomColor(data).rgb
         legit -> COL_UNKNOWN.rgb
         else -> dim(roomColor(data)).rgb

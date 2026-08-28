@@ -36,11 +36,11 @@ object EventDispatcher {
 
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
-        if (event.message == "Here, I found this map when I first entered the dungeon") {
+        if (event.message.contains("Here, I found this map when I first entered the dungeon")) {
             Gobbyclient.EVENT_MANAGER.publish(DungeonStartEvent(LocationUtils.dungeonFloor, LocationUtils.masterMode))
         }
         val floor = LocationUtils.dungeonFloor
-        if (floor == -1 ) return
+        if (floor == -1) return
         val dialogues = endDialogues[floor] ?: return
         if (event.message in dialogues) Gobbyclient.EVENT_MANAGER.publish(RunFinishedEvent())
     }

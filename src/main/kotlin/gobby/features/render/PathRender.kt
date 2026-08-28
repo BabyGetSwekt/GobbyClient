@@ -2,7 +2,9 @@ package gobby.features.render
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.core.SubscribeEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.pathfinder.PathExecutor
 import gobby.pathfinder.prediction.JumpTracker
 import gobby.utils.render.BlockRenderUtils
@@ -19,7 +21,8 @@ object PathRender {
     private const val PREDICTION_NODE_SIZE = 0.06
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!PathExecutor.running()) return
 
         val waypoints = PathExecutor.currentWaypoints()
@@ -32,13 +35,14 @@ object PathRender {
         drawPredictionNodes(event)
     }
 
-    private fun drawPredictionNodes(event: NewRender3DEvent) {
+    private fun drawPredictionNodes(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         for (tickPos in JumpTracker.renderPositions()) {
             BlockRenderUtils.drawNode(event.matrixStack, event.camera, tickPos, PREDICTION_NODE_SIZE, PREDICTION_COLOR)
         }
     }
 
-    private fun drawPathLines(event: NewRender3DEvent, waypoints: List<Vec3>, cursor: Int) {
+    private fun drawPathLines(event: Render3DEvent, waypoints: List<Vec3>, cursor: Int) {
         if (cursor < waypoints.size) {
             mc.player?.position()?.let { playerPos ->
                 BlockRenderUtils.drawLine3D(event.matrixStack, event.camera, playerPos, waypoints[cursor], UPCOMING_COLOR, depthTest = false)
@@ -49,7 +53,7 @@ object PathRender {
         }
     }
 
-    private fun drawPathNodes(event: NewRender3DEvent, waypoints: List<Vec3>, cursor: Int) {
+    private fun drawPathNodes(event: Render3DEvent, waypoints: List<Vec3>, cursor: Int) {
         val firstIndex = cursor.coerceAtLeast(0)
         for (index in firstIndex until waypoints.size) {
             val waypoint = waypoints[index]

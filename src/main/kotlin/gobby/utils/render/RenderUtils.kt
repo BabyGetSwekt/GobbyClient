@@ -4,12 +4,27 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.utils.Utils.cameraPos
 import net.minecraft.client.gui.Font
 import net.minecraft.client.Camera
+import net.minecraft.client.renderer.SubmitNodeCollection
 import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.feature.CustomFeatureRenderer
+import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.network.chat.Component
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
+
+private const val DEFAULT_SUBMIT_ORDER = 0
+
+fun SubmitNodeCollector.submitGeometry(
+    matrixStack: PoseStack,
+    layer: RenderType,
+    renderer: SubmitNodeCollector.CustomGeometryRenderer
+) {
+    val alwaysOnTop = (order(DEFAULT_SUBMIT_ORDER) as? SubmitNodeCollection)?.alwaysOnTop
+    if (alwaysOnTop == null || !ItemBlockRenderTypes.drawsOverTerrain(layer)) return submitCustomGeometry(matrixStack, layer, renderer)
+    alwaysOnTop.submit(CustomFeatureRenderer.Submit(matrixStack.last().copy(), layer, renderer))
+}
 
 object RenderUtils {
 

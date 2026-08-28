@@ -2,6 +2,8 @@ package gobby.utils.render
 
 import gobby.utils.Utils.cameraPos
 import net.minecraft.client.Camera
+import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.rendertype.RenderType
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.world.phys.AABB
@@ -44,12 +46,12 @@ object BlockRenderUtils {
 
     private fun submitBoxFaces(
         matrixStack: PoseStack,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
-        layer: net.minecraft.client.renderer.rendertype.RenderType,
+        collector: SubmitNodeCollector,
+        layer: RenderType,
         box: AABB,
         rgba: FloatArray
     ) {
-        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+        collector.submitGeometry(matrixStack, layer) { pose, buffer ->
             addBoxFaces(pose, buffer, box, rgba)
         }
     }
@@ -85,12 +87,12 @@ object BlockRenderUtils {
     private fun submitBoxEdges(
         matrixStack: PoseStack,
         camera: Camera,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
-        layer: net.minecraft.client.renderer.rendertype.RenderType,
+        collector: SubmitNodeCollector,
+        layer: RenderType,
         box: AABB,
         color: Color
     ) {
-        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+        collector.submitGeometry(matrixStack, layer) { pose, buffer ->
             buildLine3D(pose, camera, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color)
             buildLine3D(pose, camera, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color)
             buildLine3D(pose, camera, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color)
@@ -155,7 +157,7 @@ object BlockRenderUtils {
     ) {
         val collector = RenderUtils.frameCollector ?: return
         val layer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
-        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+        collector.submitGeometry(matrixStack, layer) { pose, buffer ->
             buildLine3D(pose, camera, buffer, x1, y1, z1, x2, y2, z2, color)
         }
     }
@@ -210,7 +212,7 @@ object BlockRenderUtils {
 
     private fun submitCylinderSurface(
         matrixStack: PoseStack,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        collector: SubmitNodeCollector,
         depthTest: Boolean,
         segments: Int,
         center: Vec3,
@@ -223,7 +225,7 @@ object BlockRenderUtils {
         rgba: FloatArray
     ) {
         val layer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
-        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+        collector.submitGeometry(matrixStack, layer) { pose, buffer ->
             for (index in 0 until segments) {
                 val first = cylinderPoint(center, radiusX, radiusZ, cosValues[index], sinValues[index])
                 val second = cylinderPoint(center, radiusX, radiusZ, cosValues[index + 1], sinValues[index + 1])
@@ -253,7 +255,7 @@ object BlockRenderUtils {
 
     private fun submitCylinderOutline(
         matrixStack: PoseStack,
-        collector: net.minecraft.client.renderer.SubmitNodeCollector,
+        collector: SubmitNodeCollector,
         depthTest: Boolean,
         segments: Int,
         center: Vec3,
@@ -266,7 +268,7 @@ object BlockRenderUtils {
         rgba: FloatArray
     ) {
         val layer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
-        collector.submitCustomGeometry(matrixStack, layer) { pose, buffer ->
+        collector.submitGeometry(matrixStack, layer) { pose, buffer ->
             for (index in 0 until segments) {
                 val first = cylinderPoint(center, radiusX, radiusZ, cosValues[index], sinValues[index])
                 val second = cylinderPoint(center, radiusX, radiusZ, cosValues[index + 1], sinValues[index + 1])
@@ -297,7 +299,7 @@ object BlockRenderUtils {
         val sinValues = DoubleArray(segments + 1) { i -> sin(2.0 * PI * i / segments) }
         val apexOffset = brimOffset + height
         val quadsLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
-        collector.submitCustomGeometry(matrixStack, quadsLayer) { pose, buf ->
+        collector.submitGeometry(matrixStack, quadsLayer) { pose, buf ->
             val local = Vector3f()
 
             fun v(lx: Double, ly: Double, lz: Double, c: Color) {

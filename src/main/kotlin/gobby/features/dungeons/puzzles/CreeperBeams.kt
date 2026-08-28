@@ -6,7 +6,9 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.events.dungeon.RoomEnterEvent
-import gobby.events.render.NewRender3DEvent
+import gobby.events.render.Render3DEvent
+import gobby.events.render.camera
+import gobby.events.render.matrixStack
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -182,7 +184,8 @@ object CreeperBeams : Module("Creeper Beams", "Draws and auto-solves the creeper
     }
 
     @SubscribeEvent
-    fun onRender3D(event: NewRender3DEvent) {
+    fun onRender3D(event: Render3DEvent) {
+        if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!enabled || !inDungeons || !inRoom) return
         val world = mc.level ?: return
         beams.forEachIndexed { i, beam ->
