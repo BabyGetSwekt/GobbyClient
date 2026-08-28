@@ -31,7 +31,7 @@ object MapScanner {
             }
         }
 
-        inferRooms(grid)
+        RoomInference.infer(grid, ::isRoomFloor)
 
         MapGrid.gapCells.forEach { cell ->
             if (grid[cell.index] !is MapTile.Empty) return@forEach
@@ -60,127 +60,12 @@ object MapScanner {
         return ScanResult.Found(MapTile.Room(roomData, core))
     }
 
-    /**
-     * Infers missing cells for multi-cell rooms by elimination.
-     * For each scanned room cell, generates all possible arrangements for its shape,
-     * eliminates arrangements where any position has a different room,
-     * and fills in empty cells if only 1 valid arrangement remains.
-     * Loops until no more changes (cascading inference).
-     */
-
-    private fun inferRooms(grid: Array<MapTile>) {
-        while (inferencePass(grid)) Unit
-    }
-
-    private fun inferencePass(grid: Array<MapTile>): Boolean =
-        MapGrid.roomCells.fold(false) { changed, cell -> inferCell(grid, cell) || changed }
-
-    private fun inferCell(grid: Array<MapTile>, cell: GridCell): Boolean {
-        val room = grid[cell.index] as? MapTile.Room ?: return false
-        val arrangements = getArrangements(room.data.shape, cell.col, cell.row) ?: return false
-        val block = arrangements.singleOrNull { candidate ->
-            isValidBlock(grid, room.data, candidate) && !wouldBlockOtherRoom(grid, room.data, candidate) && !crossesDoor(candidate)
-        } ?: return false
-        return fillEmptyCells(grid, room.data, block).isNotEmpty()
-    }
-
-    private fun blockIndices(block: IntArray): List<Int> =
-        (block.indices step COORDS_PER_CELL).map { MapGrid.index(block[it], block[it + 1]) }
-
-    private fun fillEmptyCells(grid: Array<MapTile>, data: RoomData, block: IntArray): List<Int> =
-        blockIndices(block).filter { grid[it] is MapTile.Empty }
-            .onEach { grid[it] = MapTile.Room(data, MapConstants.UNKNOWN_CORE) }
-
-    /**
-     * Lookahead: tentatively fills a block, then checks if any other scanned
-     * multi-cell room would have 0 valid arrangements left. If so, this
-     * arrangement is invalid — it would block another room.
-     */
-
-    private fun wouldBlockOtherRoom(grid: Array<MapTile>, data: RoomData, block: IntArray): Boolean {
-        val tentative = fillEmptyCells(grid, data, block)
-        val blocked = MapGrid.roomCells.any { cell -> leavesNoArrangement(grid, data, cell) }
-        tentative.forEach { grid[it] = MapTile.Empty }
-        return blocked
-    }
-
-    private fun leavesNoArrangement(grid: Array<MapTile>, data: RoomData, cell: GridCell): Boolean {
-        val other = grid[cell.index] as? MapTile.Room ?: return false
-        if (other.data === data) return false
-        val arrangements = getArrangements(other.data.shape, cell.col, cell.row) ?: return false
-        return arrangements.none { isValidBlock(grid, other.data, it) }
-    }
-
-    /** Generates all possible arrangements for a room shape at a given cell position. */
-
-    private fun getArrangements(shape: String, col: Int, row: Int): List<IntArray>? {
-        return when (shape) {
-            "1x2" -> buildLinearArrangements(2, col, row)
-            "1x3" -> buildLinearArrangements(3, col, row)
-            "1x4" -> buildLinearArrangements(4, col, row)
-            "2x2" -> listOf(
-                intArrayOf(col, row, col + 2, row, col, row + 2, col + 2, row + 2),
-                intArrayOf(col - 2, row, col, row, col - 2, row + 2, col, row + 2),
-                intArrayOf(col, row - 2, col + 2, row - 2, col, row, col + 2, row),
-                intArrayOf(col - 2, row - 2, col, row - 2, col - 2, row, col, row),
-            )
-            "L" -> buildLArrangements(col, row)
-            else -> null // 1x1: no inference
-        }
-    }
-
-    /** Builds all horizontal + vertical arrangements for a 1xN linear room. */
-
-    private fun buildLinearArrangements(size: Int, col: Int, row: Int): List<IntArray> =
-        (0 until size).map { offset -> horizontalRun(size, col - offset * CELL_STRIDE, row) } +
-            (0 until size).map { offset -> verticalRun(size, col, row - offset * CELL_STRIDE) }
-
-    private fun horizontalRun(size: Int, startCol: Int, row: Int): IntArray =
-        IntArray(size * COORDS_PER_CELL) { slot -> if (isColumnSlot(slot)) startCol + cellOfSlot(slot) * CELL_STRIDE else row }
-
-    private fun verticalRun(size: Int, col: Int, startRow: Int): IntArray =
-        IntArray(size * COORDS_PER_CELL) { slot -> if (isColumnSlot(slot)) col else startRow + cellOfSlot(slot) * CELL_STRIDE }
-
-    private fun isColumnSlot(slot: Int): Boolean = slot % COORDS_PER_CELL == 0
-
-    private fun cellOfSlot(slot: Int): Int = slot / COORDS_PER_CELL
-
-    /** Builds all 12 possible L-shape arrangements for a cell at (col, row). */
-
-    private fun buildLArrangements(col: Int, row: Int): List<IntArray> {
-        val list = mutableListOf<IntArray>()
-        list.add(intArrayOf(col, row, col + 2, row, col, row + 2))       // right + down
-        list.add(intArrayOf(col, row, col + 2, row, col, row - 2))       // right + up
-        list.add(intArrayOf(col, row, col - 2, row, col, row + 2))       // left + down
-        list.add(intArrayOf(col, row, col - 2, row, col, row - 2))       // left + up
-
-        list.add(intArrayOf(col - 2, row, col, row, col - 2, row + 2))   // corner left, arm down
-        list.add(intArrayOf(col - 2, row, col, row, col - 2, row - 2))   // corner left, arm up
-        list.add(intArrayOf(col + 2, row, col, row, col + 2, row + 2))   // corner right, arm down
-        list.add(intArrayOf(col + 2, row, col, row, col + 2, row - 2))   // corner right, arm up
-
-        list.add(intArrayOf(col, row - 2, col + 2, row - 2, col, row))   // corner above, arm right
-        list.add(intArrayOf(col, row - 2, col - 2, row - 2, col, row))   // corner above, arm left
-        list.add(intArrayOf(col, row + 2, col + 2, row + 2, col, row))   // corner below, arm right
-        list.add(intArrayOf(col, row + 2, col - 2, row + 2, col, row))   // corner below, arm left
-        return list
-    }
-
-    private fun isValidBlock(grid: Array<MapTile>, data: RoomData, block: IntArray): Boolean =
-        (block.indices step COORDS_PER_CELL).all { slot -> cellAllows(grid, data, block[slot], block[slot + 1]) }
-
-    private fun cellAllows(grid: Array<MapTile>, data: RoomData, col: Int, row: Int): Boolean {
-        if (!MapGrid.inRange(col, row)) return false
-        val tile = grid[MapGrid.index(col, row)]
-        return tile !is MapTile.Room || tile.data === data
-    }
-
-    private fun crossesDoor(block: IntArray): Boolean {
-        val cells = (block.indices step COORDS_PER_CELL).map { block[it] to block[it + 1] }.toHashSet()
-        return cells.any { (col, row) ->
-            (col + CELL_STRIDE to row) in cells && detectDoor(col + 1, row) != null ||
-                (col to row + CELL_STRIDE) in cells && detectDoor(col, row + 1) != null
-        }
+    private fun isRoomFloor(col: Int, row: Int): Boolean {
+        val world = mc.level ?: return false
+        val x = MapGrid.worldX(col)
+        val z = MapGrid.worldZ(row)
+        if (world.chunkSource.getChunk(x shr CHUNK_SHIFT, z shr CHUNK_SHIFT, false) == null) return false
+        return DungeonDoorDetector.isOpenFloor(x, z) { world.getBlockState(it) }
     }
 
     private fun resolveGap(grid: Array<MapTile>, col: Int, row: Int): MapTile? {

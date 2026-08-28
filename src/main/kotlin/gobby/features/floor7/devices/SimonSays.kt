@@ -15,19 +15,24 @@ import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.ChatUtils.partyMessage
-import gobby.utils.PlayerUtils
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.render.BlockRenderUtils.drawRing
 import gobby.utils.render.RenderUtils.drawStringInWorld
+import gobby.mixinterface.IInteractionManagerAccessor
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.timer.Clock
+import net.minecraft.core.Direction
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
+import kotlin.random.Random
 
 object SimonSays : Module(
     "Simon Says", "Features for the Simon Says device on F7/M7.",
@@ -47,11 +52,16 @@ object SimonSays : Module(
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val autoStartDelay by NumberSetting("Autostart Delay", 125, 50, 200, 1, desc = "Delay for starting SS in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
+    private val faster by BooleanSetting("Faster", false, desc = "Clicks without waiting for the device to report ready, after the first click")
+        .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val drawStartPos by BooleanSetting("Draw Start Position", false, desc = "Draws a ring on where you have to stand in order for auto SS to start")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val startSSKeybind by KeybindSetting("Start SS", desc = "Manually starts the SS sequence (example of when you want to press this, is when you were not in time infront of the Device for it to auto start)")
         .withDependency(autoSSDropdown)
     private val sendSSBrokeKeybind by KeybindSetting("Send SS Broke", desc = "Sends 'SS Broke' in party chat")
+
+    private const val JITTER_PERMILLE = 1136
+    private const val PERMILLE = 1000
 
     private val START_BUTTON = BlockPos(110, 121, 91)
     private const val START_RANGE_SQ = 25.0
@@ -70,6 +80,7 @@ object SimonSays : Module(
     private var clicked = false
     private var rotating = false
     private var startStep = 0
+    private var startJitter = 0
 
     private fun buttonBox(pos: BlockPos): AABB = AABB(
         pos.x + 0.875, pos.y + 0.375, pos.z + 0.3125,
@@ -88,6 +99,7 @@ object SimonSays : Module(
         clicked = false
         rotating = false
         startStep = 0
+        startJitter = 0
     }
 
     private fun reset() {
@@ -104,11 +116,23 @@ object SimonSays : Module(
         rotating = true
         val buttonFace = Vec3(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5)
         RotationUtils.easeToVec(buttonFace, rotationDelay.toLong()) {
-            PlayerUtils.rightClick()
+            pressButton(pos)
             clock.update()
             rotating = false
             onClicked?.invoke()
         }
+    }
+
+    private fun pressButton(pos: BlockPos) {
+        val player = mc.player ?: return
+        val world = mc.level ?: return
+        val hit = BlockHitResult(Vec3(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5), Direction.WEST, pos, false)
+        val accessor = mc.gameMode as? IInteractionManagerAccessor ?: return
+        accessor.`gobbyclient$syncSelectedSlot`()
+        accessor.`gobbyclient$sendSequencedPacket`(world) { sequence ->
+            ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, hit, sequence)
+        }
+        player.swing(InteractionHand.MAIN_HAND)
     }
 
     private fun start() {
@@ -121,7 +145,7 @@ object SimonSays : Module(
 
     private fun tickStartSequence() {
         if (startStep == 0) return
-        if (!startClock.hasTimePassed(autoStartDelay.toLong())) return
+        if (!startClock.hasTimePassed(autoStartDelay.toLong() + startJitter)) return
         if (rotating || RotationUtils.isEasing) return
 
         when (startStep) {
@@ -130,6 +154,9 @@ object SimonSays : Module(
                 clickBlock(START_BUTTON)
                 startStep++
                 startClock.update()
+                startJitter = (autoStartDelay * JITTER_PERMILLE / PERMILLE - autoStartDelay).coerceAtLeast(0).let {
+                    if (it <= 0) 0 else Random.nextInt(0, it + 1)
+                }
             }
             3 -> {
                 doingSS = true
@@ -152,14 +179,17 @@ object SimonSays : Module(
     @SubscribeEvent
     fun onChat(event: ChatReceivedEvent) {
         if (!enabled || !autoSSEnabled || !autoStart) return
-        if (!event.message.contains("[BOSS] Goldor: Who dares trespass into my domain?")) return
+        if (!event.message.lowercase().contains("who dares trespass into my domain")) return
         start()
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Pre) {
         if (!enabled || !autoSSEnabled || mc.level == null || mc.player == null) return
-        if (!isInRange()) return
+        if (!isInRange()) {
+            if (doingSS || clicked || startStep > 0 || autoClicks.isNotEmpty()) reset()
+            return
+        }
 
         if (startStep > 0) {
             if (startClock.hasTimePassed(autoStartDelay.toLong())) tickStartSequence()
@@ -180,7 +210,7 @@ object SimonSays : Module(
         }
 
         val detect = mc.level?.getBlockState(BlockPos(110, 123, 92))?.block
-        if ((detect == Blocks.STONE_BUTTON || autoDoneFirst) && doingSS) {
+        if ((detect == Blocks.STONE_BUTTON || (faster && autoDoneFirst)) && doingSS) {
             if (!autoDoneFirst && autoClicks.size == 3) {
                 autoClicks.removeFirst()
             }

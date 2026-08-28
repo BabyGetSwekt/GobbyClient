@@ -21,6 +21,9 @@ object DungeonDoorDetector {
         return if (hasDoorArch(x, z, stateAt)) MapTile.Door(DoorType.NORMAL) else null
     }
 
+    fun isOpenFloor(x: Int, z: Int, stateAt: (BlockPos) -> BlockState?): Boolean =
+        stateAt(BlockPos(x, DOOR_BLOCK_Y, z))?.isAir == true && !hasDoorArch(x, z, stateAt)
+
     private fun hasDoorArch(x: Int, z: Int, stateAt: (BlockPos) -> BlockState?): Boolean =
         (DOOR_BLOCK_Y + 1 until DOOR_ARCH_Y).all { stateAt(BlockPos(x, it, z))?.isAir == true } &&
             stateAt(BlockPos(x, DOOR_ARCH_Y, z))?.isAir == false

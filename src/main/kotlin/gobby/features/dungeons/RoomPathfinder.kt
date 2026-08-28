@@ -7,7 +7,6 @@ import gobby.pathfinder.etherwarp.EtherwarpPathfinder
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.BooleanSetting
-import gobby.gui.click.NumberSetting
 import gobby.gui.click.Category
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
@@ -43,7 +42,6 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
     private val rotateInstead by BooleanSetting("Rotate Instead", false, desc = "Rotates the client view during rapid casts").withDependency { zeroPing }
     private val serverRotate by BooleanSetting("Server Rotate", false, desc = "Sends rapid casts through the server rotation lease").withDependency { zeroPing && !rotateInstead }
     private val rotateWaitServerTick by BooleanSetting("Wait For Server Tick", true, desc = "Waits for a fresh server tick before rotation-mode casts").withDependency { zeroPing && (rotateInstead || serverRotate) }
-    private val zeroPingDelay by NumberSetting("Zero Ping Delay", 0, 0, 200, 1, desc = "Delay between rapid casts in milliseconds").withDependency { zeroPing }
     private val rotationVariance by BooleanSetting("Rotation Variance", false, desc = "Uses safe per-hop aim variance during execution")
     private val teleportSmoothing by BooleanSetting("Teleport Smoothing", false, desc = "Smooths the visual transition after authoritative teleports").withDependency { zeroPing }
     private val keepLastServerRotation by BooleanSetting("Keep Last Server Rotation", false, desc = "Keeps the final server rotation after a server-rotate route").withDependency { serverRotate }
@@ -74,7 +72,7 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
         EtherwarpExecutionSettings.teleportSmoothingEnabled = teleportSmoothing
         EtherwarpExecutionSettings.keepLastServerRotationEnabled = keepLastServerRotation
         EtherwarpExecutionSettings.rotateWaitServerTickEnabled = rotateWaitServerTick
-        EtherwarpExecutionSettings.setRapidCastSpacingMillis(zeroPingDelay.toLong())
+        EtherwarpExecutionSettings.setRapidCastSpacingMillis(0)
     }
 
     @SubscribeEvent
@@ -85,11 +83,12 @@ object RoomPathfinder : Module("Room Pathfinder", "Opens an interactive map when
             (0 until path.size - 1).forEach { i ->
                 BlockRenderUtils.drawLine3D(event.matrixStack, event.camera, path[i].eye, path[i + 1].eye, PATH_LINE_COLOR)
             }
-            path.forEach { node ->
+            if (pathDebug) path.forEach { node ->
                 val box = AABB(node.x - NODE_HALF, node.y - NODE_HALF, node.z - NODE_HALF, node.x + NODE_HALF, node.y + NODE_HALF, node.z + NODE_HALF)
                 BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, PATH_NODE_COLOR, filled = true)
             }
         }
+        if (!pathDebug) return
         missedNode?.let { n ->
             val box = AABB(n.x - MISS_HALF, n.y - MISS_HALF, n.z - MISS_HALF, n.x + MISS_HALF, n.y + MISS_HALF, n.z + MISS_HALF)
             BlockRenderUtils.draw3DBox(event.matrixStack, event.camera, box, MISS_NODE_COLOR, filled = true)
