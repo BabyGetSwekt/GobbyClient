@@ -1,6 +1,7 @@
 package gobby.mixin;
 
 import gobby.features.developer.DrawSlotNumbers;
+import gobby.features.dungeons.TrashItems;
 import gobby.features.dungeons.LeapOverlay;
 import gobby.features.floor7.terminals.TerminalOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -14,6 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractContainerScreen.class)
 public class MixinAbstractContainerScreen {
+
+	@Inject(method = "extractSlots", at = @At("HEAD"))
+	private void gobbyclient$onDrawSlotBackgrounds(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
+		TrashItems.INSTANCE.onDrawSlotBackgrounds((AbstractContainerScreen<?>)(Object)this, context);
+	}
 
 	@Inject(method = "extractSlots", at = @At("RETURN"))
 	private void gobbyclient$onDrawSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {

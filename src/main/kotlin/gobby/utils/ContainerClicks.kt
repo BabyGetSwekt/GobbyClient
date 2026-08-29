@@ -33,6 +33,8 @@ object ContainerClicks {
         mc.gameMode?.handleContainerInput(syncId, slot, button, action, player)
     }
 
+    fun quickMove(syncId: Int, slot: Int) = input(syncId, slot, LEFT_BUTTON, ContainerInput.QUICK_MOVE)
+
     fun clone(menu: AbstractContainerMenu, slot: Int) {
         val connection = mc.connection ?: return
         val player = mc.player ?: return

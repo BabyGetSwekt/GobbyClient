@@ -123,6 +123,7 @@ object ModuleManager {
         DungeonMap,
         RoomPathfinder,
         DoorKeyEsp,
+        TrashItems,
         Etherwarp,
         EtherwarpTriggerbot,
         Brush,
