@@ -31,6 +31,28 @@ val DataComponentHolder.getItemUUID: String?
         return uuid.ifEmpty { null }
     }
 
+val DataComponentHolder.starCount: Int
+    get() = this.getItemData.getIntOr("upgrade_level", 0)
+
+val DataComponentHolder.isRecombobulated: Boolean
+    get() = this.getItemData.getIntOr("rarity_upgrades", 0) > 0
+
+val DataComponentHolder.itemQuality: Int
+    get() = this.getItemData.getIntOr("baseStatBoostPercentage", 0)
+
+data class PotionEffect(val effect: String, val level: Int, val durationTicks: Int)
+
+val DataComponentHolder.potionEffects: List<PotionEffect>
+    get() = this.getItemData.getListOrEmpty("effects").compoundStream().map {
+        PotionEffect(it.getStringOr("effect", ""), it.getIntOr("level", 0), it.getIntOr("duration_ticks", 0))
+    }.toList()
+
+val DataComponentHolder.isSplashPotion: Boolean
+    get() = this.getItemData.getIntOr("splash", 0) > 0
+
+fun DataComponentHolder.hasPotionEffect(effect: String, level: Int): Boolean =
+    this.potionEffects.any { it.effect == effect && it.level == level }
+
 fun DataComponentHolder.isHolding(id: String): Boolean =
     this.skyblockID == id
 
