@@ -5,7 +5,9 @@ import gobby.features.petrules.PetRules
 import gobby.features.skyblock.PetsKeybind
 import gobby.gui.click.*
 import gobby.utils.render.CursorStyle
+import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.resources.Identifier as ResourceLocation
 import org.lwjgl.glfw.GLFW
 
 private const val ROW_RADIUS = 5
@@ -15,6 +17,7 @@ private const val SCROLL_STEP = 26f
 private const val POPUP_RADIUS = 6
 private const val POPUP_HEAD_PAD = 8
 private const val TEXT_PAD = 6
+private const val HEAD_PAD = 3
 
 internal object PetRulesView : SearchableView() {
 
@@ -50,9 +53,17 @@ internal object PetRulesView : SearchableView() {
     private fun drawRow(ctx: GuiGraphicsExtractor, rule: PetRule, r: Rect, mx: Int, my: Int) {
         val hovered = (mx to my) in r
         GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, ROW_RADIUS, if (hovered) cIconTile else cCard, cCardEdge)
-        drawLabel(ctx, PetRulesLayout.whenRect(r), "When: ${PetRules.labelOf(rule)}", cInk)
-        drawLabel(ctx, PetRulesLayout.petRect(r), PetRules.petFor(rule)?.label ?: "Pet not found", cInkSoft)
+        drawCheck(ctx, rule, PetRulesLayout.checkRect(r), mx, my)
+        drawLabel(ctx, PetRulesLayout.whenRect(r), "When: ${PetRules.labelOf(rule)}", if (rule.enabled) cInk else cInkFaint)
+        drawLabel(ctx, PetRulesLayout.petRect(r), PetRules.petFor(rule)?.label ?: "Pet not found", if (rule.enabled) cInkSoft else cInkFaint)
         drawTrash(ctx, PetRulesLayout.trashRect(r), mx, my)
+    }
+
+    private fun drawCheck(ctx: GuiGraphicsExtractor, rule: PetRule, r: Rect, mx: Int, my: Int) {
+        val hovered = (mx to my) in r
+        CursorStyle.requestHandIf(hovered)
+        val tint = if (rule.enabled) cViolet else if (hovered) cInkSoft else cInkFaint
+        GobbyTextures.checkbox(ctx, r.x, r.y, r.w, rule.enabled, tint)
     }
 
     private fun drawLabel(ctx: GuiGraphicsExtractor, r: Rect, text: String, color: Int) {
@@ -85,7 +96,8 @@ internal object PetRulesView : SearchableView() {
         val visible = PetRulesLayout.popupVisibleRows(popup)
         val offset = PetRulesList.pickerScroll
         rows.drop(offset).take(visible).forEachIndexed { index, label ->
-            drawPickerRow(ctx, PetRulesLayout.popupRowRect(popup, index + offset, offset), label, mx, my)
+            val absolute = index + offset
+            drawPickerRow(ctx, PetRulesLayout.popupRowRect(popup, absolute, offset), label, PetRulesList.pickerIcon(absolute), mx, my)
         }
         if (rows.isEmpty()) drawTextScaled(ctx, popup.x + POPUP_HEAD_PAD, popup.y + headH + POPUP_HEAD_PAD * 2, "Nothing to choose", SETTINGS_VALUE_SCALE, cInkGhost, false)
         PetRulesLayout.popupBarRect(popup, rows.size, offset)?.let {
@@ -93,13 +105,16 @@ internal object PetRulesView : SearchableView() {
         }
     }
 
-    private fun drawPickerRow(ctx: GuiGraphicsExtractor, r: Rect, label: String, mx: Int, my: Int) {
+    private fun drawPickerRow(ctx: GuiGraphicsExtractor, r: Rect, label: String, icon: ResourceLocation?, mx: Int, my: Int) {
         val hovered = (mx to my) in r
         CursorStyle.requestHandIf(hovered)
         GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, ROW_RADIUS, if (hovered) cVioletSoft else cValueBox, if (hovered) cViolet else cCardEdge)
+        val head = r.h - HEAD_PAD * 2
+        icon?.let { ctx.blit(RenderPipelines.GUI_TEXTURED, it, r.x + HEAD_PAD, r.y + HEAD_PAD, 0f, 0f, head, head, head, head, -1) }
+        val left = r.x + TEXT_PAD + if (icon == null) 0 else head + HEAD_PAD
         val h = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
-        ctx.enableScissor(r.x + TEXT_PAD, r.y, r.x + r.w - TEXT_PAD, r.y + r.h)
-        drawTextScaled(ctx, r.x + TEXT_PAD, r.y + (r.h - h) / 2, label, SETTINGS_VALUE_SCALE, cInk, false)
+        ctx.enableScissor(left, r.y, r.x + r.w - TEXT_PAD, r.y + r.h)
+        drawTextScaled(ctx, left, r.y + (r.h - h) / 2, label, SETTINGS_VALUE_SCALE, cInk, false)
         ctx.disableScissor()
     }
 
@@ -147,7 +162,12 @@ internal object PetRulesView : SearchableView() {
 
     private fun clickRow(gui: ClickGUI, mx: Int, my: Int): Boolean {
         val hit = PetRulesList.visibleRules().withIndex().firstOrNull { (mx to my) in PetRulesLayout.rowRect(gui, it.index) } ?: return false
-        if ((mx to my) !in PetRulesLayout.trashRect(PetRulesLayout.rowRect(gui, hit.index))) return false
+        val row = PetRulesLayout.rowRect(gui, hit.index)
+        if ((mx to my) in PetRulesLayout.checkRect(row)) {
+            PetRules.toggle(hit.value)
+            return true
+        }
+        if ((mx to my) !in PetRulesLayout.trashRect(row)) return false
         PetRulesList.delete(hit.value)
         return true
     }

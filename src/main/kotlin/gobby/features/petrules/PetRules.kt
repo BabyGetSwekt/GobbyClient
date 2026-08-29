@@ -1,8 +1,10 @@
 package gobby.features.petrules
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ClientTickEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
+import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ConfigUtils
 import gobby.utils.Utils.getRandomInt
@@ -13,7 +15,7 @@ import gobby.utils.managers.PetManager
 private const val MIN_SWAP_DELAY = 3
 private const val MAX_SWAP_DELAY = 7
 
-data class PetRule(val category: String = "", val option: String = "", val petUuid: String = "")
+data class PetRule(val category: String = "", val option: String = "", val petUuid: String = "", var enabled: Boolean = true)
 
 data class PetRulesData(val rules: MutableList<PetRule> = mutableListOf())
 
@@ -23,8 +25,9 @@ object PetRules {
 
     private var pending: PetEntry? = null
     private var delay = 0
+    private var attempts = 0
 
-    val categories: List<TriggerCategory> = listOf(DungeonStart)
+    val categories: List<TriggerCategory> = listOf(DungeonStart, BossSpawn)
 
     val rules: List<PetRule> get() = config.data.rules
 
@@ -32,31 +35,49 @@ object PetRules {
 
     fun remove(rule: PetRule) = config.edit { this.rules.remove(rule) }
 
+    fun toggle(rule: PetRule) = config.edit { rule.enabled = !rule.enabled }
+
     fun petFor(rule: PetRule): PetEntry? = PetManager.pets.firstOrNull { it.uuid == rule.petUuid }
 
     fun categoryOf(rule: PetRule): TriggerCategory? = categories.firstOrNull { it.id == rule.category }
 
     fun labelOf(rule: PetRule): String = categoryOf(rule)?.optionById(rule.option)?.label ?: "Unknown trigger"
 
-    fun fire(category: TriggerCategory, option: String) {
-        val rule = rules.firstOrNull { it.category == category.id && it.option == option } ?: return
-        val pet = petFor(rule) ?: return modMessage("A pet rule points at a pet you no longer own")
-        if (PetManager.equipped?.uuid == pet.uuid) return
+    fun fire(category: TriggerCategory, option: String): Boolean {
+        val rule = rules.firstOrNull { it.category == category.id && it.option == option && it.enabled } ?: return false
+        val pet = petFor(rule) ?: return true.also { modMessage("A pet rule points at a pet you no longer own") }
+        if (pending != null) return true
+        if (PetManager.equipped?.uuid == pet.uuid) return true
         pending = pet
         delay = getRandomInt(MIN_SWAP_DELAY, MAX_SWAP_DELAY)
+        attempts = 0
+        return true
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         val pet = pending ?: return
-        if (--delay > 0) return
-        pending = null
-        PetManager.requestEquip(pet)
+        if (delay > 0) {
+            delay--
+            return
+        }
+        if (PetManager.equipped?.uuid == pet.uuid) return clearPending()
+        if (PetManager.isSwapping || mc.gui.screen() != null) return
+        if (attempts >= 3) {
+            clearPending()
+            return errorMessage("Could not swap to ${pet.label}")
+        }
+        attempts++
+        delay = getRandomInt(MIN_SWAP_DELAY, MAX_SWAP_DELAY)
+        PetManager.requestEquip(pet, announce = false)
     }
 
     @SubscribeEvent
-    fun onWorldLoad(event: WorldLoadEvent) {
+    fun onWorldLoad(event: WorldLoadEvent) = clearPending()
+
+    private fun clearPending() {
         pending = null
         delay = 0
+        attempts = 0
     }
 }

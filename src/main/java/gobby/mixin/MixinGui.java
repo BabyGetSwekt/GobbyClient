@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Gui.class)
 public class MixinGui {
 
-    @Inject(method = "setScreen(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("TAIL"))
-    private void gobbyclient$onSetScreen(Screen screen, CallbackInfo info) {
+    @Inject(method = "setScreen(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"), cancellable = true)
+    private void gobbyclient$onSetScreen(Screen screen, CallbackInfo ci) {
         if (screen == null) return;
-        Gobbyclient.EVENT_MANAGER.publish(new GuiOpenEvent(screen));
+        if (Gobbyclient.EVENT_MANAGER.publish(new GuiOpenEvent(screen)).isCanceled()) ci.cancel();
     }
 }

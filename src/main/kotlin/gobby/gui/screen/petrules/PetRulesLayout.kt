@@ -9,6 +9,7 @@ internal const val ROW_GAP = 4
 internal const val ROW_H = 24
 private const val ROW_PAD = 8
 private const val TRASH_W = 14
+private const val CHECK_SIZE = 12
 private const val ADD_SHARE = 3
 private const val BAR_PARTS = 4
 private const val SCROLL_TAIL = 6
@@ -45,8 +46,10 @@ internal object PetRulesLayout {
         return Rect(trashRect(r).x - COL_GAP - width, r.y, width, r.h)
     }
 
+    fun checkRect(r: Rect) = Rect(r.x + ROW_PAD, r.y + (r.h - CHECK_SIZE) / 2, CHECK_SIZE, CHECK_SIZE)
+
     fun whenRect(r: Rect): Rect {
-        val left = r.x + ROW_PAD
+        val left = checkRect(r).let { it.x + it.w + COL_GAP }
         return Rect(left, r.y, (petRect(r).x - COL_GAP - left).coerceAtLeast(WHEN_MIN_W), r.h)
     }
 

@@ -9,7 +9,10 @@ import gobby.gui.click.ClickGUI
 import gobby.gui.click.TextField
 import gobby.utils.Utils.executeLater
 import gobby.utils.managers.PetEntry
+import gobby.utils.managers.PETS_FOLDER
 import gobby.utils.managers.PetManager
+import gobby.utils.render.FaceTextures
+import net.minecraft.resources.Identifier as ResourceLocation
 
 private fun searchText(raw: String): String =
     raw.lowercase().filter { it.isLetterOrDigit() || it in " -_" }
@@ -33,6 +36,10 @@ internal object PetRulesList {
 
     var pickerScroll = 0
         private set
+
+    fun pickerIcon(index: Int): ResourceLocation? =
+        if (step != PickerStep.PET) null
+        else PetManager.pets.getOrNull(index)?.let { FaceTextures.textureFor(PETS_FOLDER, it.uuid) }
 
     fun close() {
         searchFocused = false

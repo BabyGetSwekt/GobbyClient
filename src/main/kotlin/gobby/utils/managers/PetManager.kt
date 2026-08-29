@@ -7,11 +7,13 @@ import gobby.events.ClientTickEvent
 import gobby.events.KeyPressGuiEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
+import gobby.events.gui.GuiOpenEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.skyblock.PetsKeybind
 import gobby.utils.ChatUtils
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
+import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.ConfigUtils
 import gobby.utils.ContainerClicks
 import gobby.utils.LocationUtils
@@ -21,6 +23,7 @@ import gobby.utils.render.FaceTextures
 import gobby.utils.skinUrl
 import gobby.utils.stringOrNull
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
@@ -29,6 +32,10 @@ import net.minecraft.world.item.ItemStack
 const val PETS_FOLDER = "pets"
 
 private val PET_SLOTS: List<Int> = listOf(10..16, 19..25, 28..34, 37..43).flatten()
+
+private val PETS_TITLE = Regex("""^(\(\d+/\d+\) )?Pets$""")
+
+private fun isPetsTitle(title: String): Boolean = PETS_TITLE.matches(title.noControlCodes.trim())
 
 private val ItemStack.petId: String?
     get() = itemDataJson("petInfo")?.stringOrNull("uniqueId")
@@ -46,7 +53,7 @@ data class PetEntry(
 
 data class PetsData(
     var lastScan: Long = 0L,
-    var preventUnequip: Boolean = false,
+    var preventUnequip: Boolean = true,
     var closeIfEquipped: Boolean = false,
     var swapOutsideMenu: Boolean = false,
     var equippedUuid: String = "",
@@ -67,6 +74,7 @@ object PetManager {
     private var pendingEquip: PetEntry? = null
     private var awaitingSummon: PetEntry? = null
     private var summonTicks = 0
+    private var petsRequested = 0
 
     val pets: List<PetEntry> get() = config.data.pets
 
@@ -75,6 +83,8 @@ object PetManager {
     val equipped: PetEntry? get() = pets.firstOrNull { it.uuid == config.data.equippedUuid }
 
     val isScanning: Boolean get() = state != State.IDLE
+
+    val isSwapping: Boolean get() = isScanning || awaitingSummon != null
 
     var preventUnequip: Boolean
         get() = config.data.preventUnequip
@@ -98,9 +108,9 @@ object PetManager {
         return open()
     }
 
-    fun requestEquip(pet: PetEntry) {
-        if (equipped?.uuid == pet.uuid && (preventUnequip || closeIfEquipped)) {
-            if (preventUnequip) errorMessage("Pet already equipped!")
+    fun requestEquip(pet: PetEntry, announce: Boolean = true) {
+        if (equipped?.uuid == pet.uuid) {
+            if (announce && preventUnequip) errorMessage("Pet already equipped!")
             return
         }
         val screen = petsScreen()
@@ -114,12 +124,19 @@ object PetManager {
     private fun open(): Boolean {
         state = State.WAITING_SCREEN
         ticks = 0
+        petsRequested = 100
         ChatUtils.sendCommand("pets")
         return true
     }
 
     private fun petsScreen(): AbstractContainerScreen<*>? =
-        (mc.gui.screen() as? AbstractContainerScreen<*>)?.takeIf { it.title.string.contains("Pets") }
+        (mc.gui.screen() as? AbstractContainerScreen<*>)?.takeIf { isPetsTitle(it.title.string) }
+
+    @SubscribeEvent
+    fun onGuiOpen(event: GuiOpenEvent) {
+        if (state == State.IDLE || event.screen !is InventoryScreen) return
+        event.cancel()
+    }
 
     @SubscribeEvent
     fun onGuiKey(event: KeyPressGuiEvent) {
@@ -187,6 +204,7 @@ object PetManager {
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
+        if (suppressStrayPets(event)) return
         if (state == State.IDLE) return
         when (val packet = event.packet) {
             is ClientboundOpenScreenPacket -> if (acceptScreen(packet.title.string, packet.containerId)) event.cancel()
@@ -195,12 +213,23 @@ object PetManager {
         }
     }
 
+    private fun suppressStrayPets(event: PacketReceivedEvent): Boolean {
+        if (state != State.IDLE || petsRequested <= 0) return false
+        val packet = event.packet as? ClientboundOpenScreenPacket ?: return false
+        if (!isPetsTitle(packet.title.string)) return false
+        petsRequested = 0
+        ContainerClicks.close(packet.containerId)
+        event.cancel()
+        return true
+    }
+
     private fun acceptScreen(title: String, containerId: Int): Boolean {
-        if (state != State.WAITING_SCREEN) return false
-        if (!title.contains("Pets")) {
+        if (!isPetsTitle(title)) {
+            logger.info("[GobbyPets] another container opened, dropping the scan before any click")
             reset()
             return false
         }
+        if (state != State.WAITING_SCREEN) return false
         syncId = containerId
         state = State.COLLECTING
         quiet = 0
@@ -234,6 +263,11 @@ object PetManager {
         ContainerClicks.pickup(syncId, hit.key)
         if (alreadyOn) rememberEquipped("") else expectSummon(pet)
         closeAndReset()
+    }
+
+    private fun abandonScan() {
+        logger.info("[GobbyPets] scan abandoned, another container was opened")
+        reset()
     }
 
     private fun closeAndReset() {
@@ -270,6 +304,8 @@ object PetManager {
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
         if (awaitingSummon != null && --summonTicks <= 0) awaitingSummon = null
+        if (petsRequested > 0) petsRequested--
+        if (state != State.IDLE && mc.gui.screen() is AbstractContainerScreen<*>) return abandonScan()
         petsScreen()?.let(::readEquippedFrom)
         if (state == State.IDLE) return
         val expired = ++ticks > 100
@@ -285,6 +321,7 @@ object PetManager {
 
     private fun reset() {
         state = State.IDLE
+        petsRequested = 0
         syncId = -1
         ticks = 0
         quiet = 0
