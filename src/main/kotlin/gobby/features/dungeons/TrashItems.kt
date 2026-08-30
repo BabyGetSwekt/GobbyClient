@@ -35,17 +35,21 @@ object TrashItems : Module("Trash Items", "Highlights and sells useless dungeon 
         .withDependency { autoSell }
     private val ignoreStarred by BooleanSetting("Ignore Starred", true, desc = "Prevents selling starred items")
         .withDependency { autoSell }
+    private val sellReviveStones by BooleanSetting("Sell Revive Stones", false, desc = "Also sells revive stones")
+        .withDependency { autoSell }
 
     private val WEAPONS = setOf(
         "EARTH_SHARD", "CRYPT_BOW", "MACHINE_GUN_BOW", "ZOMBIE_SOLDIER_CUTLASS", "SILENT_DEATH",
         "CRYPT_DREADLORD_SWORD", "ZOMBIE_KNIGHT_SWORD", "ZOMBIE_COMMANDER_WHIP", "CONJURING", "CONJURING_SWORD"
     )
     private val ITEM_JUNK = setOf("PREMIUM_FLESH", "OPTICAL_LENS", "TRIPWIRE_HOOK", "STONE_BUTTON",
-        "DUNGEON_LORE_PAPER", "DEFUSE_KIT", "BEATING_HEART", "TRAINING_WEIGHTS", "ICE_HUNK", "LEVER"
+        "DUNGEON_LORE_PAPER", "DEFUSE_KIT", "BEATING_HEART", "TRAINING_WEIGHTS", "ICE_HUNK", "LEVER",
+        "SIGN"
         )
     private val ARMOR_SETS = setOf(
         "ZOMBIE_KNIGHT", "ZOMBIE_SOLDIER", "BOUNCY", "SKELETON_MASTER", "SKELETON_SOLDIER", "ROTTEN",
-        "SUPER_HEAVY", "SKELETON_LORD", "SKELETOR", "SNIPER_HELMET", "ZOMBIE_COMMANDER", "SKELETON_GRUNT"
+        "SUPER_HEAVY", "SKELETON_LORD", "SKELETOR", "SNIPER_HELMET", "ZOMBIE_COMMANDER", "SKELETON_GRUNT",
+        "HEAVY"
     )
     private val ARMOR_PIECES = listOf("_HELMET", "_CHESTPLATE", "_LEGGINGS", "_BOOTS")
     private val JUNK_SPLASH_POTIONS = mapOf("healing" to 8)
@@ -140,5 +144,8 @@ object TrashItems : Module("Trash Items", "Highlights and sells useless dungeon 
         get() = isSplashPotion && JUNK_SPLASH_POTIONS.any { hasPotionEffect(it.key, it.value) }
 
     private val ItemStack.isSellable: Boolean
-        get() = isTrash && !(ignoreRecomb && isRecombobulated) && !(ignoreStarred && starCount > 0)
+        get() {
+            if (!isTrash && !(sellReviveStones && skyblockID == "REVIVE_STONE")) return false
+            return !(ignoreRecomb && isRecombobulated) && !(ignoreStarred && starCount > 0)
+        }
 }
