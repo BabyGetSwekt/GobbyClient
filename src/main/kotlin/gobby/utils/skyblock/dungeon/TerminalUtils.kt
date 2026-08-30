@@ -4,10 +4,10 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.floor7.terminals.AutoTerminals
 import gobby.features.floor7.terminals.TerminalClick
+import gobby.utils.hasEnchantGlint
+import gobby.utils.itemPath
 import gobby.utils.timer.Clock
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
-import net.minecraft.core.component.DataComponentMap
-import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.ItemStack
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
@@ -36,6 +36,11 @@ object TerminalUtils {
         19, 20, 21, 22, 23, 24, 25,
         28, 29, 30, 31, 32, 33, 34
     )
+    private val NATURAL_GLINT_ITEMS = setOf(
+        "nether_star", "enchanted_golden_apple", "end_crystal", "experience_bottle",
+        "enchanted_book", "written_book", "debug_stick"
+    )
+
     val RUBIX_SLOTS = intArrayOf(12, 13, 14, 21, 22, 23, 30, 31, 32)
     val RED_GREEN_SLOTS = intArrayOf(11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33)
 
@@ -115,5 +120,5 @@ object TerminalUtils {
         slot in clickedSlots || isTerminalItemDone(stack)
 
     fun isTerminalItemDone(stack: ItemStack): Boolean =
-        stack.componentsPatch.get(DataComponentMap.EMPTY, DataComponents.ENCHANTMENT_GLINT_OVERRIDE) != null
+        stack.hasEnchantGlint && stack.itemPath !in NATURAL_GLINT_ITEMS
 }

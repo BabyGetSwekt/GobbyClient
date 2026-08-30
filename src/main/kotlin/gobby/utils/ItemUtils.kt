@@ -8,6 +8,7 @@ import net.minecraft.core.component.DataComponentHolder
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.ItemLore
+import net.minecraft.world.item.enchantment.ItemEnchantments
 import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.core.registries.BuiltInRegistries
@@ -52,6 +53,14 @@ val DataComponentHolder.isSplashPotion: Boolean
 
 fun DataComponentHolder.hasPotionEffect(effect: String, level: Int): Boolean =
     this.potionEffects.any { it.effect == effect && it.level == level }
+
+val ItemStack.itemPath: String
+    get() = BuiltInRegistries.ITEM.getKey(this.item).path
+
+val DataComponentHolder.hasEnchantGlint: Boolean
+    get() = this.getOrDefault(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false) ||
+        !this.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY).isEmpty ||
+        !this.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY).isEmpty
 
 fun DataComponentHolder.isHolding(id: String): Boolean =
     this.skyblockID == id
