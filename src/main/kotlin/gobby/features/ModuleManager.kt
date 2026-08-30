@@ -13,6 +13,7 @@ import gobby.features.floor7.*
 import gobby.features.floor7.devices.*
 import gobby.features.floor7.terminals.*
 import gobby.features.force.*
+import gobby.features.mining.*
 import gobby.features.mining.structurescanner.*
 import gobby.features.render.*
 import gobby.features.skyblock.*
@@ -114,6 +115,7 @@ object ModuleManager {
         PartyCommands,
         RenderTurtles,
         StructureScanner,
+        CorpseEsp,
         FullBright,
         MobEsp,
         PlayerEsp,

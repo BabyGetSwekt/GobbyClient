@@ -41,11 +41,12 @@ object RenderUtils {
         matrixStack: PoseStack,
         camera: Camera,
         color: Color = Color.WHITE,
-        scale: Float = 0.4f
+        scale: Float = 0.4f,
+        scalePerBlock: Float = 0f
     ) {
         val collector = frameCollector ?: return
         matrixStack.pushPose()
-        faceCamera(matrixStack, vec3, camera, scale)
+        faceCamera(matrixStack, vec3, camera, scaleFor(vec3, camera, scale, scalePerBlock))
         collector.submitText(
             matrixStack,
             -mc.font.width(text) / 2f,
@@ -59,6 +60,11 @@ object RenderUtils {
             NO_OUTLINE
         )
         matrixStack.popPose()
+    }
+
+    private fun scaleFor(vec3: Vec3, camera: Camera, scale: Float, scalePerBlock: Float): Float {
+        if (scalePerBlock <= 0f) return scale
+        return (camera.cameraPos.distanceTo(vec3).toFloat() * scalePerBlock).coerceAtLeast(scale)
     }
 
     private fun faceCamera(matrixStack: PoseStack, vec3: Vec3, camera: Camera, scale: Float) {
