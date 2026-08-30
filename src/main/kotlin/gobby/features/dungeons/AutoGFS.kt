@@ -9,6 +9,7 @@ import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.utils.ChatUtils
 import gobby.utils.LocationUtils.inDungeons
+import gobby.utils.LocationUtils.onSkyblock
 import gobby.utils.countInHotbar
 import gobby.utils.timer.Clock
 
@@ -19,6 +20,9 @@ object AutoGFS : Module("Auto GFS", "Automatically retrieves certain items from 
     private val superBoomTnt by BooleanSetting("Super Boom TNT", false, desc = "Restock super boom tnt from sacks")
     private val spiritLeap by BooleanSetting("Spirit Leap", false, desc = "Restock spirit leaps from sacks")
     private val decoys by BooleanSetting("Decoys", false, desc = "Restock decoys from sacks")
+    private val outsideDungeons by BooleanSetting("Outside Dungeons", false, desc = "Also restocks anywhere else on Skyblock")
+
+    private val active: Boolean get() = enabled && (inDungeons || (outsideDungeons && onSkyblock))
 
     private data class TrackedItem(
         val id: String,
@@ -41,14 +45,14 @@ object AutoGFS : Module("Auto GFS", "Automatically retrieves certain items from 
 
     @SubscribeEvent
     fun onHotbarUpdate(event: HotbarUpdateEvent) {
-        if (!enabled || !inDungeons) return
+        if (!active) return
         val item = items.firstOrNull { it.isOn() && event.itemBefore == it.id } ?: return
         if (event.itemAfter == item.id && event.countAfter < event.countBefore) item.pending = true
     }
 
     @SubscribeEvent
     fun onTick(event: ClientTickEvent.Post) {
-        if (!enabled || !inDungeons) return
+        if (!active) return
         items.filter { it.ready() }.forEach { item ->
             item.pending = false
             val count = countInHotbar(item.id)
