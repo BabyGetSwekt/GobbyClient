@@ -28,6 +28,7 @@ private const val WORDMARK = "Gobby Client"
 private const val HEADER_EDGE = 1
 private const val SEARCH_HINT = "Click search to filter modules"
 private const val RESULT_SUFFIX = " modules found"
+private const val TOGGLE_GAP = 10
 
 internal object SettingsHeader {
 
@@ -66,16 +67,32 @@ internal object SettingsHeader {
         }
     }
 
-    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mod: Module, mx: Int, my: Int) =
-        draw(ctx, gui, mod.category.iconTexture, mod.name, mod.description, mx, my)
+    fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mod: Module, mx: Int, my: Int) {
+        draw(ctx, gui, mod.category.iconTexture, mod.name, mod.description, mx, my, mod = mod)
+    }
+
+    fun moduleToggleRect(gui: ClickGUI): Rect = Rect(
+        accountPillRect(gui).x - TOGGLE_GAP - PILL_W,
+        gui.panelY + (SETTINGS_HEADER_H - PILL_H) / 2,
+        PILL_W, PILL_H
+    )
+
+    private fun drawModuleToggle(ctx: GuiGraphicsExtractor, gui: ClickGUI, mod: Module, mx: Int, my: Int) {
+        val r = moduleToggleRect(gui)
+        CursorStyle.requestHandIf((mx to my) in r)
+        SettingsControls.pill(ctx, r, mod.enabled)
+    }
 
     fun draw(
         ctx: GuiGraphicsExtractor, gui: ClickGUI, icon: ResourceLocation,
-        title: String, subtitle: String, mx: Int, my: Int, leading: ResourceLocation = backIcon
+        title: String, subtitle: String, mx: Int, my: Int, leading: ResourceLocation = backIcon, mod: Module? = null
     ) {
         val left = drawShell(ctx, gui)
         drawBack(ctx, gui, mx, my, leading)
-        drawIdentity(ctx, gui, icon, title, subtitle, left + SETTINGS_SIDE_PAD + BACK_SIZE + BACK_GAP, accountPillRect(gui).x)
+        val toggled = mod?.takeIf { it.canToggle() }
+        val rightBound = if (toggled == null) accountPillRect(gui).x else moduleToggleRect(gui).x
+        drawIdentity(ctx, gui, icon, title, subtitle, left + SETTINGS_SIDE_PAD + BACK_SIZE + BACK_GAP, rightBound)
+        toggled?.let { drawModuleToggle(ctx, gui, it, mx, my) }
         drawAccount(ctx, gui, mx, my)
     }
 

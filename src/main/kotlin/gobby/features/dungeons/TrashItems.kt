@@ -138,7 +138,7 @@ object TrashItems : Module("Trash Items", "Highlights and sells useless dungeon 
         if (ARMOR_PIECES.any(set::endsWith)) listOf(set) else ARMOR_PIECES.map { set + it }
 
     private val ItemStack.isTrash: Boolean
-        get() = isJunkPotion || skyblockID.let { it in TRASH_IDS && !(it == "SKELETON_MASTER_CHESTPLATE" && itemQuality >= 50) }
+        get() = isJunkPotion || skyblockID.let { it in TRASH_IDS && !(it == "SKELETON_MASTER_CHESTPLATE" && itemQuality == 50) }
 
     private val ItemStack.isJunkPotion: Boolean
         get() = isSplashPotion && JUNK_SPLASH_POTIONS.any { hasPotionEffect(it.key, it.value) }

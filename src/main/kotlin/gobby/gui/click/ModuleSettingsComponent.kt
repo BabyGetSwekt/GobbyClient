@@ -107,6 +107,11 @@ object ModuleSettingsComponent {
             return true
         }
 
+        if (mod.canToggle() && (mx to my) in SettingsHeader.moduleToggleRect(gui)) {
+            mod.enabled = !mod.enabled
+            return true
+        }
+
         if (my < SettingsLayout.contentTop(gui.frame)) return false
 
         previewRowAt(gui, mod, mx, my)?.let { row ->
