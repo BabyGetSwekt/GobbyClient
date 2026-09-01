@@ -10,8 +10,6 @@ import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
 import gobby.gui.click.SelectorSetting
-import gobby.utils.BONZO_MASK_IDS
-import gobby.utils.ChatUtils.modMessage
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.inBoss
 import gobby.utils.PlayerUtils.rightClick
@@ -23,7 +21,7 @@ import gobby.utils.hasItemID
 import gobby.utils.rotation.AngleUtils.calcAimAngles
 import gobby.utils.rotation.RotationUtils
 import gobby.utils.managers.EquipmentManager
-import gobby.utils.managers.InvincibilityManager
+import gobby.utils.managers.PetManager
 import gobby.utils.managers.LeapManager
 import gobby.utils.skyblock.dungeon.DungeonUtils
 import gobby.utils.skyblock.dungeon.DungeonUtils.DungeonClass
@@ -45,14 +43,11 @@ object AutoPre4 : Module(
     private val autoLeap by BooleanSetting("Auto Leap", false, desc = "Automatically leaps after device completion")
     private val leapTo by SelectorSetting("Leap To", 3, listOf("Archer", "Berserk", "Mage", "Tank", "Healer"), desc = "Which class to leap to")
         .withDependency { autoLeap }
-    private val autoBonzo by BooleanSetting("Auto Bonzo", false, desc = "Automatically swaps to Bonzo mask if you're about to die due to death ticks. Only works if you have Spirit Mask equipped.")
 
     enum class State { IDLE, PREFIRING, ROTATING, SHOOTING, SWAPPING, LEAPING }
 
     private const val LEAP_DELAY_TICKS = 2
     private const val PREFIRE_GATE_MS = 150L
-    private const val BONZO_SWAP_DELAY_MS = 1000L
-    private val SHOOTING_STATES = setOf(State.PREFIRING, State.ROTATING, State.SHOOTING)
     private val LEAP_CLASSES = listOf(DungeonClass.Archer, DungeonClass.Berserk, DungeonClass.Mage, DungeonClass.Tank, DungeonClass.Healer)
 
     val shootPositions = listOf(68, 66, 64).flatMap { x -> listOf(130, 128, 126).map { y -> BlockPos(x, y, 50) } }
@@ -63,8 +58,6 @@ object AutoPre4 : Module(
     private val tempShot = mutableListOf<BlockPos>()
     private val shotClock = Clock()
     private val prefireGate = Clock()
-    private val bonzoClock = Clock()
-    private var bonzoScheduled = false
     private var currentEmerald: BlockPos? = null
     private var hasNewEmerald = false
     private var prefires = 0
@@ -78,7 +71,6 @@ object AutoPre4 : Module(
         private set
     var currentAimTarget: Vec3? = null
         private set
-    private val isShootingPhase: Boolean get() = state in SHOOTING_STATES
 
     private fun isNearPlate() = posY == 127.0 && posX in 62.0..65.0 && posZ in 34.0..37.0
 
@@ -161,15 +153,6 @@ object AutoPre4 : Module(
         mc.level ?: return
         mc.player ?: return
 
-        if (bonzoScheduled && bonzoClock.hasTimePassed(BONZO_SWAP_DELAY_MS)) {
-            bonzoScheduled = false
-            if (InvincibilityManager.isWearingSpiritMask()) {
-                state = State.SWAPPING
-                EquipmentManager.swapHead(*BONZO_MASK_IDS.toTypedArray())
-                modMessage("§aAuto Bonzo: §fSwapping to Bonzo Mask!")
-            }
-        }
-
         if (dungeonFloor != 7 || !inBoss || !enabled || DungeonUtils.isDead) return
         if (isAtPlateWithBow() && !hasNewEmerald) scanExistingEmerald()
 
@@ -188,6 +171,7 @@ object AutoPre4 : Module(
     }
 
     private fun tickPrefiring() {
+        if (EquipmentManager.isSwapping || PetManager.isSwapping) return
         if (!isAtPlateWithBow()) return resetShooting()
         if (!prefireGate.hasTimePassed(PREFIRE_GATE_MS)) return
         val player = mc.player ?: return
@@ -235,7 +219,6 @@ object AutoPre4 : Module(
         val msg = event.message
         when {
             msg.startsWith("[BOSS] Goldor: Who dares trespass into my domain?") -> { bossSpoken = true; resetShooting() }
-            msg == "Second Wind Activated! Your Spirit Mask saved your life!" -> tryScheduleBonzoSwap()
             msg.startsWith("$name completed a device!") && getSection() == 4 -> {
                 deviceCompleted = true
                 if (state != State.SWAPPING) {
@@ -248,17 +231,6 @@ object AutoPre4 : Module(
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
         bossSpoken = false
-        bonzoScheduled = false
         resetShooting()
-    }
-
-    private fun tryScheduleBonzoSwap() {
-        if (!enabled || !autoBonzo || dungeonFloor != 7 || !inBoss
-            || !InvincibilityManager.isWearingSpiritMask()
-            || !isNearPlate() || !isPlateDown() || !isShootingPhase
-            || bonzoScheduled || state == State.SWAPPING) return
-        bonzoScheduled = true
-        bonzoClock.update()
-        modMessage("§aAuto Bonzo: §fSpirit Mask popped, swapping in §e1s")
     }
 }

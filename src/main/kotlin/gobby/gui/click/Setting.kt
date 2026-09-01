@@ -12,8 +12,10 @@ sealed class Setting<T>(val name: String, val description: String, val defaultVa
 
     val isVisible: Boolean get() = !hidden && (dependency?.invoke() != false)
 
-    fun recordsUndo(): Boolean =
-        this !is ActionSetting && this !is HudButton && this !is DropDownSetting && this !is ModelPreviewSetting
+    fun recordsUndo(): Boolean = when (this) {
+        is ActionSetting, is HudButton, is DropDownSetting, is ModelPreviewSetting, is TextSetting, is RefreshSetting -> false
+        else -> true
+    }
 }
 
 class BooleanSetting(
@@ -71,6 +73,43 @@ class HudButton(
     override fun getValue(thisRef: Any?, property: KProperty<*>) {}
 
     operator fun provideDelegate(thisRef: Module, property: KProperty<*>): HudButton {
+        thisRef.settings.add(this)
+        return this
+    }
+}
+
+class TextSetting(
+    name: String,
+    desc: String = "",
+    hidden: Boolean = false,
+    val text: () -> String
+) : Setting<Unit>(name, desc, Unit, hidden), ReadOnlyProperty<Any?, Unit> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>) {}
+
+    fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
+
+    operator fun provideDelegate(thisRef: Module, property: KProperty<*>): TextSetting {
+        thisRef.settings.add(this)
+        return this
+    }
+}
+
+class RefreshSetting(
+    name: String,
+    desc: String = "",
+    hidden: Boolean = false,
+    val busy: () -> Boolean = { false },
+    val action: () -> Unit
+) : Setting<Unit>(name, desc, Unit, hidden), ReadOnlyProperty<Any?, Unit> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>) {}
+
+    fun withDependency(condition: () -> Boolean) = apply { dependency = condition }
+
+    fun childOf(dropdown: DropDownSetting) = apply { parentDropdown = dropdown; dropdown.children.add(this) }
+
+    operator fun provideDelegate(thisRef: Module, property: KProperty<*>): RefreshSetting {
         thisRef.settings.add(this)
         return this
     }

@@ -32,6 +32,8 @@ object ConfigManager {
                         is ColorSetting -> mj.addProperty(setting.name, setting.value.rgb)
                         is KeybindSetting -> mj.addProperty(setting.name, setting.value)
                         is ActionSetting -> {}
+                        is TextSetting -> {}
+                        is RefreshSetting -> {}
                         is ModelPreviewSetting -> {}
                         is HudButton -> {}
                         is DropDownSetting -> {}
@@ -87,6 +89,8 @@ object ConfigManager {
                             is ColorSetting -> setting.value = Color(mj.get(setting.name).asInt, true)
                             is KeybindSetting -> setting.value = mj.get(setting.name).asInt
                             is ActionSetting -> {}
+                            is TextSetting -> {}
+                            is RefreshSetting -> {}
                             is ModelPreviewSetting -> {}
                             is HudButton -> {}
                             is DropDownSetting -> {}

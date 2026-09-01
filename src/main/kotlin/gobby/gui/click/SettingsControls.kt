@@ -18,6 +18,7 @@ private const val ACTION_RADIUS = 4
 private const val ROW_HOVER_RADIUS = 4
 private const val SWATCH_RADIUS = 3
 private const val SWATCH_EDGE = 1
+private const val REFRESH_BUSY_LABEL = "Refreshing..."
 
 internal object SettingsControls {
 
@@ -32,10 +33,25 @@ internal object SettingsControls {
             is ColorSetting -> colorRow(ctx, row, s)
             is KeybindSetting -> keybindRow(ctx, gui, row, s)
             is StringSetting -> stringRow(ctx, gui, row, s)
-            is ActionSetting -> actionRow(ctx, row, s, hovered)
+            is ActionSetting -> buttonRow(ctx, row, s.name, hovered)
+            is TextSetting -> textRow(ctx, row, s)
+            is RefreshSetting -> refreshRow(ctx, row, s, hovered)
             is HudButton -> hudRow(ctx, row, s, hovered)
             is DropDownSetting -> dropdownRow(ctx, gui, row, s)
         }
+    }
+
+    private fun refreshRow(ctx: GuiGraphicsExtractor, row: PlacedRow, s: RefreshSetting, hovered: Boolean) {
+        val busy = s.busy()
+        buttonRow(ctx, row, if (busy) REFRESH_BUSY_LABEL else s.name, hovered && !busy)
+    }
+
+    private fun textRow(ctx: GuiGraphicsExtractor, row: PlacedRow, s: TextSetting) {
+        label(ctx, row, s.name)
+        val text = s.text()
+        val w = textWScaled(text, SETTINGS_VALUE_SCALE)
+        val h = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
+        drawTextScaled(ctx, row.x + row.w - RIGHT_PAD - w, row.y + (row.h - h) / 2, text, SETTINGS_VALUE_SCALE, cInkSoft, false)
     }
 
     private fun label(ctx: GuiGraphicsExtractor, row: PlacedRow, text: String) {
@@ -185,12 +201,12 @@ internal object SettingsControls {
         }
     }
 
-    private fun actionRow(ctx: GuiGraphicsExtractor, row: PlacedRow, s: ActionSetting, hovered: Boolean) {
+    private fun buttonRow(ctx: GuiGraphicsExtractor, row: PlacedRow, text: String, highlight: Boolean) {
         val b = Rect(row.x + 4, row.y + 3, row.w - 8, row.h - 6)
-        GobbyDraw.roundedRect(ctx, b.x, b.y, b.w, b.h, ACTION_RADIUS, if (hovered) cViolet else cValueBox)
-        val w = textWScaled(s.name, SETTINGS_LABEL_SCALE)
+        GobbyDraw.roundedRect(ctx, b.x, b.y, b.w, b.h, ACTION_RADIUS, if (highlight) cViolet else cValueBox)
+        val w = textWScaled(text, SETTINGS_LABEL_SCALE)
         val h = (tr.lineHeight * SETTINGS_LABEL_SCALE).toInt()
-        drawTextScaled(ctx, b.x + (b.w - w) / 2, b.y + (b.h - h) / 2, s.name, SETTINGS_LABEL_SCALE, cInk, false)
+        drawTextScaled(ctx, b.x + (b.w - w) / 2, b.y + (b.h - h) / 2, text, SETTINGS_LABEL_SCALE, cInk, false)
     }
 
     private fun hudRow(ctx: GuiGraphicsExtractor, row: PlacedRow, s: HudButton, hovered: Boolean) {

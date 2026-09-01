@@ -17,6 +17,7 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
     private val displayMode by SelectorSetting("Display Mode", 2, listOf("Image", "Text", "Both"), desc = "How each row is rendered")
     private val showSpirit by BooleanSetting("Show Spirit", true, desc = "Display Spirit Mask cooldown")
     private val showBonzo by BooleanSetting("Show Bonzo", true, desc = "Display Bonzo Mask cooldown")
+    private val showPhoenix by BooleanSetting("Show Phoenix", true, desc = "Display Phoenix Pet cooldown")
 
     private const val ICON_SIZE = 12
     private const val ICON_GAP = 2
@@ -48,6 +49,13 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
             { showBonzo },
             { InvincibilityManager.isBonzoOnCooldown },
             { InvincibilityManager.bonzoCooldownSeconds }
+        ),
+        PHOENIX(
+            "Phoenix",
+            tex("phoenix"),
+            { showPhoenix },
+            { InvincibilityManager.isPhoenixOnCooldown },
+            { InvincibilityManager.phoenixCooldownSeconds }
         )
     }
 

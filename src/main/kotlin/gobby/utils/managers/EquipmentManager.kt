@@ -2,6 +2,8 @@ package gobby.utils.managers
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.utils.ChatUtils.errorMessage
+import gobby.utils.ChatUtils.modMessage
+import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.LocationUtils
 import gobby.utils.skyblockID
 
@@ -23,6 +25,8 @@ object EquipmentManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
 
     val isSwapping: Boolean get() = isBusy
 
+    fun hasInInventory(vararg skyblockIds: String): Boolean = findInInventory(*skyblockIds) != ITEM_NOT_FOUND
+
     fun swapHead(vararg skyblockIds: String) = swap(HELMET_SLOT, *skyblockIds)
 
     fun swapChestplate(vararg skyblockIds: String) = swap(CHESTPLATE_SLOT, *skyblockIds)
@@ -39,6 +43,16 @@ object EquipmentManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
         if (found == ITEM_NOT_FOUND) return errorMessage("Item not found in inventory")
         itemSlot = found
         openFor(equipSlot)
+    }
+
+    override fun sendClick(syncId: Int, slot: Int) {
+        announceSwap()
+        super.sendClick(syncId, slot)
+    }
+
+    private fun announceSwap() {
+        val name = mc.player?.inventory?.getItem(itemSlot)?.hoverName?.string?.noControlCodes ?: return
+        modMessage("§aSwapped to §6$name§a!")
     }
 
     override fun clickSlotFor(targetSlot: Int): Int =
