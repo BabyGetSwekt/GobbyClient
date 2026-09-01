@@ -8,6 +8,7 @@ import gobby.events.render.camera
 import gobby.events.render.matrixStack
 import gobby.events.util.ChunkScopedCache
 import gobby.utils.render.BlockRenderUtils.draw3DBox
+import gobby.utils.render.BlockRenderUtils.drawConnectedBlocks
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.core.BlockPos
@@ -17,7 +18,7 @@ import java.awt.Color
 
 abstract class BlockHighlighter : ChunkScopedCache() {
 
-    enum class RenderMode { FULL_BLOCK, OUTLINE, NODE }
+    enum class RenderMode { FULL_BLOCK, OUTLINE, NODE, CONNECT }
 
     protected val highlightedBlocks = ObjectOpenHashSet<BlockPos>()
 
@@ -93,6 +94,7 @@ abstract class BlockHighlighter : ChunkScopedCache() {
     fun onRender3D(event: Render3DEvent) {
         if (event.type != Render3DEvent.Type.BeforeEntity) return
         if (!isEnabled()) return
+        if (renderMode() == RenderMode.CONNECT) return drawConnected(event)
         val world = mc.level ?: return
 
         val matrixStack = event.matrixStack
@@ -100,7 +102,6 @@ abstract class BlockHighlighter : ChunkScopedCache() {
         for (pos in highlightedBlocks) {
             val color = getColor(pos)
             val box = when (renderMode()) {
-                RenderMode.FULL_BLOCK -> AABB(pos)
                 RenderMode.OUTLINE -> {
                     val blockState = world.getBlockState(pos)
                     val outline = blockState.getShape(world, pos)
@@ -111,8 +112,15 @@ abstract class BlockHighlighter : ChunkScopedCache() {
                     pos.x + 0.25, pos.y.toDouble(), pos.z + 0.25,
                     pos.x + 0.75, pos.y + 0.5, pos.z + 0.75
                 )
+                else -> AABB(pos)
             }
             draw3DBox(matrixStack, camera, box, color, depthTest = depthTest())
+        }
+    }
+
+    private fun drawConnected(event: Render3DEvent) {
+        highlightedBlocks.groupBy(::getColor).forEach { (color, group) ->
+            drawConnectedBlocks(event.matrixStack, event.camera, group, color, depthTest = depthTest())
         }
     }
 

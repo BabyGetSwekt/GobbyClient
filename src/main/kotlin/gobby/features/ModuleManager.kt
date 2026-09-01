@@ -156,6 +156,7 @@ object ModuleManager {
         FuckDiorite,
         Relics,
         P5DebuffHelper,
+        NecronPlatform,
         AutoTerminals,
         NoFire,
         NoBlockOverlay,

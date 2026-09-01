@@ -6,6 +6,8 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.rendertype.RenderType
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
@@ -105,6 +107,86 @@ object BlockRenderUtils {
             buildLine3D(pose, camera, buffer, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color)
             buildLine3D(pose, camera, buffer, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color)
             buildLine3D(pose, camera, buffer, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color)
+        }
+    }
+
+    private val EDGE_CORNERS = listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1)
+    private val EDGE_CELLS = listOf(-1 to -1, -1 to 0, 0 to -1, 0 to 0)
+
+    private data class BlockEdge(val axis: Direction.Axis, val corner: BlockPos)
+
+    fun drawConnectedBlocks(
+        matrixStack: PoseStack,
+        camera: Camera,
+        blocks: Collection<BlockPos>,
+        color: Color,
+        edgeColor: Color = Color(color.red, color.green, color.blue, 255),
+        depthTest: Boolean = false
+    ) {
+        if (blocks.isEmpty()) return
+        val collector = RenderUtils.frameCollector ?: return
+        val filled = blocks.toHashSet()
+        val offset = camera.cameraPos.scale(-1.0)
+        val rgba = colorComponents(color)
+        val quadLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_QUADS else ItemBlockRenderTypes.ESP_QUADS
+        val lineLayer = if (depthTest) ItemBlockRenderTypes.DEPTH_LINES else ItemBlockRenderTypes.ESP_LINES
+        collector.submitGeometry(matrixStack, quadLayer) { pose, buffer ->
+            exposedFaces(filled).forEach { (pos, dir) -> addFace(pose, buffer, AABB(pos).move(offset), dir, rgba) }
+        }
+        collector.submitGeometry(matrixStack, lineLayer) { pose, buffer ->
+            silhouetteEdges(filled).forEach { edge -> addEdge(pose, camera, buffer, edge, edgeColor) }
+        }
+    }
+
+    private fun exposedFaces(filled: Set<BlockPos>): List<Pair<BlockPos, Direction>> =
+        filled.flatMap { pos -> Direction.entries.filter { pos.relative(it) !in filled }.map { pos to it } }
+
+    private fun silhouetteEdges(filled: Set<BlockPos>): List<BlockEdge> =
+        filled.flatMapTo(HashSet(), ::edgesOf).filter { edge ->
+            EDGE_CELLS.count { (first, second) -> axisPos(edge.axis, edge.corner, 0, first, second) in filled } % 2 == 1
+        }
+
+    private fun edgesOf(pos: BlockPos): List<BlockEdge> =
+        Direction.Axis.entries.flatMap { axis ->
+            EDGE_CORNERS.map { (first, second) -> BlockEdge(axis, axisPos(axis, pos, 0, first, second)) }
+        }
+
+    private fun axisPos(axis: Direction.Axis, base: BlockPos, along: Int, first: Int, second: Int): BlockPos = when (axis) {
+        Direction.Axis.X -> BlockPos(base.x + along, base.y + first, base.z + second)
+        Direction.Axis.Y -> BlockPos(base.x + first, base.y + along, base.z + second)
+        else -> BlockPos(base.x + first, base.y + second, base.z + along)
+    }
+
+    private fun addEdge(pose: PoseStack.Pose, camera: Camera, buffer: VertexConsumer, edge: BlockEdge, color: Color) {
+        val start = edge.corner
+        val end = axisPos(edge.axis, start, 1, 0, 0)
+        buildLine3D(
+            pose, camera, buffer,
+            start.x.toDouble(), start.y.toDouble(), start.z.toDouble(),
+            end.x.toDouble(), end.y.toDouble(), end.z.toDouble(),
+            color
+        )
+    }
+
+    private fun addFace(pose: PoseStack.Pose, buffer: VertexConsumer, box: AABB, dir: Direction, rgba: FloatArray) {
+        val (r, g, b, a) = rgba
+        faceCorners(box, dir).forEach { (x, y, z) -> buffer.addVertex(pose, x, y, z).setColor(r, g, b, a) }
+    }
+
+    private fun faceCorners(box: AABB, dir: Direction): List<Triple<Float, Float, Float>> {
+        val minX = box.minX.toFloat()
+        val minY = box.minY.toFloat()
+        val minZ = box.minZ.toFloat()
+        val maxX = box.maxX.toFloat()
+        val maxY = box.maxY.toFloat()
+        val maxZ = box.maxZ.toFloat()
+        return when (dir) {
+            Direction.DOWN -> listOf(Triple(minX, minY, minZ), Triple(maxX, minY, minZ), Triple(maxX, minY, maxZ), Triple(minX, minY, maxZ))
+            Direction.UP -> listOf(Triple(minX, maxY, minZ), Triple(minX, maxY, maxZ), Triple(maxX, maxY, maxZ), Triple(maxX, maxY, minZ))
+            Direction.NORTH -> listOf(Triple(minX, minY, minZ), Triple(minX, maxY, minZ), Triple(maxX, maxY, minZ), Triple(maxX, minY, minZ))
+            Direction.EAST -> listOf(Triple(maxX, minY, minZ), Triple(maxX, maxY, minZ), Triple(maxX, maxY, maxZ), Triple(maxX, minY, maxZ))
+            Direction.SOUTH -> listOf(Triple(minX, minY, maxZ), Triple(maxX, minY, maxZ), Triple(maxX, maxY, maxZ), Triple(minX, maxY, maxZ))
+            else -> listOf(Triple(minX, minY, minZ), Triple(minX, minY, maxZ), Triple(minX, maxY, maxZ), Triple(minX, maxY, minZ))
         }
     }
 
