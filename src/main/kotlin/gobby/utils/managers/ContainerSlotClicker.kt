@@ -11,11 +11,11 @@ import gobby.utils.LocationUtils
 import gobby.utils.Utils.getRandomInt
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
+import net.minecraft.world.item.ItemStack
 
 abstract class ContainerSlotClicker(
-    private val screenTitle: String,
-    private val command: String,
-    private val abandonAboveSlot: Int = NO_ABANDON_SLOT
+    private val screenTitle: Regex,
+    private val command: String
 ) : SilentContainer {
     private enum class State { IDLE, WAITING_SCREEN, WAITING_SLOT }
 
@@ -82,22 +82,21 @@ abstract class ContainerSlotClicker(
         if (state == State.IDLE) return
         when (val packet = event.packet) {
             is ClientboundOpenScreenPacket -> if (acceptScreen(packet.title.string, packet.containerId)) event.cancel()
-            is ClientboundContainerSetSlotPacket -> acceptSlot(packet.containerId, packet.slot)
+            is ClientboundContainerSetSlotPacket -> acceptSlot(packet.containerId, packet.slot, packet.item)
         }
     }
 
     private fun suppressReopen(event: PacketReceivedEvent): Boolean {
-        if (suppressTicks <= 0) return false
+        if (suppressTicks <= 0 || state != State.IDLE) return false
         val packet = event.packet as? ClientboundOpenScreenPacket ?: return false
-        if (!packet.title.string.contains(screenTitle)) return false
-        suppressTicks = 0
+        if (!screenTitle.containsMatchIn(packet.title.string)) return false
         ContainerClicks.close(packet.containerId)
         event.cancel()
         return true
     }
 
     internal fun acceptScreen(title: String, containerId: Int): Boolean {
-        if (!title.contains(screenTitle)) {
+        if (!screenTitle.containsMatchIn(title)) {
             abandon()
             return false
         }
@@ -107,22 +106,32 @@ abstract class ContainerSlotClicker(
         return true
     }
 
-    internal fun acceptSlot(containerId: Int, slot: Int) {
-        if (state != State.WAITING_SLOT || containerId != syncId) return
-        if (slot == targetSlot) return clickAndClose(clickSlotFor(targetSlot))
-        if (abandonAboveSlot != NO_ABANDON_SLOT && slot > abandonAboveSlot) abandon()
+    internal fun acceptSlot(containerId: Int, slot: Int, stack: ItemStack) {
+        if (state != State.WAITING_SLOT || containerId != syncId || slot != targetSlot) return
+        if (shouldClick(stack)) clickAndClose(clickSlotFor(targetSlot)) else cancelFlow()
     }
+
+    protected open fun shouldClick(stack: ItemStack): Boolean = true
 
     private fun clickAndClose(slot: Int) {
         sendClick(syncId, slot)
+        finish()
+    }
+
+    private fun cancelFlow() {
+        ContainerClicks.close(syncId)
+        finish()
+    }
+
+    private fun finish() {
         currentAction = null
         attempts = 0
         reset()
-        suppressTicks = REOPEN_SUPPRESS_TICKS
+        suppressTicks = 40
     }
 
     private fun abandon() {
-        val retry = currentAction?.takeIf { attempts < MAX_ATTEMPTS }
+        val retry = currentAction?.takeIf { attempts < 3 }
         reset()
         pendingAction = retry
     }
@@ -135,11 +144,11 @@ abstract class ContainerSlotClicker(
             return
         }
         if (state != State.IDLE) {
-            if (++ticksWaiting > TIMEOUT_TICKS) abandon()
+            if (++ticksWaiting > 60) abandon()
             return
         }
         if (mc.gui.screen() != null) {
-            resumeDelay = getRandomInt(MIN_RESUME_DELAY, MAX_RESUME_DELAY)
+            resumeDelay = getRandomInt(3, 7)
             return
         }
         if (resumeDelay > 0) {
@@ -164,19 +173,9 @@ abstract class ContainerSlotClicker(
     }
 
     private fun reset() {
-        if (state != State.IDLE) cooldownTicks = COOLDOWN_TICKS
+        if (state != State.IDLE) cooldownTicks = 1
         state = State.IDLE
         syncId = -1
         ticksWaiting = 0
-    }
-
-    protected companion object {
-        const val NO_ABANDON_SLOT = -1
-        private const val TIMEOUT_TICKS = 60
-        private const val COOLDOWN_TICKS = 1
-        private const val REOPEN_SUPPRESS_TICKS = 40
-        private const val MAX_ATTEMPTS = 3
-        private const val MIN_RESUME_DELAY = 3
-        private const val MAX_RESUME_DELAY = 7
     }
 }

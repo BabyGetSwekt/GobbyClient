@@ -29,7 +29,7 @@ object WardrobeSwapper : Module(
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
         if (!LocationUtils.onSkyblock) return
-        if (mc.gui.screen() != null) return
+        if (mc.gui.screen() != null || WardrobeManager.isSwapping) return
         val key = event.key
         if (key == 0) return
 
@@ -46,6 +46,6 @@ object WardrobeSwapper : Module(
             else -> return
         }
         WardrobeManager.swap(slot)
-        TitleUtils.displayTitleTicks("Equipping WD: $slot", 20, Color(170, 0, 170))
+        TitleUtils.displayStyledTitleTicks("Equipping WD: $slot", 20, Color(170, 0, 170))
     }
 }
