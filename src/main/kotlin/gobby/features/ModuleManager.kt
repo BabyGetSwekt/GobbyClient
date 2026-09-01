@@ -60,6 +60,7 @@ object ModuleManager {
         LeapManager,
         EquipmentManager,
         PetManager,
+        SilentContainerFlow,
         AbilityManager,
         InvincibilityManager,
             PacketOrderManager,

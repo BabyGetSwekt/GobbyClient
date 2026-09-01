@@ -7,7 +7,6 @@ import gobby.events.ClientTickEvent
 import gobby.events.KeyPressGuiEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
-import gobby.events.gui.GuiOpenEvent
 import gobby.events.core.SubscribeEvent
 import gobby.features.skyblock.PetsKeybind
 import gobby.utils.ChatUtils
@@ -23,7 +22,6 @@ import gobby.utils.render.FaceTextures
 import gobby.utils.skinUrl
 import gobby.utils.stringOrNull
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
@@ -60,7 +58,7 @@ data class PetsData(
     val pets: MutableList<PetEntry> = mutableListOf()
 )
 
-object PetManager {
+object PetManager : SilentContainer {
 
     private enum class State { IDLE, WAITING_SCREEN, COLLECTING }
 
@@ -83,6 +81,14 @@ object PetManager {
     val equipped: PetEntry? get() = pets.firstOrNull { it.uuid == config.data.equippedUuid }
 
     val isScanning: Boolean get() = state != State.IDLE
+
+    override val isRunning: Boolean get() = isScanning
+
+    override fun yieldToScreen() = closeAndReset()
+
+    init {
+        SilentContainerFlow.register(this)
+    }
 
     val isSwapping: Boolean get() = isScanning || awaitingSummon != null
 
@@ -131,12 +137,6 @@ object PetManager {
 
     private fun petsScreen(): AbstractContainerScreen<*>? =
         (mc.gui.screen() as? AbstractContainerScreen<*>)?.takeIf { isPetsTitle(it.title.string) }
-
-    @SubscribeEvent
-    fun onGuiOpen(event: GuiOpenEvent) {
-        if (state == State.IDLE || event.screen !is InventoryScreen) return
-        event.cancel()
-    }
 
     @SubscribeEvent
     fun onGuiKey(event: KeyPressGuiEvent) {
@@ -265,11 +265,6 @@ object PetManager {
         closeAndReset()
     }
 
-    private fun abandonScan() {
-        logger.info("[GobbyPets] scan abandoned, another container was opened")
-        reset()
-    }
-
     private fun closeAndReset() {
         ContainerClicks.close(syncId)
         reset()
@@ -305,7 +300,6 @@ object PetManager {
     fun onTick(event: ClientTickEvent.Post) {
         if (awaitingSummon != null && --summonTicks <= 0) awaitingSummon = null
         if (petsRequested > 0) petsRequested--
-        if (state != State.IDLE && mc.gui.screen() is AbstractContainerScreen<*>) return abandonScan()
         petsScreen()?.let(::readEquippedFrom)
         if (state == State.IDLE) return
         val expired = ++ticks > 100
