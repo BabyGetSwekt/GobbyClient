@@ -7,14 +7,6 @@ import gobby.utils.render.CursorStyle
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import org.lwjgl.glfw.GLFW
 
-private const val ROW_RADIUS = 5
-private const val ADD_RADIUS = 5
-private const val SCROLL_STEP = 26f
-private const val EMPTY_TOP = 18
-private const val EMPTY_LABEL = "No mobs yet. Add one to start highlighting."
-private const val HINT = "equals matches the whole name, contains matches part of it"
-private const val TRASH_ICON = 10
-
 internal object MobEspView : SearchableView() {
 
     override fun onOpened() = MobEspList.load()
@@ -26,7 +18,7 @@ internal object MobEspView : SearchableView() {
     override val searchFocused get() = MobEspList.searchFocused
 
     override fun draw(ctx: GuiGraphicsExtractor, gui: ClickGUI, mx: Int, my: Int) {
-        SettingsHeader.draw(ctx, gui, MobEsp.category.iconTexture, MobEsp.name, HINT, mx, my, SettingsHeader.cancelIcon())
+        SettingsHeader.draw(ctx, gui, MobEsp.category.iconTexture, MobEsp.name, "equals matches the whole name, contains matches part of it", mx, my, SettingsHeader.cancelIcon())
         followSearch(gui)
         gui.clampScroll(MobEspLayout.totalHeight(MobEspList.visibleRows().size), gui.contentH)
 
@@ -49,7 +41,7 @@ internal object MobEspView : SearchableView() {
 
     private fun drawRow(ctx: GuiGraphicsExtractor, row: MobRow, r: Rect, mx: Int, my: Int) {
         val hovered = (mx to my) in r
-        GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, ROW_RADIUS, if (hovered) cIconTile else cCard, cCardEdge)
+        GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, 5, if (hovered) cIconTile else cCard, cCardEdge)
         drawCheck(ctx, row, MobEspLayout.checkRect(r), mx, my)
         drawName(ctx, row, MobEspLayout.nameRect(r), mx, my)
         drawFilter(ctx, row, MobEspLayout.filterRect(r), mx, my)
@@ -78,7 +70,7 @@ internal object MobEspView : SearchableView() {
     private fun drawFilter(ctx: GuiGraphicsExtractor, row: MobRow, r: Rect, mx: Int, my: Int) {
         val hovered = (mx to my) in r
         CursorStyle.requestHandIf(hovered)
-        GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, ADD_RADIUS, cValueBox, if (hovered) cViolet else cValueBox)
+        GobbyDraw.roundedBox(ctx, r.x, r.y, r.w, r.h, 5, cValueBox, if (hovered) cViolet else cValueBox)
         val label = row.entry.filter.label
         val w = textWScaled(label, SETTINGS_VALUE_SCALE)
         val h = (tr.lineHeight * SETTINGS_VALUE_SCALE).toInt()
@@ -87,25 +79,25 @@ internal object MobEspView : SearchableView() {
 
     private fun drawSwatch(ctx: GuiGraphicsExtractor, row: MobRow, r: Rect, mx: Int, my: Int) {
         CursorStyle.requestHandIf((mx to my) in r)
-        GobbyDraw.roundedRect(ctx, r.x - 1, r.y - 1, r.w + 2, r.h + 2, ADD_RADIUS, cCardEdge)
-        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, ADD_RADIUS, row.color.value.rgb or OPAQUE_BITS)
+        GobbyDraw.roundedRect(ctx, r.x - 1, r.y - 1, r.w + 2, r.h + 2, 5, cCardEdge)
+        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, 5, row.color.value.rgb or OPAQUE_BITS)
     }
 
     private fun drawRemove(ctx: GuiGraphicsExtractor, r: Rect, mx: Int, my: Int) {
         val hovered = (mx to my) in r
         CursorStyle.requestHandIf(hovered)
-        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, ADD_RADIUS, if (hovered) cInvalid else cValueBox)
+        GobbyDraw.roundedRect(ctx, r.x, r.y, r.w, r.h, 5, if (hovered) cInvalid else cValueBox)
         GobbyTextures.trash(
-            ctx, r.x + (r.w - TRASH_ICON) / 2, r.y + (r.h - TRASH_ICON) / 2, TRASH_ICON,
+            ctx, r.x + (r.w - 10) / 2, r.y + (r.h - 10) / 2, 10,
             if (hovered) cInk else cInkSoft
         )
     }
 
     private fun drawEmpty(ctx: GuiGraphicsExtractor, gui: ClickGUI) {
-        val w = textWScaled(EMPTY_LABEL, SETTINGS_VALUE_SCALE)
+        val w = textWScaled("No mobs yet. Add one to start highlighting.", SETTINGS_VALUE_SCALE)
         drawTextScaled(
-            ctx, gui.contentX + (gui.contentW - w) / 2, gui.contentY + ADD_H + EMPTY_TOP,
-            EMPTY_LABEL, SETTINGS_VALUE_SCALE, cInkGhost, false
+            ctx, gui.contentX + (gui.contentW - w) / 2, gui.contentY + ADD_H + 18,
+            "No mobs yet. Add one to start highlighting.", SETTINGS_VALUE_SCALE, cInkGhost, false
         )
     }
 
@@ -173,7 +165,7 @@ internal object MobEspView : SearchableView() {
     override fun handleScroll(gui: ClickGUI, mx: Int, my: Int, amount: Double): Boolean {
         if (mx !in gui.contentX..(gui.contentX + gui.contentW)) return false
         gui.scrollTarget = ScrollBounds.clamp(
-            gui.scrollTarget + amount.toFloat() * SCROLL_STEP, MobEspLayout.totalHeight(MobEspList.visibleRows().size), gui.contentH
+            gui.scrollTarget + amount.toFloat() * 26f, MobEspLayout.totalHeight(MobEspList.visibleRows().size), gui.contentH
         )
         return true
     }

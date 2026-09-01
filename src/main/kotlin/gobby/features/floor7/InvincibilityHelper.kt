@@ -16,7 +16,10 @@ import gobby.utils.managers.PetManager
 import gobby.utils.skyblock.dungeon.DungeonUtils.getPhase
 import gobby.utils.timer.Clock
 
-object InvincibilityHelper : Module("Invincibility Helper", "Swaps to your next death save after one pops in P3", Category.FLOOR7) {
+object InvincibilityHelper : Module("Invincibility Helper",
+    "Swaps to your next death save after one pops in P3. Automatically puts on your previous pet after your phoenix popped.",
+    Category.FLOOR7
+) {
 
     private val phoenixStatus by TextSetting("Phoenix", desc = "The Phoenix pet this module will summon") { phoenixLabel() }
     private val refreshPets by RefreshSetting("Refresh Pets", desc = "Rescans your pets menu", busy = { PetManager.isScanning }) { PetManager.scan() }
