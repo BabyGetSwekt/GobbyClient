@@ -17,6 +17,7 @@ import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
 import gobby.gui.click.NumberSetting
 import gobby.utils.ChatUtils.partyMessage
+import gobby.utils.Utils.getRandomInt
 import gobby.utils.render.BlockRenderUtils.draw3DBox
 import gobby.utils.render.BlockRenderUtils.drawRing
 import gobby.utils.render.RenderUtils.drawStringInWorld
@@ -46,7 +47,7 @@ object SimonSays : Module(
     private val autoSSDropdown = DropDownSetting("Auto SS", desc = "Automatically solves the Simon Says device").also { settings.add(it) }
     private val autoSSEnabled by BooleanSetting("Enabled", false, desc = "Toggle Auto SS on/off")
         .childOf(autoSSDropdown)
-    private val clickDelay by NumberSetting("Click Delay", 200, 50, 500, 10, desc = "Delay between clicks in ms")
+    private val clickDelay by NumberSetting("Click Delay", 200, 30, 500, 10, desc = "Delay between clicks in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val rotationDelay by NumberSetting("Rotation Delay", 150, 0, 1000, 50, desc = "Time to ease rotation to buttons in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
@@ -62,16 +63,16 @@ object SimonSays : Module(
         .withDependency(autoSSDropdown)
     private val sendSSBrokeKeybind by KeybindSetting("Send SS Broke", desc = "Sends 'SS Broke' in party chat")
 
-    private const val JITTER_PERMILLE = 1136
-    private const val PERMILLE = 1000
-
     private val START_BUTTON = BlockPos(110, 121, 91)
-    private const val START_RANGE_SQ = 25.0
-    private const val DEVICE_RANGE = 6.0
 
     private val COL_GREEN = Color(0, 255, 0, 120)
     private val COL_YELLOW = Color(255, 255, 0, 120)
     private val COL_RED = Color(255, 0, 0, 120)
+
+    private var lastAimed: BlockPos? = null
+    private var lastAimPoint = Vec3.ZERO
+    private var returnPending = false
+    private var clickJitter = 0
 
     private val autoClicks = mutableListOf<BlockPos>()
     private var autoProgress = 0
@@ -102,6 +103,9 @@ object SimonSays : Module(
         rotating = false
         startStep = 0
         startJitter = 0
+        returnPending = false
+        clickJitter = 0
+        lastAimed = null
     }
 
     private fun reset() {
@@ -110,25 +114,49 @@ object SimonSays : Module(
 
     private fun isInRange(): Boolean {
         val player = mc.player ?: return false
-        return player.distanceToSqr(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) <= START_RANGE_SQ
+        return player.distanceToSqr(START_BUTTON.x + 0.5, START_BUTTON.y + 0.5, START_BUTTON.z + 0.5) <= 25.0
     }
 
     private fun clickBlock(pos: BlockPos, onClicked: (() -> Unit)? = null) {
-        if (rotating || RotationUtils.isEasing) return
-        rotating = true
-        val buttonFace = Vec3(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5)
-        RotationUtils.easeToVec(buttonFace, rotationDelay.toLong()) {
-            pressButton(pos)
+        val target = aimPoint(pos)
+        rotateTo(target, rotationTime()) {
+            pressButton(pos, target)
             clock.update()
-            rotating = false
+            clickJitter = getRandomInt(-10, 10)
             onClicked?.invoke()
         }
     }
 
-    private fun pressButton(pos: BlockPos) {
+    private fun rotateTo(target: Vec3, timeMs: Long, onDone: (() -> Unit)? = null): Boolean {
+        if (rotating || RotationUtils.isEasing) return false
+        rotating = true
+        RotationUtils.easeToVec(target, timeMs) {
+            rotating = false
+            onDone?.invoke()
+        }
+        return true
+    }
+
+    private fun rotationTime(scale: Double = 1.0): Long =
+        (rotationDelay * scale * getRandomInt(75, 135) / 100.0).toLong().coerceAtLeast(1L)
+
+    private fun aimPoint(pos: BlockPos): Vec3 {
+        if (pos == lastAimed) return lastAimPoint
+        lastAimed = pos
+        lastAimPoint = Vec3(pos.x + 0.875, pos.y + 0.5 + getRandomInt(-8, 8) / 100.0, pos.z + 0.5 + getRandomInt(-12, 12) / 100.0)
+        return lastAimPoint
+    }
+
+    private fun returnToFirstButton() {
+        val first = autoClicks.firstOrNull() ?: return
+        val near = aimPoint(first).add(0.0, getRandomInt(-5, 5) / 100.0, getRandomInt(-5, 5) / 100.0)
+        if (rotateTo(near, rotationTime(2.0))) returnPending = false
+    }
+
+    private fun pressButton(pos: BlockPos, target: Vec3) {
         val player = mc.player ?: return
         val world = mc.level ?: return
-        val hit = BlockHitResult(Vec3(pos.x + 0.875, pos.y + 0.5, pos.z + 0.5), Direction.WEST, pos, false)
+        val hit = BlockHitResult(target, Direction.WEST, pos, false)
         val accessor = mc.gameMode as? IInteractionManagerAccessor ?: return
         accessor.`gobbyclient$syncSelectedSlot`()
         accessor.`gobbyclient$sendSequencedPacket`(world) { sequence ->
@@ -156,7 +184,7 @@ object SimonSays : Module(
                 clickBlock(START_BUTTON)
                 startStep++
                 startClock.update()
-                startJitter = (autoStartDelay * JITTER_PERMILLE / PERMILLE - autoStartDelay).coerceAtLeast(0).let {
+                startJitter = (autoStartDelay * 1136 / 1000 - autoStartDelay).coerceAtLeast(0).let {
                     if (it <= 0) 0 else Random.nextInt(0, it + 1)
                 }
             }
@@ -198,12 +226,14 @@ object SimonSays : Module(
             return
         }
 
-        if (!clock.hasTimePassed(clickDelay.toLong())) return
+        if (doingSS && returnPending) returnToFirstButton()
+
+        if (!clock.hasTimePassed((clickDelay + clickJitter).toLong())) return
         if (rotating || RotationUtils.isEasing) return
 
         val player = mc.player ?: return
         val hasDevice = mc.level?.entitiesForRendering()?.any {
-            it is ArmorStand && it.distanceToSqr(player) < DEVICE_RANGE * DEVICE_RANGE && it.name.string.contains("Device")
+            it is ArmorStand && it.distanceToSqr(player) < 36.0 && it.name.string.contains("Device")
         } ?: false
 
         if (!hasDevice) {
@@ -234,6 +264,7 @@ object SimonSays : Module(
 
         if (pos.x == 111 && event.newState.block == Blocks.SEA_LANTERN) {
             val button = BlockPos(110, pos.y, pos.z)
+            if (autoClicks.isNotEmpty() && autoProgress >= autoClicks.size) returnPending = true
 
             if (autoClicks.size == 2 && autoClicks[0] == button && !autoDoneFirst) {
                 autoDoneFirst = true
