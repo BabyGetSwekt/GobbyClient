@@ -66,6 +66,7 @@ object MaskTimers : Module("Mask Timers", "Shows Spirit and Bonzo Mask cooldowns
         if (example) {
             renderMask(Mask.SPIRIT, ready = false, seconds = 12.3)
             renderMask(Mask.BONZO, ready = true, seconds = 0.0)
+            renderMask(Mask.PHOENIX, ready = false, seconds = 49.0)
             return@HudSetting
         }
         if (!LocationUtils.onSkyblock) return@HudSetting
