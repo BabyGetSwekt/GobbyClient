@@ -5,42 +5,42 @@ import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ChatUtils.noControlCodes
 import gobby.utils.LocationUtils
+import gobby.utils.getItemUUID
 import gobby.utils.skyblockID
+import net.minecraft.world.item.ItemStack
 
-private const val SCREEN_TITLE = "Stats & Equipment"
+private val SCREEN_TITLE = Regex("Stats & Equipment")
 private const val COMMAND = "stats"
-private const val HELMET_SLOT = 11
-private const val CHESTPLATE_SLOT = 20
-private const val LEGGINGS_SLOT = 29
-private const val BOOTS_SLOT = 38
-private const val HOTBAR_CONTAINER_START = 81
-private const val MAIN_INV_CONTAINER_START = 54
-private const val HOTBAR_SIZE = 9
-private const val LAST_INVENTORY_SLOT = 35
-private const val ITEM_NOT_FOUND = -1
 
 object EquipmentManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
 
-    private var itemSlot = ITEM_NOT_FOUND
+    private var itemSlot = -1
 
     val isSwapping: Boolean get() = isBusy
 
-    fun hasInInventory(vararg skyblockIds: String): Boolean = findInInventory(*skyblockIds) != ITEM_NOT_FOUND
+    fun hasInInventory(vararg skyblockIds: String): Boolean = findInInventory(matching(*skyblockIds)) != -1
 
-    fun swapHead(vararg skyblockIds: String) = swap(HELMET_SLOT, *skyblockIds)
+    fun swapHead(vararg skyblockIds: String) = swap(11, matching(*skyblockIds))
 
-    fun swapChestplate(vararg skyblockIds: String) = swap(CHESTPLATE_SLOT, *skyblockIds)
+    fun swapChestplate(vararg skyblockIds: String) = swap(20, matching(*skyblockIds))
 
-    fun swapLeggings(vararg skyblockIds: String) = swap(LEGGINGS_SLOT, *skyblockIds)
+    fun swapLeggings(vararg skyblockIds: String) = swap(29, matching(*skyblockIds))
 
-    fun swapBoots(vararg skyblockIds: String) = swap(BOOTS_SLOT, *skyblockIds)
+    fun swapBoots(vararg skyblockIds: String) = swap(38, matching(*skyblockIds))
 
-    private fun swap(equipSlot: Int, vararg skyblockIds: String) = request { startSwap(equipSlot, *skyblockIds) }
+    fun swapHeadByUuid(uuid: String) {
+        if (uuid.isEmpty()) return errorMessage("No previous helmet stored")
+        swap(11) { it.getItemUUID == uuid }
+    }
 
-    private fun startSwap(equipSlot: Int, vararg skyblockIds: String) {
+    private fun matching(vararg skyblockIds: String): (ItemStack) -> Boolean = { it.skyblockID in skyblockIds }
+
+    private fun swap(equipSlot: Int, match: (ItemStack) -> Boolean) = request { startSwap(equipSlot, match) }
+
+    private fun startSwap(equipSlot: Int, match: (ItemStack) -> Boolean) {
         if (!LocationUtils.onSkyblock) return
-        val found = findInInventory(*skyblockIds)
-        if (found == ITEM_NOT_FOUND) return errorMessage("Item not found in inventory")
+        val found = findInInventory(match)
+        if (found == -1) return errorMessage("Item not found in inventory")
         itemSlot = found
         openFor(equipSlot)
     }
@@ -56,11 +56,10 @@ object EquipmentManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
     }
 
     override fun clickSlotFor(targetSlot: Int): Int =
-        if (itemSlot < HOTBAR_SIZE) HOTBAR_CONTAINER_START + itemSlot
-        else MAIN_INV_CONTAINER_START + (itemSlot - HOTBAR_SIZE)
+        if (itemSlot < 9) 81 + itemSlot else 54 + (itemSlot - 9)
 
-    private fun findInInventory(vararg skyblockIds: String): Int {
-        val inventory = mc.player?.inventory ?: return ITEM_NOT_FOUND
-        return (0..LAST_INVENTORY_SLOT).firstOrNull { inventory.getItem(it).skyblockID in skyblockIds } ?: ITEM_NOT_FOUND
+    private fun findInInventory(match: (ItemStack) -> Boolean): Int {
+        val inventory = mc.player?.inventory ?: return -1
+        return (0..35).firstOrNull { match(inventory.getItem(it)) } ?: -1
     }
 }

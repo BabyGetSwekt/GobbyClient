@@ -65,6 +65,7 @@ object DungeonUtils {
     }
 
     inline val dungeonTeammates get() = DungeonListener.teammates
+    inline val myDungeonClass get() = dungeonTeammates[mc.player?.name?.string]?.dungeonClass ?: DungeonClass.Unknown
     inline val doorOpener get() = DungeonListener.doorOpener
     inline val inP3 get() = DungeonListener.inP3
     inline val isDead: Boolean
