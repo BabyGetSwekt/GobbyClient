@@ -52,6 +52,10 @@ object PlayerUtils {
         KeyMapping.set(key, false)
     }
 
+    fun dropItem() {
+        mc.player?.drop(false)
+    }
+
     fun rightClick() {
         val key = (mc.options.keyUse as KeyMappingAccessor).boundKey
         KeyMapping.set(key, true)

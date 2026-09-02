@@ -20,9 +20,9 @@ object AutoUlt : Module(
 
     private val onlyMasterMode by BooleanSetting("Only in master mode", false, desc = "Only automatically use ult in master mode floors")
 
-    private val ULT_MESSAGES = listOf(
+    private val ULT_MESSAGES = setOf(
         "⚠ Maxor is enraged! ⚠",
-        "[BOSS] Goldor: You have done it, you destroyed the factory",
+        "[BOSS] Goldor: You have done it, you destroyed the factory…",
         "[BOSS] Sadan: My giants! Unleashed!",
         "[BOSS] Livid: I respect you for making it to here, but I'll be your undoing."
     )
@@ -32,7 +32,7 @@ object AutoUlt : Module(
         if (!enabled || !inDungeons || !inBoss) return
         if (onlyMasterMode && !masterMode) return
         if (!myDungeonClass.equalsOneOf(DungeonClass.Tank, DungeonClass.Healer)) return
-        if (ULT_MESSAGES.none { event.message.startsWith(it) }) return
+        if (event.message !in ULT_MESSAGES) return
         PlayerUtils.dropItem()
     }
 }
