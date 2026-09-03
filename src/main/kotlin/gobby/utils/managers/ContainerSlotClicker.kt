@@ -83,6 +83,7 @@ abstract class ContainerSlotClicker(
         val stack = screen.menu.getSlot(slot).item
         if (!shouldClick(stack)) {
             ContainerClicks.close(screen.menu.containerId)
+            mc.gui.setScreen(null)
             return true
         }
         sendClick(screen.menu.containerId, clickSlotFor(slot))

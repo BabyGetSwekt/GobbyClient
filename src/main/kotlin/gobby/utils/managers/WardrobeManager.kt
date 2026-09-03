@@ -7,7 +7,6 @@ import gobby.events.core.SubscribeEvent
 import gobby.events.gui.GuiOpenEvent
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.noControlCodes
-import gobby.utils.ConfigUtils
 import gobby.utils.getLoreStrings
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.entity.EquipmentSlot
@@ -18,25 +17,15 @@ private const val COMMAND = "wardrobe"
 private const val FIRST_WARDROBE_SLOT = 36
 private const val WARDROBE_SLOT_INDEX_OFFSET = 1
 
-data class WardrobeData(
-    var equippedSlot: String = "",
-    var helmet: String = "",
-    var chestplate: String = "",
-    var leggings: String = "",
-    var boots: String = ""
-)
-
 object WardrobeManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
-
-    private val config = ConfigUtils.makeConfig("wardrobe", "wardrobe") { WardrobeData() }
 
     private var requestedSlot = ""
 
     private var equippedSlot: String
-        get() = config.data.equippedSlot
-        set(value) = config.edit { equippedSlot = value }
+        get() = PlayerInfo.equippedWardrobeSlot
+        set(value) { PlayerInfo.equippedWardrobeSlot = value }
 
-    val wornHelmet: String get() = config.data.helmet
+    val wornHelmet: String get() = PlayerInfo.helmet
 
     val isSwapping: Boolean get() = isBusy
 
@@ -77,12 +66,12 @@ object WardrobeManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
             getLoreStrings().any { it.noControlCodes.contains("Click to unequip", true) }
 
     @SubscribeEvent
-    fun onArmorUpdate(event: ArmorUpdateEvent) = config.edit {
+    fun onArmorUpdate(event: ArmorUpdateEvent) {
         when (event.slot) {
-            EquipmentSlot.HEAD -> helmet = event.uuidAfter
-            EquipmentSlot.CHEST -> chestplate = event.uuidAfter
-            EquipmentSlot.LEGS -> leggings = event.uuidAfter
-            else -> boots = event.uuidAfter
+            EquipmentSlot.HEAD -> PlayerInfo.updateArmor("helmet", event.uuidAfter)
+            EquipmentSlot.CHEST -> PlayerInfo.updateArmor("chestplate", event.uuidAfter)
+            EquipmentSlot.LEGS -> PlayerInfo.updateArmor("leggings", event.uuidAfter)
+            else -> PlayerInfo.updateArmor("boots", event.uuidAfter)
         }
     }
 
@@ -94,6 +83,6 @@ object WardrobeManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
 
     @SubscribeEvent
     fun onWardrobeWorldLoad(event: WorldLoadEvent) {
-        equippedSlot = ""
+        PlayerInfo.clearActiveSets()
     }
 }
