@@ -141,12 +141,7 @@ object AutoAlign : Module(
         val networkHandler = player.connection
         repeat(clicks) {
             frameData.rotation = (frameData.rotation + 1) % 8
-            networkHandler.send(
-                ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3(0.03125, 0.0, 0.0), false)
-            )
-            networkHandler.send(
-                ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3.ZERO, false)
-            )
+            networkHandler.send(ServerboundInteractPacket(entity.id, InteractionHand.MAIN_HAND, Vec3.ZERO, player.isShiftKeyDown))
         }
     }
 
