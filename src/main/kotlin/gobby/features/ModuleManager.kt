@@ -140,7 +140,7 @@ object ModuleManager {
         AutoExperiments,
         AutoGFS,
         AutoUlt,
-        BloodcampHelper,
+        BloodCampHelper,
         AutoJax,
         LividHelper,
         CancelInteract,

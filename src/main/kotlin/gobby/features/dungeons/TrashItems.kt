@@ -49,7 +49,7 @@ object TrashItems : Module("Trash Items", "Highlights and sells useless dungeon 
     private val ARMOR_SETS = setOf(
         "ZOMBIE_KNIGHT", "ZOMBIE_SOLDIER", "BOUNCY", "SKELETON_MASTER", "SKELETON_SOLDIER", "ROTTEN",
         "SUPER_HEAVY", "SKELETON_LORD", "SKELETOR", "SNIPER_HELMET", "ZOMBIE_COMMANDER", "SKELETON_GRUNT",
-        "HEAVY"
+        "HEAVY", "ZOMBIE_LORD"
     )
     private val ARMOR_PIECES = listOf("_HELMET", "_CHESTPLATE", "_LEGGINGS", "_BOOTS")
     private val JUNK_SPLASH_POTIONS = mapOf("healing" to 8)

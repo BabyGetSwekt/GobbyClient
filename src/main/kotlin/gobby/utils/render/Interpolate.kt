@@ -1,17 +1,12 @@
 package gobby.utils.render
 
 import gobby.Gobbyclient.Companion.mc
-import gobby.utils.Utils.cameraPos
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.player.Player
-import net.minecraft.core.BlockPos
-import net.minecraft.world.phys.AABB
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 
 /**
@@ -24,116 +19,44 @@ import kotlin.math.sin
 
 object Interpolate {
 
-    fun interpolatedEyePos(): Vec3 {
-        val player = mc.player ?: return Vec3(0.0, 0.0, 0.0)
-        return player.getEyePosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
-    }
+    fun partialTick(): Float = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
 
-    fun interpolatedEyeVec(): Vec3 {
-        val player = mc.player ?: return Vec3(0.0, 0.0, 0.0)
-        return player.getEyePosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
-    }
-
-    fun interpolateEntity(entity: Entity): Vec3 {
-        val x = interpolateLastTickPos(entity.x, entity.xOld)
-        val y = interpolateLastTickPos(entity.y, entity.yOld)
-        val z = interpolateLastTickPos(entity.z, entity.zOld)
-        return Vec3(x, y, z)
-    }
+    fun interpolatedEyePos(): Vec3 = mc.player?.getEyePosition(partialTick()) ?: Vec3.ZERO
 
     fun interpolatedLookVec(distance: Double = 4.0): Vec3 {
         val camera = mc.gameRenderer.mainCamera()
-
-        val yaw = camera.yRot()
-        val pitch = camera.xRot()
-        val yawRad = Math.toRadians(yaw.toDouble())
-        val pitchRad = Math.toRadians(pitch.toDouble())
-
-        val x = -sin(yawRad) * cos(pitchRad)
-        val y = -sin(pitchRad)
-        val z = cos(yawRad) * cos(pitchRad)
-
-        val lookVec = Vec3(x, y, z).normalize()
-        return interpolatedEyePos().add(lookVec.scale(distance))
+        val yaw = Math.toRadians(camera.yRot().toDouble())
+        val pitch = Math.toRadians(camera.xRot().toDouble())
+        val look = Vec3(-sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch)).normalize()
+        return interpolatedEyePos().add(look.scale(distance))
     }
 
-    fun interpolateLastTickPos(pos: Double, lastPos: Double): Double {
-        return lastPos + (pos - lastPos) * mc.deltaTracker.getGameTimeDeltaPartialTick(false)
-    }
+    fun getRenderPosition(entity: Entity, tickDelta: Float = partialTick()): Vec3 = Vec3(
+        Mth.lerp(tickDelta.toDouble(), entity.xOld, entity.x),
+        Mth.lerp(tickDelta.toDouble(), entity.yOld, entity.y),
+        Mth.lerp(tickDelta.toDouble(), entity.zOld, entity.z)
+    )
 
-    fun interpolatedEyeVec(player: Player): Vec3 {
-        return player.getEyePosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
-    }
+    fun interpolateEntity(entity: Entity): Vec3 = getRenderPosition(entity)
 
-    fun interpolateVectors(vec: Vec3): Vec3 {
-        val x = vec.x - renderPosX
-        val y = vec.y - renderPosY
-        val z = vec.z - renderPosZ
-        return Vec3(x, y, z)
-    }
-
-    /**
-     * Gets the interpolated Vec3 position of an entity (i.e. position based on render ticks)
-     *
-     * @param entity The entity to get the position for
-     * @param tickDelta The render time
-     * @return The interpolated vector of an entity
-     */
-
-    fun getRenderPosition(entity: Entity, tickDelta: Float): Vec3 {
-        return Vec3(
-            entity.x - Mth.lerp(tickDelta, entity.xOld.toFloat(), entity.x.toFloat()),
-            entity.y - Mth.lerp(tickDelta, entity.yOld.toFloat(), entity.y.toFloat()),
-            entity.z - Mth.lerp(tickDelta, entity.zOld.toFloat(), entity.z.toFloat())
-        )
-    }
-
-    fun interpolatePos(pos: BlockPos): AABB {
-        return interpolatePos(pos, 1.0f)
-    }
-
-    fun interpolatePos(pos: BlockPos, height: Float): AABB {
-        return AABB(
-            pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
-            pos.x + 1.0, pos.y + height.toDouble(), pos.z + 1.0
-        )
-    }
-
-    fun getLerpedBox(e: Entity, partialTicks: Float): AABB {
-        if (e.isRemoved()) return e.boundingBox
-
-        val offset = getRenderPosition(e, partialTicks).subtract(e.x, e.y, e.z)
-        return e.boundingBox.move(offset)
+    fun getLerpedBox(entity: Entity, tickDelta: Float = partialTick()): AABB {
+        if (entity.isRemoved) return entity.boundingBox
+        return entity.boundingBox.move(getRenderPosition(entity, tickDelta).subtract(entity.x, entity.y, entity.z))
     }
 
     fun interpolateColorC(color1: Color, color2: Color, amount: Float): Color {
-        val clampedAmount = amount.coerceIn(0.0f, 1.0f)
+        val factor = amount.coerceIn(0f, 1f)
         return Color(
-            interpolateInt(color1.red, color2.red, clampedAmount),
-            interpolateInt(color1.green, color2.green, clampedAmount),
-            interpolateInt(color1.blue, color2.blue, clampedAmount),
-            interpolateInt(color1.alpha, color2.alpha, clampedAmount)
+            interpolateInt(color1.red, color2.red, factor),
+            interpolateInt(color1.green, color2.green, factor),
+            interpolateInt(color1.blue, color2.blue, factor),
+            interpolateInt(color1.alpha, color2.alpha, factor)
         )
     }
 
-    fun interpolateInt(oldValue: Int, newValue: Int, interpolationValue: Float): Int {
-        return interpolate(oldValue.toDouble(), newValue.toDouble(), interpolationValue.toDouble()).toInt()
-    }
+    fun interpolateInt(oldValue: Int, newValue: Int, factor: Float): Int =
+        interpolate(oldValue.toDouble(), newValue.toDouble(), factor.toDouble()).toInt()
 
-    fun interpolateFloat(prev: Float, value: Float, factor: Float): Float {
-        return prev + ((value - prev) * factor)
-    }
-
-    fun interpolate(oldValue: Double, newValue: Double, interpolationValue: Double): Double {
-        return oldValue + (newValue - oldValue) * interpolationValue
-    }
-
-    val renderPosX: Double
-        get() = mc.gameRenderer.mainCamera().cameraPos.x
-
-    val renderPosY: Double
-        get() = mc.gameRenderer.mainCamera().cameraPos.y
-
-    val renderPosZ: Double
-        get() = mc.gameRenderer.mainCamera().cameraPos.z
+    fun interpolate(oldValue: Double, newValue: Double, factor: Double): Double =
+        oldValue + (newValue - oldValue) * factor
 }
