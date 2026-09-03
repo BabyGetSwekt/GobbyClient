@@ -11,6 +11,7 @@ import gobby.utils.skyblock.dungeon.DungeonUtils
 import net.minecraft.client.KeyMapping
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.Pose
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
@@ -50,6 +51,16 @@ object PlayerUtils {
         KeyMapping.set(key, true)
         KeyMapping.click(key)
         KeyMapping.set(key, false)
+    }
+
+    fun attackEntity(entity: Entity) {
+        val player = mc.player ?: return
+        mc.gameMode?.attack(player, entity)
+        player.swing(InteractionHand.MAIN_HAND)
+    }
+
+    fun swingHand() {
+        mc.player?.swing(InteractionHand.MAIN_HAND)
     }
 
     fun dropItem() {

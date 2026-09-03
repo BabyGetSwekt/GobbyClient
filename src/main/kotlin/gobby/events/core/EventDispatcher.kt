@@ -20,7 +20,7 @@ object EventDispatcher {
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         when (val p = event.packet) {
-            is ClientboundPingPacket -> Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent(p.id))
+            is ClientboundPingPacket -> if (p.id != 0) Gobbyclient.EVENT_MANAGER.publish(ServerTickEvent(p.id))
             is ClientboundSystemChatPacket -> {
                 val plain = p.content().string.noControlCodes
                 if (!p.overlay() && Gobbyclient.EVENT_MANAGER.publish(ChatReceivedEvent(plain)).isCanceled) {

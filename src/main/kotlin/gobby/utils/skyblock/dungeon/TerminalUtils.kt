@@ -72,13 +72,11 @@ object TerminalUtils {
 
         if (event.packet is ClientboundOpenScreenPacket) {
             clickedWindow = false
-            clickedSlots.clear()
-        } else if (event.packet is ClientboundContainerSetSlotPacket && clickedWindow) {
+        } else if (event.packet is ClientboundContainerSetSlotPacket) {
             val pkt = event.packet as ClientboundContainerSetSlotPacket
-            if (pkt.containerId == currentWindowId) {
-                clickedWindow = false
-                clickedSlots.clear()
-            }
+            if (pkt.containerId != currentWindowId) return
+            clickedWindow = false
+            clickedSlots.remove(pkt.slot)
         }
     }
 

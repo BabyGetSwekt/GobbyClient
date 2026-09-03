@@ -23,6 +23,8 @@
     "MixinScreen",
     "MixinStringDecomposer",
     "accessor.AbstractContainerScreenAccessor",
+    "accessor.BossHealthOverlayAccessor",
+    "accessor.MoveEntityPacketAccessor",
     "accessor.CameraAccessor",
     "accessor.CompositeStateBuilderAccessor",
     "accessor.KeyMappingAccessor",

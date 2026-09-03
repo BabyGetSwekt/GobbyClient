@@ -2,8 +2,7 @@ package gobby.features
 
 import gobby.Gobbyclient.Companion.EVENT_MANAGER
 import gobby.commands.*
-import gobby.commands.developer.ClipCommand
-import gobby.commands.developer.SimulateCommand
+import gobby.commands.developer.*
 import gobby.events.core.EventDispatcher
 import gobby.features.developer.*
 import gobby.features.petrules.*
@@ -141,6 +140,7 @@ object ModuleManager {
         AutoExperiments,
         AutoGFS,
         AutoUlt,
+        BloodcampHelper,
         AutoJax,
         LividHelper,
         CancelInteract,
@@ -179,6 +179,7 @@ object ModuleManager {
         CopyGui,
         CopyItemNbt,
         ArmorStandSaver,
+        MobSaver,
         MessageDebugger,
         ParticleDebugger,
         SoundDebugger,

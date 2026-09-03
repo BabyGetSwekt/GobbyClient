@@ -7,9 +7,13 @@ import java.nio.CharBuffer
 import gobby.utils.Utils.isDeveloper
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
 import net.minecraft.ChatFormatting
 import net.minecraft.util.Mth.hsvToRgb
 import java.awt.Color
+import java.io.File
 
 object ChatUtils {
 
@@ -128,6 +132,11 @@ object ChatUtils {
             .append(text.copy().withStyle(ChatFormatting.RED))
         mc.execute { mc.gui.hud.chat.addClientSystemMessage(prefixed) }
     }
+
+    fun fileLink(label: String, file: File): Component =
+        Component.literal(label).setStyle(Style.EMPTY
+            .withClickEvent(ClickEvent.OpenFile(file))
+            .withHoverEvent(HoverEvent.ShowText(Component.literal("Open $label"))))
 
     fun sendMessage(message: Any) {
         if (mc.player == null || mc.level == null || message == "") return

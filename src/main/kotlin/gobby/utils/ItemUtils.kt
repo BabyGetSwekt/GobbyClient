@@ -248,5 +248,8 @@ fun ResolvableProfile.textureJson(): String? {
     return runCatching { String(Base64.getDecoder().decode(encoded)) }.getOrNull()
 }
 
+val DataComponentHolder.textureValue: String?
+    get() = get(DataComponents.PROFILE)?.partialProfile()?.properties?.get(PROFILE_TEXTURES)?.firstOrNull()?.value
+
 val DataComponentHolder.skinUrl: String?
     get() = get(DataComponents.PROFILE)?.textureJson()?.let { SKIN_URL.find(it)?.value }
