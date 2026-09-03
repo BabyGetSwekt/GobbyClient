@@ -4,6 +4,7 @@ import gobby.Gobbyclient.Companion.mc
 import gobby.events.KeyPressGuiEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.Category
+import gobby.gui.click.BooleanSetting
 import gobby.gui.click.KeybindSetting
 import gobby.gui.click.Module
 import gobby.utils.LocationUtils
@@ -15,6 +16,10 @@ object WardrobeSwapper : Module(
     "Wardrobe Swapper", "Instantly equip wardrobe slots with keybinds",
     Category.SKYBLOCK
 ) {
+    private val worksOutsideWdMenu by BooleanSetting(
+        "Works outside WD menu", false,
+        desc = "Allows wardrobe keybinds to work outside the Wardrobe menu"
+    )
     val slot1 by KeybindSetting("Wardrobe 1", desc = "Keybind for wardrobe slot 1")
     val slot2 by KeybindSetting("Wardrobe 2", desc = "Keybind for wardrobe slot 2")
     val slot3 by KeybindSetting("Wardrobe 3", desc = "Keybind for wardrobe slot 3")
@@ -29,7 +34,10 @@ object WardrobeSwapper : Module(
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
         if (!LocationUtils.onSkyblock) return
-        if (mc.gui.screen() != null || WardrobeManager.isSwapping) return
+        if (WardrobeManager.isSwapping) return
+        val wardrobeOpen = WardrobeManager.isWardrobeScreenOpen()
+        if (!worksOutsideWdMenu && !wardrobeOpen) return
+        if (worksOutsideWdMenu && mc.gui.screen() != null && !wardrobeOpen) return
         val key = event.key
         if (key == 0) return
 

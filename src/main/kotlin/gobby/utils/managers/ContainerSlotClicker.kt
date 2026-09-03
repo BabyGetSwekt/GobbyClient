@@ -9,6 +9,7 @@ import gobby.utils.ChatUtils
 import gobby.utils.ContainerClicks
 import gobby.utils.LocationUtils
 import gobby.utils.Utils.getRandomInt
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.world.item.ItemStack
@@ -74,6 +75,25 @@ abstract class ContainerSlotClicker(
     protected open fun sendClick(syncId: Int, slot: Int) {
         ContainerClicks.pickup(syncId, slot)
         ContainerClicks.close(syncId)
+    }
+
+    protected fun clickOpenScreen(slot: Int): Boolean {
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*> ?: return false
+        if (!screenTitle.containsMatchIn(screen.title.string)) return false
+        val stack = screen.menu.getSlot(slot).item
+        if (!shouldClick(stack)) {
+            ContainerClicks.close(screen.menu.containerId)
+            return true
+        }
+        sendClick(screen.menu.containerId, clickSlotFor(slot))
+        return true
+    }
+
+    protected fun closeOpenScreen(): Boolean {
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*> ?: return false
+        if (!screenTitle.containsMatchIn(screen.title.string)) return false
+        ContainerClicks.close(screen.menu.containerId)
+        return true
     }
 
     @SubscribeEvent

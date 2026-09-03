@@ -1,5 +1,6 @@
 package gobby.utils.managers
 
+import gobby.Gobbyclient.Companion.mc
 import gobby.events.ArmorUpdateEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
@@ -14,6 +15,8 @@ import net.minecraft.world.item.ItemStack
 
 private val SCREEN_TITLE = Regex("""^\(\d+/\d+\) Armor Sets$""")
 private const val COMMAND = "wardrobe"
+private const val FIRST_WARDROBE_SLOT = 36
+private const val WARDROBE_SLOT_INDEX_OFFSET = 1
 
 data class WardrobeData(
     var equippedSlot: String = "",
@@ -37,19 +40,36 @@ object WardrobeManager : ContainerSlotClicker(SCREEN_TITLE, COMMAND) {
 
     val isSwapping: Boolean get() = isBusy
 
+    fun isWardrobeScreenOpen(): Boolean {
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*> ?: return false
+        return SCREEN_TITLE.containsMatchIn(screen.title.string)
+    }
+
     fun swap(wardrobeSlot: Int) {
-        if (wardrobeSlot.toString() == equippedSlot) return errorMessage("Current set already equipped")
+        val wardrobeOpen = isWardrobeScreenOpen()
+        if (!wardrobeOpen && wardrobeSlot.toString() == equippedSlot) {
+            closeOpenScreen()
+            return errorMessage("Current set already equipped")
+        }
+        val slot = FIRST_WARDROBE_SLOT + wardrobeSlot - WARDROBE_SLOT_INDEX_OFFSET
+        if (wardrobeOpen) {
+            requestedSlot = wardrobeSlot.toString()
+            clickOpenScreen(slot)
+            return
+        }
         request {
             requestedSlot = wardrobeSlot.toString()
-            openFor(36 + wardrobeSlot - 1)
+            openFor(slot)
         }
     }
 
     override fun shouldClick(stack: ItemStack): Boolean {
+        if (stack.isEquippedSet) {
+            errorMessage("Current set already equipped")
+            return false
+        }
         equippedSlot = requestedSlot
-        if (!stack.isEquippedSet) return true
-        errorMessage("Current set already equipped")
-        return false
+        return true
     }
 
     private val ItemStack.isEquippedSet: Boolean
