@@ -1,12 +1,14 @@
 package gobby.utils.skyblock.dungeon.map
 
+import gobby.Gobbyclient
 import gobby.Gobbyclient.Companion.mc
+import gobby.events.DungeonMapDataEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
 import net.minecraft.world.item.MapItem
-import net.minecraft.world.level.saveddata.maps.MapId
+import net.minecraft.world.level.saveddata.maps.MapDecoration
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData
 
 object DungeonMapSource {
@@ -15,27 +17,33 @@ object DungeonMapSource {
     private const val EMPTY_CORNER: Byte = 0
 
     @Volatile
-    private var mapId: MapId? = null
+    var colors: ByteArray? = null
+        private set
 
-    val savedData: MapItemSavedData?
-        get() {
-            val id = mapId ?: return null
-            val level = mc.level ?: return null
-            return MapItem.getSavedData(id, level)?.takeIf { it.isDungeonMap }
-        }
-
-    private val MapItemSavedData.isDungeonMap: Boolean
-        get() = colors.size >= MAP_PIXELS && colors[0] == EMPTY_CORNER
+    @Volatile
+    var decorations: List<MapDecoration> = emptyList()
+        private set
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
         val packet = event.packet as? ClientboundMapItemDataPacket ?: return
-        mapId = packet.mapId
-        mc.execute { DungeonMapPlayers.sampleMarkers() }
+        val id = packet.mapId
+        mc.execute {
+            val level = mc.level ?: return@execute
+            val data = MapItem.getSavedData(id, level)?.takeIf { it.isDungeonMap } ?: return@execute
+            colors = data.colors.clone()
+            decorations = data.decorations.toList()
+            DungeonMapPlayers.sampleMarkers()
+            Gobbyclient.EVENT_MANAGER.publish(DungeonMapDataEvent())
+        }
     }
+
+    private val MapItemSavedData.isDungeonMap: Boolean
+        get() = colors.size >= MAP_PIXELS && colors[0] == EMPTY_CORNER && colors.any { it != EMPTY_CORNER }
 
     @SubscribeEvent
     fun onWorldLoad(event: WorldLoadEvent) {
-        mapId = null
+        colors = null
+        decorations = emptyList()
     }
 }

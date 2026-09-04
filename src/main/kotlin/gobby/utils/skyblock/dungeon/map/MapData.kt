@@ -27,6 +27,13 @@ object MapConstants {
     const val STEP = CELL_SIZE + GAP
     const val DOOR_THICKNESS = 8
 
+    private val FLOOR_ROOMS = mapOf(
+        0 to (4 to 4), 1 to (4 to 5), 2 to (5 to 5), 3 to (5 to 5), 4 to (6 to 5)
+    )
+    private val FULL_FLOOR = 6 to 6
+
+    fun roomsForFloor(floor: Int): Pair<Int, Int> = FLOOR_ROOMS[floor] ?: FULL_FLOOR
+
     const val CHECK_GREEN: Byte = 30
     const val CHECK_WHITE: Byte = 34
     const val CHECK_FAILED: Byte = 18

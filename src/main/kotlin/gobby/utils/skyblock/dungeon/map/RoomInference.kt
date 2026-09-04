@@ -1,7 +1,6 @@
 package gobby.utils.skyblock.dungeon.map
 
 import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_STRIDE
-import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
 import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
 

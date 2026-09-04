@@ -41,7 +41,7 @@ object MapCheckmarks {
     }
 
     fun update(grid: Array<MapTile>, checkmarks: Array<MapCheckmark>, discovered: BooleanArray) {
-        val colors = DungeonMapSource.savedData?.colors?.clone() ?: return
+        val colors = DungeonMapSource.colors ?: return
 
         if (mapOffsetX < 0 && !scanMapDimensions(grid, colors)) return
 
@@ -102,7 +102,11 @@ object MapCheckmarks {
 
     fun roomCoordsFromMapPixel(pixelX: Double, pixelZ: Double): Pair<Double, Double>? {
         if (mapOffsetX < 0 || roomGap <= 0) return null
-        val (relCol, relRow) = mapRotation.invert((pixelX - mapOffsetX) / roomGap, (pixelZ - mapOffsetZ) / roomGap)
+        val halfRoom = roomPixelSize / 2.0
+        val (relCol, relRow) = mapRotation.invert(
+            (pixelX - halfRoom - mapOffsetX) / roomGap,
+            (pixelZ - halfRoom - mapOffsetZ) / roomGap
+        )
         return relCol + entranceCol to relRow + entranceRow
     }
 
@@ -142,10 +146,10 @@ object MapCheckmarks {
     }
 
     fun gapJoined(col: Int, row: Int): Boolean? {
-        val state = DungeonMapSource.savedData ?: return null
+        val colors = DungeonMapSource.colors ?: return null
         if (mapOffsetX < 0) return null
-        val joined = state.colors.pixel(originX(col), originZ(row)) ?: return null
-        val door = state.colors.pixel(
+        val joined = colors.pixel(originX(col), originZ(row)) ?: return null
+        val door = colors.pixel(
             originX(col) + (row and 1) * roomPixelSize / 2,
             originZ(row) + (col and 1) * roomPixelSize / 2
         ) ?: return null
@@ -154,9 +158,9 @@ object MapCheckmarks {
     }
 
     fun doorByte(col: Int, row: Int): Byte? {
-        val state = DungeonMapSource.savedData ?: return null
+        val colors = DungeonMapSource.colors ?: return null
         if (mapOffsetX < 0) return null
-        return state.colors.pixel(originX(col) + (row and 1) * roomPixelSize / 2, originZ(row) + (col and 1) * roomPixelSize / 2)
+        return colors.pixel(originX(col) + (row and 1) * roomPixelSize / 2, originZ(row) + (col and 1) * roomPixelSize / 2)
     }
 
     private fun originX(col: Int): Int = mapOffsetX + (col / 2 - entranceCol) * roomGap + (col and 1) * roomPixelSize
@@ -176,7 +180,7 @@ object MapCheckmarks {
     }
 
     private fun connectorIsFilled(col: Int, row: Int, roomColor: Byte): Boolean? {
-        val state = DungeonMapSource.savedData ?: return null
+        val colors = DungeonMapSource.colors ?: return null
         val alongZ = col % 2 != 0
         val gapX = originX(col)
         val gapZ = originZ(row)
@@ -184,7 +188,7 @@ object MapCheckmarks {
             val offset = if (inset < 0) roomPixelSize + inset else inset
             val px = if (alongZ) gapX else gapX + offset
             val pz = if (alongZ) gapZ + offset else gapZ
-            state.colors.pixel(px, pz) == roomColor
+            colors.pixel(px, pz) == roomColor
         }
     }
 
@@ -194,18 +198,17 @@ object MapCheckmarks {
     }
 
     private fun roomByte(col: Int, row: Int): Byte? {
-        val state = DungeonMapSource.savedData ?: return null
-        return state.colors.pixel(originX(col) + roomPixelSize / 2, originZ(row) + roomPixelSize / 2)
+        val colors = DungeonMapSource.colors ?: return null
+        return colors.pixel(originX(col) + roomPixelSize / 2, originZ(row) + roomPixelSize / 2)
     }
 
     fun debugInfo(): String {
-        val mapFound = DungeonMapSource.savedData != null
+        val mapFound = DungeonMapSource.colors != null
         return "mapFound=$mapFound offset=($mapOffsetX,$mapOffsetZ) gap=$roomGap size=$roomPixelSize rot=$mapRotation entrance=($entranceCol,$entranceRow)"
     }
 
     fun dumpMapGrid(): List<String> {
-        val state = DungeonMapSource.savedData ?: return listOf("no-map")
-        val colors = state.colors
+        val colors = DungeonMapSource.colors ?: return listOf("no-map")
         if (roomGap < 1) return listOf("no-dims")
         val phaseX = ((mapOffsetX % roomGap) + roomGap) % roomGap
         val phaseZ = ((mapOffsetZ % roomGap) + roomGap) % roomGap
@@ -216,8 +219,7 @@ object MapCheckmarks {
     }
 
     fun dumpRooms(grid: Array<MapTile>, discovered: BooleanArray): List<String> {
-        val state = DungeonMapSource.savedData ?: return listOf("no-map")
-        val colors = state.colors
+        val colors = DungeonMapSource.colors ?: return listOf("no-map")
         if (mapOffsetX < 0) return listOf("no-dims")
         return roomCells(grid).map { index ->
             val name = (grid[index] as MapTile.Room).data.name

@@ -11,7 +11,6 @@ import net.minecraft.core.BlockPos
 object MapScanner {
 
     private const val CHUNK_SHIFT = 4
-    private const val COORDS_PER_CELL = 2
     private val SEAM_SAMPLES = listOf(-10, -5, 0, 5, 10)
 
     /**
@@ -38,6 +37,10 @@ object MapScanner {
         RoomInference.mergeConnected(grid, MapCheckmarks::gapJoined)
 
         MapGrid.gapCells.forEach { cell ->
+            sameRoomConnection(grid, cell.col, cell.row)?.let {
+                grid[cell.index] = it
+                return@forEach
+            }
             if (grid[cell.index] !is MapTile.Empty) return@forEach
             grid[cell.index] = resolveGap(grid, cell.col, cell.row) ?: return@forEach
         }
@@ -97,6 +100,14 @@ object MapScanner {
         return if (open) SeamState.CONNECTED else SeamState.BLOCKED
     }
 
+    private fun sameRoomConnection(grid: Array<MapTile>, col: Int, row: Int): MapTile.Connection? {
+        if (isOdd(col) && isOdd(row)) return null
+        val first = if (isOdd(col)) roomAt(grid, col - 1, row) else roomAt(grid, col, row - 1)
+        val second = if (isOdd(col)) roomAt(grid, col + 1, row) else roomAt(grid, col, row + 1)
+        if (first == null || second == null || first.data !== second.data) return null
+        return MapTile.Connection(first.data)
+    }
+
     private fun resolveGap(grid: Array<MapTile>, col: Int, row: Int): MapTile? {
         val colOdd = isOdd(col)
         val rowOdd = isOdd(row)
@@ -128,18 +139,6 @@ object MapScanner {
         if (roomA != null && roomB != null && roomA.data === roomB.data) return MapTile.Connection(roomA.data)
         return detectDoor(col, row)
     }
-
-    fun dumpTiles(grid: Array<MapTile>): List<String> = MapGrid.roomCells.map { cell ->
-        val tile = grid[cell.index]
-        val name = (tile as? MapTile.Room)?.data?.let { "${it.name.ifEmpty { "?" }}/${it.shape}" } ?: tile::class.simpleName
-        "c${cell.col},r${cell.row} $name core=${(tile as? MapTile.Room)?.core ?: 0} map=${MapCheckmarks.hasRoomOnMap(cell.col, cell.row)}"
-    }
-
-    fun dumpSeams(grid: Array<MapTile>): List<String> = MapGrid.gapCells
-        .filter { it.col % CELL_STRIDE == 0 || it.row % CELL_STRIDE == 0 }
-        .map { gap ->
-            "c${gap.col},r${gap.row} seam=${seamAt(grid, gap.col, gap.row)} boundary=${isDistinctRoomBoundary(grid, gap.col, gap.row)} mapConn=${MapCheckmarks.connectedRooms(gap.col, gap.row)} tile=${grid[gap.index]::class.simpleName}"
-        }
 
     private fun detectDoor(col: Int, row: Int): MapTile.Door? {
         val world = mc.level ?: return null

@@ -2,6 +2,7 @@ package gobby.utils.skyblock.dungeon.map
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.styledText
+import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_SIZE
 import gobby.utils.skyblock.dungeon.map.MapConstants.DOOR_THICKNESS
 import gobby.utils.skyblock.dungeon.map.MapConstants.GAP
@@ -35,6 +36,7 @@ object MapRenderer {
     private val COL_UNKNOWN = Color(64, 64, 64)
     private val COL_CLEARED = Color(0, 255, 0)
     private val COL_MIMIC = Color(255, 0, 0)
+    private const val FULL_SPAN = 6
 
     private const val UNDISCOVERED_DIM = 0.6
     private const val DIM_ROUNDING = 0.5
@@ -64,7 +66,9 @@ object MapRenderer {
         "Multicolored" to "Multi-\ncolored"
     )
 
-    fun getMapSize(): Int = 6 * CELL_SIZE + 5 * GAP
+    fun getMapSize(): Int = floorExtent(FULL_SPAN).toInt()
+
+    private fun floorExtent(rooms: Int): Float = (rooms * CELL_SIZE + (rooms - 1) * GAP).toFloat()
 
     fun roomColor(data: RoomData): Color = when (data.type) {
         RoomType.NORMAL -> COL_NORMAL
@@ -165,10 +169,16 @@ object MapRenderer {
         val size = getMapSize()
         ctx.fill(0, 0, size, size, COL_BG.rgb)
         val forcedFront = entranceFrontCell(grid)
+        val (roomsWide, roomsHigh) = MapConstants.roomsForFloor(dungeonFloor)
+        val span = maxOf(roomsWide, roomsHigh)
+        ctx.pose().pushMatrix()
+        ctx.pose().scale(size.toFloat() / floorExtent(span), size.toFloat() / floorExtent(span))
+        ctx.pose().translate((span - roomsWide) / 2f * STEP, (span - roomsHigh) / 2f * STEP)
         drawTiles(ctx, grid, discovered, legitMode, renderCheckmarks, forcedFront)
         drawDoors(ctx, grid, discovered, openedDoors, legitMode)
         drawRooms(ctx, grid, checkmarks, discovered, legitMode, renderNames, nameScale, renderCheckmarks)
         if (renderHeads) drawPlayers(ctx, headScale)
+        ctx.pose().popMatrix()
     }
 
     private fun drawTiles(

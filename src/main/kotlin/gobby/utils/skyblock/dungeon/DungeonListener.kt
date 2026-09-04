@@ -16,9 +16,17 @@ import net.minecraft.ChatFormatting
 
 object DungeonListener {
 
-    private val teammateRegex = Regex("""\[(\d+)]\s+(\w+)\s+(?:(.{1,2})\s+)?\((\w+)\s+([IVXLC]+)\)""")
+    private val teammateRegex = Regex(
+        """(?:\[(?!\d+])[^]]{1,24}]\s+)*(?:\[(\d+)]\s+)?(?:\[[^]]{1,24}]\s+)*(\w{1,16})(?:\s+([^()]*?))?\s*\((Archer|Berserker|Berserk|Mage|Healer|Tank|DEAD)(?:\s+([IVXLCDM0]+))?\)""",
+        RegexOption.IGNORE_CASE
+    )
 
-    fun teammateNameOf(tabLine: String): String? = teammateRegex.find(tabLine)?.groupValues?.get(2)
+    fun teammateNameOf(entry: PlayerInfo): String? = teammateMatch(entry)?.groupValues?.get(2)
+
+    private fun teammateMatch(entry: PlayerInfo): MatchResult? {
+        val line = ChatFormatting.stripFormatting(entry.tabListDisplayName?.string ?: return null)?.trim() ?: return null
+        return if (line.isEmpty()) null else teammateRegex.find(line)
+    }
 
     val teammates = mutableMapOf<String, DungeonTeammate>()
     var doorOpener = ""
@@ -105,21 +113,19 @@ object DungeonListener {
 
     private fun updateDungeonTeammates(tabList: Collection<PlayerInfo>) {
         for (entry in tabList.toList()) {
-            val displayText = entry.tabListDisplayName ?: continue
-            val line = ChatFormatting.stripFormatting(displayText.string) ?: continue
-            if (line.isBlank()) continue
-
-            val match = teammateRegex.find(line) ?: continue
+            val match = teammateMatch(entry) ?: continue
             val (levelStr, name, emblem, className, classLevel) = match.destructured
-            val dungeonClass = DungeonClass.entries.firstOrNull { it.name.equals(className, ignoreCase = true) }
-                ?: DungeonClass.Unknown
+            val previous = teammates[name]
+            val dead = className.equals("DEAD", ignoreCase = true)
+            val dungeonClass = if (dead) previous?.dungeonClass ?: DungeonClass.Unknown
+            else DungeonClass.entries.firstOrNull { className.startsWith(it.name, ignoreCase = true) } ?: DungeonClass.Unknown
 
             teammates[name] = DungeonTeammate(
                 name = name,
                 dungeonClass = dungeonClass,
-                classLevel = classLevel,
-                playerLevel = levelStr.toIntOrNull() ?: 0,
-                emblem = emblem.ifEmpty { null }
+                classLevel = if (dead) previous?.classLevel.orEmpty() else classLevel,
+                playerLevel = levelStr.toIntOrNull() ?: previous?.playerLevel ?: 0,
+                emblem = emblem.ifEmpty { null } ?: previous?.emblem
             )
         }
     }

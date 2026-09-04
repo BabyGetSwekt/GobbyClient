@@ -2,6 +2,7 @@ package gobby.features.dungeons
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.events.ChunkLoadEvent
+import gobby.events.DungeonMapDataEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.gui.click.BooleanSetting
@@ -51,13 +52,18 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon.", 
     private val refreshClock = Clock()
 
     fun refreshState() {
-        MapCheckmarks.update(grid, checkmarks, discovered)
         DungeonMimic.update(grid)
         DungeonMapPlayers.refreshRoster()
         if (scanMap()) preparePathfinder()
-        MapDoors.updateFromMap(grid, openedDoors)
         markLocalRoom()
         updatePathRevision()
+    }
+
+    @SubscribeEvent
+    fun onMapData(event: DungeonMapDataEvent) {
+        if (!inDungeons || inBoss) return
+        MapCheckmarks.update(grid, checkmarks, discovered)
+        MapDoors.updateFromMap(grid, openedDoors)
     }
 
     private fun scanMap(): Boolean {

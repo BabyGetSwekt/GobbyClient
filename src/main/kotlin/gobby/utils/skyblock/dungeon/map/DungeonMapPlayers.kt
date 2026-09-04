@@ -23,11 +23,11 @@ object DungeonMapPlayers {
     private const val HEAD_YAW_OFFSET = 180.0
     private val RIGHT_ANGLES = listOf(-180.0, -90.0, 0.0, 90.0, 180.0)
 
-    data class Head(val uuid: UUID, val roomCol: Double, val roomRow: Double, val yaw: Double)
+    data class Head(val uuid: UUID, val name: String, val roomCol: Double, val roomRow: Double, val yaw: Double)
 
     private data class Sample(val col: Double, val row: Double, val yaw: Double, val time: Long)
 
-    private class Tracked {
+    private class Tracked(val name: String) {
         var current: Sample? = null
         var previous: Sample? = null
 
@@ -49,12 +49,17 @@ object DungeonMapPlayers {
     }
 
     fun sampleMarkers() {
-        val decorations = DungeonMapSource.savedData?.decorations?.toList() ?: return
-        applyDecorations(decorations)
+        applyDecorations(DungeonMapSource.decorations)
     }
 
     fun heads(partialTick: Float): List<Head> = tracked.entries.mapNotNull { (uuid, player) ->
-        entityHead(uuid, partialTick) ?: sampledHead(uuid, player)
+        entityHead(uuid, player, partialTick) ?: sampledHead(uuid, player)
+    }
+
+    private fun playerEntity(uuid: UUID, player: Tracked): AbstractClientPlayer? {
+        val level = mc.level ?: return null
+        return (level.getPlayerByUUID(uuid) as? AbstractClientPlayer)
+            ?: level.players().firstOrNull { it.name.string == player.name } as? AbstractClientPlayer
     }
 
     fun refreshRoster() {
@@ -62,11 +67,14 @@ object DungeonMapPlayers {
         val connection = mc.connection ?: return
         val localUuid = local.gameProfile.id
         val ordered = LinkedHashMap<UUID, Tracked>()
-        ordered[localUuid] = tracked[localUuid] ?: Tracked()
-        tabOrdered(connection.listedOnlinePlayers).forEach { info ->
-            val uuid = info.profile.id
-            if (uuid == localUuid || DungeonListener.teammateNameOf(tabLine(info)) == null) return@forEach
-            ordered[uuid] = tracked[uuid] ?: Tracked()
+        val localName = local.gameProfile.name
+        val listed = connection.listedOnlinePlayers
+        ordered[localUuid] = tracked[localUuid] ?: Tracked(localName)
+        tabOrdered(listed).forEach { info ->
+            val name = DungeonListener.teammateNameOf(info) ?: return@forEach
+            if (name == localName) return@forEach
+            val uuid = listed.firstOrNull { it.profile.name == name }?.profile?.id ?: return@forEach
+            ordered[uuid] = tracked[uuid] ?: Tracked(name)
         }
         tracked.keys.retainAll(ordered.keys)
         tracked.putAll(ordered)
@@ -80,8 +88,6 @@ object DungeonMapPlayers {
             { it.profile.name.lowercase(Locale.ROOT) }
         )
     )
-
-    private fun tabLine(info: PlayerInfo): String = info.tabListDisplayName?.string.orEmpty()
 
     private fun applyDecorations(decorations: List<MapDecoration>) {
         val icons = decorations.filter { it.type == MapDecorationTypes.FRAME || isPlayerIcon(it) }
@@ -121,12 +127,12 @@ object DungeonMapPlayers {
         rotationCalibrated = true
     }
 
-    private fun entityHead(uuid: UUID, partialTick: Float): Head? {
-        val entity = mc.level?.getPlayerByUUID(uuid) as? AbstractClientPlayer ?: return null
+    private fun entityHead(uuid: UUID, player: Tracked, partialTick: Float): Head? {
+        val entity = playerEntity(uuid, player) ?: return null
         if (entity.isDeadOrDying || entity.isRemoved) return null
         val delta = partialTick.toDouble()
         return Head(
-            uuid,
+            uuid, player.name,
             (Mth.lerp(delta, entity.xo, entity.x) - START_X) / ROOM_STRIDE,
             (Mth.lerp(delta, entity.zo, entity.z) - START_Z) / ROOM_STRIDE,
             entity.getViewYRot(partialTick) - HEAD_YAW_OFFSET
@@ -135,12 +141,12 @@ object DungeonMapPlayers {
 
     private fun sampledHead(uuid: UUID, player: Tracked): Head? {
         val current = player.current ?: return null
-        val previous = player.previous ?: return Head(uuid, current.col, current.row, current.yaw)
+        val previous = player.previous ?: return Head(uuid, player.name, current.col, current.row, current.yaw)
         val span = current.time - previous.time
-        if (span <= 0L) return Head(uuid, current.col, current.row, current.yaw)
+        if (span <= 0L) return Head(uuid, player.name, current.col, current.row, current.yaw)
         val factor = ((System.currentTimeMillis() - current.time).toDouble() / span).coerceIn(0.0, 1.0)
         return Head(
-            uuid,
+            uuid, player.name,
             Mth.lerp(factor, previous.col, current.col),
             Mth.lerp(factor, previous.row, current.row),
             previous.yaw + wrapDegrees(current.yaw - previous.yaw) * factor

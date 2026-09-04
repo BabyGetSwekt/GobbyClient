@@ -8,7 +8,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import gobby.features.dungeons.DungeonMap
 import gobby.utils.skyblock.dungeon.map.DungeonRooms
 import gobby.utils.skyblock.dungeon.map.MapCheckmarks
-import gobby.utils.skyblock.dungeon.map.MapScanner
 import gobby.utils.skyblock.dungeon.map.MapTile
 import gobby.utils.skyblock.dungeon.tiles.RoomType
 
@@ -65,8 +64,6 @@ internal object GobbyCommandWorld {
                         modMessage("\u00A7e ${MapCheckmarks.debugInfo()}")
                         MapCheckmarks.dumpRooms(grid, disc).forEach { println("[GobbyMapDump] $it") }
                         MapCheckmarks.dumpMapGrid().forEach { println("[GobbyMapGrid] $it") }
-                        MapScanner.dumpTiles(grid).forEach { println("[GobbyTile] $it") }
-                        MapScanner.dumpSeams(grid).forEach { println("[GobbySeam] $it") }
                         modMessage("\u00A77 (per-room + map-grid dump written to log)")
                         Command.SINGLE_SUCCESS
                     }
