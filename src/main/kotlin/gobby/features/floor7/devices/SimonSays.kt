@@ -49,7 +49,7 @@ object SimonSays : Module(
         .childOf(autoSSDropdown)
     private val clickDelay by NumberSetting("Click Delay", 200, 30, 500, 10, desc = "Delay between clicks in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
-    private val rotationDelay by NumberSetting("Rotation Delay", 150, 0, 1000, 50, desc = "Time to ease rotation to buttons in ms")
+    private val rotationDelay by NumberSetting("Rotation Delay", 150, 0, 1000, 10, desc = "Time to ease rotation to buttons in ms")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
     private val autoStart by BooleanSetting("Autostart", true, desc = "Automatically starts SS when Goldor speaks")
         .childOf(autoSSDropdown).withDependency { autoSSEnabled }
@@ -199,7 +199,7 @@ object SimonSays : Module(
     @SubscribeEvent
     fun onKeyPress(event: KeyPressGuiEvent) {
         if (!enabled) return
-        if (event.key == startSSKeybind && startSSKeybind != 0) {
+        if (event.key == startSSKeybind && startSSKeybind != 0 && mc.gui.screen() == null) {
             reset()
             start()
         }

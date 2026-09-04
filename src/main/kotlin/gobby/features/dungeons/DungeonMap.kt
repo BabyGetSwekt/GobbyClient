@@ -52,6 +52,8 @@ object DungeonMap : Module("Dungeon Map", "Renders a mini-map of the dungeon.", 
 
     fun refreshState() {
         MapCheckmarks.update(grid, checkmarks, discovered)
+        DungeonMimic.update(grid)
+        DungeonMapPlayers.refreshRoster()
         if (scanMap()) preparePathfinder()
         MapDoors.updateFromMap(grid, openedDoors)
         markLocalRoom()

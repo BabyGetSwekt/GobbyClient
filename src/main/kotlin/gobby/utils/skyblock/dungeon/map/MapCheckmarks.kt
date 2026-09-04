@@ -1,17 +1,11 @@
 package gobby.utils.skyblock.dungeon.map
 
-import gobby.Gobbyclient.Companion.mc
 import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
 import gobby.utils.skyblock.dungeon.tiles.RoomType
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.MapItem
-import net.minecraft.world.item.Items
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData
 
 object MapCheckmarks {
 
     private const val MAP_SIZE = 128
-    private const val HOTBAR_SIZE = 9
     private const val EMPTY_COLOR: Byte = 0
     private const val ROOM_GREEN_MIN = 29
     private const val ROOM_GREEN_MAX = 31
@@ -47,21 +41,11 @@ object MapCheckmarks {
     }
 
     fun update(grid: Array<MapTile>, checkmarks: Array<MapCheckmark>, discovered: BooleanArray) {
-        val player = mc.player ?: return
-        val mapState = findMapState(player) ?: return
-        val colors = mapState.colors.clone()
+        val colors = DungeonMapSource.savedData?.colors?.clone() ?: return
 
         if (mapOffsetX < 0 && !scanMapDimensions(grid, colors)) return
 
         roomCells(grid).forEach { index -> updateRoom(index, grid, colors, checkmarks, discovered) }
-    }
-
-    private fun MapCheckmark.priority(): Int = when (this) {
-        MapCheckmark.NONE -> 0
-        MapCheckmark.UNKNOWN -> 1
-        MapCheckmark.WHITE -> 2
-        MapCheckmark.GREEN -> 3
-        MapCheckmark.FAILED -> 4
     }
 
     private fun roomCells(grid: Array<MapTile>): List<Int> =
@@ -79,7 +63,7 @@ object MapCheckmarks {
         val roomColor = origin?.takeUnless { it == EMPTY_COLOR } ?: center ?: return
         if (isExplored(origin)) discovered[index] = true
         val detected = detectCheckmark(colors, x, z, roomColor)
-        if (detected.priority() > checkmarks[index].priority()) checkmarks[index] = detected
+        if (detected.ordinal > checkmarks[index].ordinal) checkmarks[index] = detected
     }
 
     private fun isExplored(byte: Byte?): Boolean = byte != null && byte != EMPTY_COLOR && byte != ROOM_UNOPENED
@@ -95,7 +79,7 @@ object MapCheckmarks {
                 in CHECK_UNKNOWN_MIN..CHECK_UNKNOWN_MAX -> MapCheckmark.UNKNOWN
                 else -> null
             }
-        }.maxByOrNull { it.priority() } ?: MapCheckmark.NONE
+        }.maxByOrNull { it.ordinal } ?: MapCheckmark.NONE
 
     private fun scanMapDimensions(grid: Array<MapTile>, colors: ByteArray): Boolean {
         val entrance = roomCells(grid).firstOrNull { (grid[it] as MapTile.Room).data.type == RoomType.ENTRANCE } ?: return false
@@ -114,6 +98,12 @@ object MapCheckmarks {
         mapOffsetZ = candidate.top
         mapRotation = findMapRotation(grid, colors)
         return true
+    }
+
+    fun roomCoordsFromMapPixel(pixelX: Double, pixelZ: Double): Pair<Double, Double>? {
+        if (mapOffsetX < 0 || roomGap <= 0) return null
+        val (relCol, relRow) = mapRotation.invert((pixelX - mapOffsetX) / roomGap, (pixelZ - mapOffsetZ) / roomGap)
+        return relCol + entranceCol to relRow + entranceRow
     }
 
     private fun mapPosition(index: Int): Pair<Int, Int> {
@@ -151,8 +141,20 @@ object MapCheckmarks {
         return RoomBounds(left, topIndex / MAP_SIZE, right - left + 1, bottomIndex / MAP_SIZE - topIndex / MAP_SIZE + 1)
     }
 
+    fun gapJoined(col: Int, row: Int): Boolean? {
+        val state = DungeonMapSource.savedData ?: return null
+        if (mapOffsetX < 0) return null
+        val joined = state.colors.pixel(originX(col), originZ(row)) ?: return null
+        val door = state.colors.pixel(
+            originX(col) + (row and 1) * roomPixelSize / 2,
+            originZ(row) + (col and 1) * roomPixelSize / 2
+        ) ?: return null
+        if (door == EMPTY_COLOR) return null
+        return joined == door
+    }
+
     fun doorByte(col: Int, row: Int): Byte? {
-        val state = mc.player?.let { findMapState(it) } ?: return null
+        val state = DungeonMapSource.savedData ?: return null
         if (mapOffsetX < 0) return null
         return state.colors.pixel(originX(col) + (row and 1) * roomPixelSize / 2, originZ(row) + (col and 1) * roomPixelSize / 2)
     }
@@ -174,7 +176,7 @@ object MapCheckmarks {
     }
 
     private fun connectorIsFilled(col: Int, row: Int, roomColor: Byte): Boolean? {
-        val state = mc.player?.let { findMapState(it) } ?: return null
+        val state = DungeonMapSource.savedData ?: return null
         val alongZ = col % 2 != 0
         val gapX = originX(col)
         val gapZ = originZ(row)
@@ -192,17 +194,17 @@ object MapCheckmarks {
     }
 
     private fun roomByte(col: Int, row: Int): Byte? {
-        val state = mc.player?.let { findMapState(it) } ?: return null
+        val state = DungeonMapSource.savedData ?: return null
         return state.colors.pixel(originX(col) + roomPixelSize / 2, originZ(row) + roomPixelSize / 2)
     }
 
     fun debugInfo(): String {
-        val mapFound = mc.player?.let { findMapState(it) } != null
+        val mapFound = DungeonMapSource.savedData != null
         return "mapFound=$mapFound offset=($mapOffsetX,$mapOffsetZ) gap=$roomGap size=$roomPixelSize rot=$mapRotation entrance=($entranceCol,$entranceRow)"
     }
 
     fun dumpMapGrid(): List<String> {
-        val state = mc.player?.let { findMapState(it) } ?: return listOf("no-map")
+        val state = DungeonMapSource.savedData ?: return listOf("no-map")
         val colors = state.colors
         if (roomGap < 1) return listOf("no-dims")
         val phaseX = ((mapOffsetX % roomGap) + roomGap) % roomGap
@@ -214,7 +216,7 @@ object MapCheckmarks {
     }
 
     fun dumpRooms(grid: Array<MapTile>, discovered: BooleanArray): List<String> {
-        val state = mc.player?.let { findMapState(it) } ?: return listOf("no-map")
+        val state = DungeonMapSource.savedData ?: return listOf("no-map")
         val colors = state.colors
         if (mapOffsetX < 0) return listOf("no-dims")
         return roomCells(grid).map { index ->
@@ -226,22 +228,11 @@ object MapCheckmarks {
         }
     }
 
-    private fun findMapState(player: Player): MapItemSavedData? {
-        val world = mc.level ?: return null
-        for (slot in 0 until HOTBAR_SIZE) {
-            val stack = player.inventory.getItem(slot)
-            if (stack.item == Items.FILLED_MAP) {
-                val state = MapItem.getSavedData(stack, world)
-                if (state != null) return state
-            }
-        }
-        return null
-    }
 }
 
 private data class RoomBounds(val left: Int, val top: Int, val width: Int, val height: Int)
 
-private enum class MapRotation {
+internal enum class MapRotation {
     NONE,
     CLOCKWISE_90,
     HALF_TURN,
@@ -252,5 +243,12 @@ private enum class MapRotation {
         CLOCKWISE_90 -> -row to col
         HALF_TURN -> -col to -row
         CLOCKWISE_270 -> row to -col
+    }
+
+    fun invert(mapCol: Double, mapRow: Double): Pair<Double, Double> = when (this) {
+        NONE -> mapCol to mapRow
+        CLOCKWISE_90 -> mapRow to -mapCol
+        HALF_TURN -> -mapCol to -mapRow
+        CLOCKWISE_270 -> -mapRow to mapCol
     }
 }

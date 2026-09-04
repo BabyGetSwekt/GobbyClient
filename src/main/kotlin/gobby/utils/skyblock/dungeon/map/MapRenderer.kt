@@ -2,14 +2,10 @@ package gobby.utils.skyblock.dungeon.map
 
 import gobby.Gobbyclient.Companion.mc
 import gobby.gui.click.styledText
-import gobby.utils.skyblock.dungeon.DungeonListener
 import gobby.utils.skyblock.dungeon.map.MapConstants.CELL_SIZE
 import gobby.utils.skyblock.dungeon.map.MapConstants.DOOR_THICKNESS
 import gobby.utils.skyblock.dungeon.map.MapConstants.GAP
 import gobby.utils.skyblock.dungeon.map.MapConstants.GRID_SIZE
-import gobby.utils.skyblock.dungeon.map.MapConstants.HALF_ROOM
-import gobby.utils.skyblock.dungeon.map.MapConstants.START_X
-import gobby.utils.skyblock.dungeon.map.MapConstants.START_Z
 import gobby.utils.skyblock.dungeon.map.MapConstants.STEP
 import gobby.utils.skyblock.dungeon.tiles.RoomData
 import gobby.utils.skyblock.dungeon.tiles.RoomType
@@ -37,6 +33,8 @@ object MapRenderer {
     private val COL_DOOR_ENTRANCE = Color(0, 123, 0)
     private val COL_DOOR_OPENED = Color(114, 67, 27)
     private val COL_UNKNOWN = Color(64, 64, 64)
+    private val COL_CLEARED = Color(0, 255, 0)
+    private val COL_MIMIC = Color(255, 0, 0)
 
     private const val UNDISCOVERED_DIM = 0.6
     private const val DIM_ROUNDING = 0.5
@@ -44,6 +42,7 @@ object MapRenderer {
 
     private val CHECKMARK_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/white_checkmark")
     private val QUESTION_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/white_question_mark")
+    private val FAILED_ID = ResourceLocation.fromNamespaceAndPath("gobbyclient", "textures/failed")
     private var checkmarkRegistered = false
 
     private const val SKIN_TEX_SIZE = 64
@@ -55,7 +54,7 @@ object MapRenderer {
     private const val DEFAULT_HEAD_SIZE = 6
     private const val MIN_HEAD_SIZE = 3
     private const val NAME_SCALE = 0.35f
-    private const val HEAD_ROTATION_OFFSET = 180.0
+    private val VISIBLE_ROOM_RANGE = -1.5..6.5
 
     private val HYPHENATED = mapOf(
         "Deathmite" to "Death-\nmite",
@@ -77,11 +76,11 @@ object MapRenderer {
         RoomType.RARE, RoomType.CHAMPION -> COL_RARE
     }
 
-    private fun roomFill(data: RoomData, discovered: Boolean, legit: Boolean): Int = when {
-        data.name == UNKNOWN_ROOM_NAME -> COL_UNKNOWN.rgb
-        discovered || data.type == RoomType.ENTRANCE -> roomColor(data).rgb
-        legit -> COL_UNKNOWN.rgb
-        else -> dim(roomColor(data)).rgb
+    private fun roomFill(data: RoomData, discovered: Boolean, legit: Boolean, mimic: Boolean = false): Int {
+        if (data.name == UNKNOWN_ROOM_NAME) return COL_UNKNOWN.rgb
+        val base = if (mimic) COL_MIMIC else roomColor(data)
+        if (discovered || data.type == RoomType.ENTRANCE) return base.rgb
+        return if (legit) COL_UNKNOWN.rgb else dim(base).rgb
     }
 
     private fun dim(color: Color): Color =
@@ -124,6 +123,11 @@ object MapRenderer {
         }
     }
 
+    private fun connectionMimic(grid: Array<MapTile>, col: Int, row: Int): Boolean =
+        neighbourCells(col, row).any { (c, r) ->
+            MapGrid.inRange(c, r) && grid[MapGrid.index(c, r)] is MapTile.Room && DungeonMimic.isMimicRoom(grid, MapGrid.index(c, r))
+        }
+
     private fun neighbourDiscovered(discovered: BooleanArray, col: Int, row: Int): Boolean =
         neighbourCells(col, row).any { (c, r) -> MapGrid.inRange(c, r) && discovered[MapGrid.index(c, r)] }
 
@@ -161,7 +165,7 @@ object MapRenderer {
         val size = getMapSize()
         ctx.fill(0, 0, size, size, COL_BG.rgb)
         val forcedFront = entranceFrontCell(grid)
-        drawTiles(ctx, grid, checkmarks, discovered, legitMode, renderCheckmarks, forcedFront)
+        drawTiles(ctx, grid, discovered, legitMode, renderCheckmarks, forcedFront)
         drawDoors(ctx, grid, discovered, openedDoors, legitMode)
         drawRooms(ctx, grid, checkmarks, discovered, legitMode, renderNames, nameScale, renderCheckmarks)
         if (renderHeads) drawPlayers(ctx, headScale)
@@ -170,7 +174,6 @@ object MapRenderer {
     private fun drawTiles(
         ctx: GuiGraphicsExtractor,
         grid: Array<MapTile>,
-        checkmarks: Array<MapCheckmark>,
         discovered: BooleanArray,
         legitMode: Boolean,
         renderCheckmarks: Boolean,
@@ -184,8 +187,8 @@ object MapRenderer {
             val colOdd = col and 1 == 1
             val rowOdd = row and 1 == 1
             when (tile) {
-                is MapTile.Room -> drawRoomTile(ctx, tile, checkmarks[index], discovered[index], legitMode, renderCheckmarks, index == forcedFront && !discovered[index], px, py)
-                is MapTile.Connection -> drawConnectionTile(ctx, tile, discovered, legitMode, col, row, colOdd, rowOdd, px, py)
+                is MapTile.Room -> drawRoomTile(ctx, tile, discovered[index], legitMode, renderCheckmarks, index == forcedFront && !discovered[index], DungeonMimic.isMimicRoom(grid, index), px, py)
+                is MapTile.Connection -> drawConnectionTile(ctx, tile, discovered, legitMode, col, row, colOdd, rowOdd, connectionMimic(grid, col, row), px, py)
                 else -> Unit
             }
         }
@@ -194,16 +197,16 @@ object MapRenderer {
     private fun drawRoomTile(
         ctx: GuiGraphicsExtractor,
         tile: MapTile.Room,
-        checkmark: MapCheckmark,
         discovered: Boolean,
         legitMode: Boolean,
         renderCheckmarks: Boolean,
         question: Boolean,
+        mimic: Boolean,
         px: Int,
         py: Int
     ) {
         if (legitMode && !discovered && !question && tile.data.type != RoomType.ENTRANCE) return
-        ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomFill(tile.data, discovered, legitMode))
+        ctx.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, roomFill(tile.data, discovered, legitMode, mimic))
         if (renderCheckmarks && question && !discovered) drawCheckmark(ctx, MapCheckmark.UNKNOWN, px + CELL_SIZE / 2, py + CELL_SIZE / 2)
     }
 
@@ -216,11 +219,12 @@ object MapRenderer {
         row: Int,
         colOdd: Boolean,
         rowOdd: Boolean,
+        mimic: Boolean,
         px: Int,
         py: Int
     ) {
         if (legitMode && !neighbourAll(discovered, col, row)) return
-        val color = roomFill(tile.data, neighbourDiscovered(discovered, col, row), legitMode)
+        val color = roomFill(tile.data, neighbourDiscovered(discovered, col, row), legitMode, mimic)
         when {
             colOdd && !rowOdd -> ctx.fill(px + CELL_SIZE, py, px + CELL_SIZE + GAP, py + CELL_SIZE, color)
             !colOdd && rowOdd -> ctx.fill(px, py + CELL_SIZE, px + CELL_SIZE, py + CELL_SIZE + GAP, color)
@@ -270,32 +274,33 @@ object MapRenderer {
                 .toList()
             val visible = if (legitMode) cells.filter { (col, row) -> discovered[row * GRID_SIZE + col] } else cells
             if (visible.isEmpty()) return@forEach
-            drawRoomCheckmark(ctx, visible, tile.data.shape, checkmarks, renderCheckmarks)
+            val checkmark = roomCheckmark(visible, checkmarks)
+            drawRoomCheckmark(ctx, visible, tile.data.shape, checkmark, renderCheckmarks)
             if (renderNames && (!legitMode || visible.any { (col, row) -> discovered[row * GRID_SIZE + col] })) {
                 val (col, row) = visible.first()
-                drawRoomName(ctx, tile.data, (col / 2) * STEP, (row / 2) * STEP, nameScale)
+                drawRoomName(ctx, tile.data, (col / 2) * STEP, (row / 2) * STEP, nameScale, checkmark)
             }
         }
     }
+
+    private fun roomCheckmark(visible: List<Pair<Int, Int>>, checkmarks: Array<MapCheckmark>): MapCheckmark =
+        visible.map { (col, row) -> checkmarks[row * GRID_SIZE + col] }
+            .filter { it != MapCheckmark.UNKNOWN }
+            .maxByOrNull { it.ordinal } ?: MapCheckmark.NONE
 
     private fun drawRoomCheckmark(
         ctx: GuiGraphicsExtractor,
         visible: List<Pair<Int, Int>>,
         shape: String,
-        checkmarks: Array<MapCheckmark>,
+        checkmark: MapCheckmark,
         enabled: Boolean
     ) {
-        if (!enabled) return
-        val best = visible.map { (col, row) -> checkmarks[row * GRID_SIZE + col] }
-            .filter { it != MapCheckmark.UNKNOWN }
-            .maxByOrNull { it.ordinal } ?: MapCheckmark.NONE
-        if (best != MapCheckmark.NONE) {
-            val (x, y) = getRoomCheckmarkCenter(visible, shape)
-            drawCheckmark(ctx, best, x, y)
-        }
+        if (!enabled || checkmark == MapCheckmark.NONE) return
+        val (x, y) = getRoomCheckmarkCenter(visible, shape)
+        drawCheckmark(ctx, checkmark, x, y)
     }
 
-    private fun drawRoomName(ctx: GuiGraphicsExtractor, data: RoomData, px: Int, py: Int, scalePercent: Int) {
+    private fun drawRoomName(ctx: GuiGraphicsExtractor, data: RoomData, px: Int, py: Int, scalePercent: Int, checkmark: MapCheckmark) {
         val tr = mc.font
         val name = data.name
         if (name.isEmpty()) return
@@ -310,10 +315,11 @@ object MapRenderer {
         ctx.pose().translate(px + CELL_SIZE / 2f, py + CELL_SIZE / 2f)
         ctx.pose().scale(scale, scale)
 
+        val nameColor = if (checkmark == MapCheckmark.GREEN) COL_CLEARED.rgb else Color.WHITE.rgb
         val startY = -(totalHeight / 2)
         for (i in styledLines.indices) {
             val tw = tr.width(styledLines[i])
-            ctx.text(tr, styledLines[i], -tw / 2, startY + i * tr.lineHeight, Color.WHITE.rgb, true)
+            ctx.text(tr, styledLines[i], -tw / 2, startY + i * tr.lineHeight, nameColor, true)
         }
         ctx.pose().popMatrix()
     }
@@ -345,12 +351,12 @@ object MapRenderer {
         val cx = centerX - checkSize / 2
         val cy = centerY - checkSize / 2
 
-        val id = if (checkmark == MapCheckmark.UNKNOWN) QUESTION_ID else CHECKMARK_ID
-        val tint = when (checkmark) {
-            MapCheckmark.GREEN -> Color(0, 255, 0).rgb
-            MapCheckmark.FAILED -> Color(255, 0, 0).rgb
-            else -> Color.WHITE.rgb
+        val id = when (checkmark) {
+            MapCheckmark.UNKNOWN -> QUESTION_ID
+            MapCheckmark.FAILED -> FAILED_ID
+            else -> CHECKMARK_ID
         }
+        val tint = if (checkmark == MapCheckmark.GREEN) COL_CLEARED.rgb else Color.WHITE.rgb
 
         ctx.blit(
             RenderPipelines.GUI_TEXTURED, id,
@@ -362,6 +368,7 @@ object MapRenderer {
         if (checkmarkRegistered) return
         registerTexture(CHECKMARK_ID)
         registerTexture(QUESTION_ID)
+        registerTexture(FAILED_ID)
         checkmarkRegistered = true
     }
 
@@ -377,44 +384,36 @@ object MapRenderer {
     }
 
     private fun drawPlayers(ctx: GuiGraphicsExtractor, headScalePercent: Int) {
-        val world = mc.level ?: return
-        val self = mc.player ?: return
-        val teammateNames = DungeonListener.teammates.keys
         val headSize = maxOf(MIN_HEAD_SIZE, (DEFAULT_HEAD_SIZE * headScalePercent / 100f).toInt())
-
-        for (player in world.players()) {
-            val name = player.name.string
-            val isSelf = player == self
-            if (!isSelf && name !in teammateNames) continue
-
-            val gridC = (player.x - START_X) / HALF_ROOM.toDouble()
-            val gridR = (player.z - START_Z) / HALF_ROOM.toDouble()
-            if (gridC < -3.0 || gridC > 13.0 || gridR < -3.0 || gridR > 13.0) continue
-
-            val pixelX = (gridC / 2.0 * STEP + CELL_SIZE / 2.0).toInt()
-            val pixelY = (gridR / 2.0 * STEP + CELL_SIZE / 2.0).toInt()
-            val hx = pixelX - headSize / 2
-            val hy = pixelY - headSize / 2
-
-            val entry = mc.connection?.getPlayerInfo(player.uuid) ?: continue
-            val skinTexture = entry.skin.body().texturePath()
-            if (skinTexture != null) {
-                val scale = headSize / FACE_SIZE.toFloat()
-                val partial = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
-                val angle = Math.toRadians(player.getViewYRot(partial) - HEAD_ROTATION_OFFSET).toFloat()
-                ctx.pose().pushMatrix()
-                ctx.pose().translate(pixelX.toFloat(), pixelY.toFloat())
-                ctx.pose().rotate(angle)
-                ctx.pose().scale(scale, scale)
-                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, -FACE_SIZE / 2, -FACE_SIZE / 2, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
-                ctx.blit(RenderPipelines.GUI_TEXTURED, skinTexture, -FACE_SIZE / 2, -FACE_SIZE / 2, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
-                ctx.pose().popMatrix()
-            } else {
-                ctx.fill(hx - 1, hy - 1, hx + headSize + 1, hy + headSize + 1, Color.BLACK.rgb)
-                val c = if (isSelf) Color(0, 220, 0).rgb else Color(0, 180, 220).rgb
-                ctx.fill(hx, hy, hx + headSize, hy + headSize, c)
-            }
-        }
+        val partial = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
+        DungeonMapPlayers.heads(partial).forEach { head -> drawHead(ctx, head, headSize) }
     }
+
+    private fun drawHead(ctx: GuiGraphicsExtractor, head: DungeonMapPlayers.Head, headSize: Int) {
+        if (head.roomCol !in VISIBLE_ROOM_RANGE || head.roomRow !in VISIBLE_ROOM_RANGE) return
+        val pixelX = (head.roomCol * STEP + CELL_SIZE / 2.0).toFloat()
+        val pixelY = (head.roomRow * STEP + CELL_SIZE / 2.0).toFloat()
+        val skin = mc.connection?.getPlayerInfo(head.uuid)?.skin?.body()?.texturePath()
+
+        if (skin == null) {
+            val hx = pixelX.toInt() - headSize / 2
+            val hy = pixelY.toInt() - headSize / 2
+            ctx.fill(hx - 1, hy - 1, hx + headSize + 1, hy + headSize + 1, Color.BLACK.rgb)
+            ctx.fill(hx, hy, hx + headSize, hy + headSize, headFallbackColor(head.uuid))
+            return
+        }
+
+        val scale = headSize / FACE_SIZE.toFloat()
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(pixelX, pixelY)
+        ctx.pose().rotate(Math.toRadians(head.yaw).toFloat())
+        ctx.pose().scale(scale, scale)
+        ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -FACE_SIZE / 2, -FACE_SIZE / 2, FACE_U, FACE_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+        ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -FACE_SIZE / 2, -FACE_SIZE / 2, HAT_U, HAT_V, FACE_SIZE, FACE_SIZE, SKIN_TEX_SIZE, SKIN_TEX_SIZE, -1)
+        ctx.pose().popMatrix()
+    }
+
+    private fun headFallbackColor(uuid: java.util.UUID): Int =
+        if (uuid == mc.player?.uuid) Color(0, 220, 0).rgb else Color(0, 180, 220).rgb
 }
 

@@ -28,6 +28,7 @@ import gobby.utils.render.*
 import gobby.utils.rotation.RotationUtils
 import gobby.pathfinder.etherwarp.EtherwarpServerTickGate
 import gobby.utils.skyblock.dungeon.*
+import gobby.utils.skyblock.dungeon.map.*
 import gobby.utils.timer.Executor
 import gobby.utils.MovementPacketSuppressor
 
@@ -87,6 +88,9 @@ object ModuleManager {
             HotbarTracker,
             ArmorTracker,
             DungeonMapSaver,
+            DungeonMapSource,
+            DungeonMapPlayers,
+            DungeonMimic,
             StructureCopier,
             MovementRecorder,
             EventDispatcher,

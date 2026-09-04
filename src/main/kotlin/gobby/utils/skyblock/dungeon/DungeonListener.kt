@@ -18,6 +18,8 @@ object DungeonListener {
 
     private val teammateRegex = Regex("""\[(\d+)]\s+(\w+)\s+(?:(.{1,2})\s+)?\((\w+)\s+([IVXLC]+)\)""")
 
+    fun teammateNameOf(tabLine: String): String? = teammateRegex.find(tabLine)?.groupValues?.get(2)
+
     val teammates = mutableMapOf<String, DungeonTeammate>()
     var doorOpener = ""
         private set
@@ -42,7 +44,7 @@ object DungeonListener {
             "[BOSS] Purple Livid: My shadows are everywhere, THEY WILL FIND YOU!!",
             "[BOSS] Arcane Livid: My shadows are everywhere, THEY WILL FIND YOU!!"
         ),
-        6 to listOf("[BOSS] Sadan: FATHER, FORGIVE ME!!!"),
+        6 to listOf("[BOSS] Sadan: NOOOOOOOOO!!! THIS IS IMPOSSIBLE!!"),
         7 to listOf("[BOSS] The Wither King: Incredible. You did what I couldn't do myself.")
     )
 

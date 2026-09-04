@@ -32,8 +32,10 @@ object MapScanner {
             }
         }
 
+        RoomInference.mergeConnected(grid, MapCheckmarks::gapJoined)
         RoomInference.infer(grid, { col, row -> seamAt(grid, col, row) }, ::mapShowsRoom)
         RoomInference.fillUnscanned(grid, { col, row -> seamAt(grid, col, row) }, ::mapShowsRoom)
+        RoomInference.mergeConnected(grid, MapCheckmarks::gapJoined)
 
         MapGrid.gapCells.forEach { cell ->
             if (grid[cell.index] !is MapTile.Empty) return@forEach
@@ -79,7 +81,7 @@ object MapScanner {
         } else {
             listOf(roomAt(grid, col, row - 1), roomAt(grid, col, row + 1))
         }
-        return rooms.all { it != null } && rooms[0]!!.data !== rooms[1]!!.data
+        return rooms.all { it != null && it.data.name != UNKNOWN_ROOM_NAME } && rooms[0]!!.data !== rooms[1]!!.data
     }
 
     private fun seamInWorld(col: Int, row: Int): SeamState {
@@ -126,6 +128,18 @@ object MapScanner {
         if (roomA != null && roomB != null && roomA.data === roomB.data) return MapTile.Connection(roomA.data)
         return detectDoor(col, row)
     }
+
+    fun dumpTiles(grid: Array<MapTile>): List<String> = MapGrid.roomCells.map { cell ->
+        val tile = grid[cell.index]
+        val name = (tile as? MapTile.Room)?.data?.let { "${it.name.ifEmpty { "?" }}/${it.shape}" } ?: tile::class.simpleName
+        "c${cell.col},r${cell.row} $name core=${(tile as? MapTile.Room)?.core ?: 0} map=${MapCheckmarks.hasRoomOnMap(cell.col, cell.row)}"
+    }
+
+    fun dumpSeams(grid: Array<MapTile>): List<String> = MapGrid.gapCells
+        .filter { it.col % CELL_STRIDE == 0 || it.row % CELL_STRIDE == 0 }
+        .map { gap ->
+            "c${gap.col},r${gap.row} seam=${seamAt(grid, gap.col, gap.row)} boundary=${isDistinctRoomBoundary(grid, gap.col, gap.row)} mapConn=${MapCheckmarks.connectedRooms(gap.col, gap.row)} tile=${grid[gap.index]::class.simpleName}"
+        }
 
     private fun detectDoor(col: Int, row: Int): MapTile.Door? {
         val world = mc.level ?: return null

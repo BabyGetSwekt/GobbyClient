@@ -31,6 +31,47 @@ internal object RoomInference {
         }
     }
 
+    fun mergeConnected(grid: Array<MapTile>, gapJoined: (Int, Int) -> Boolean?) {
+        while (mergePass(grid, gapJoined)) continue
+    }
+
+    private fun mergePass(grid: Array<MapTile>, gapJoined: (Int, Int) -> Boolean?): Boolean =
+        MapGrid.gapCells.fold(false) { changed, gap -> mergeGap(grid, gap, gapJoined) || changed }
+
+    private fun mergeGap(grid: Array<MapTile>, gap: GridCell, gapJoined: (Int, Int) -> Boolean?): Boolean {
+        if (gap.col % CELL_STRIDE != 0 && gap.row % CELL_STRIDE != 0) return false
+        if (gapJoined(gap.col, gap.row) != true) return false
+        val alongRow = gap.col % CELL_STRIDE != 0
+        val first = neighbourIndex(gap, alongRow, -1) ?: return false
+        val second = neighbourIndex(gap, alongRow, 1) ?: return false
+        return claim(grid, first, second) || claim(grid, second, first)
+    }
+
+    private fun neighbourIndex(gap: GridCell, alongRow: Boolean, step: Int): Int? {
+        val col = if (alongRow) gap.col + step else gap.col
+        val row = if (alongRow) gap.row else gap.row + step
+        return if (MapGrid.inRange(col, row)) MapGrid.index(col, row) else null
+    }
+
+    private fun claim(grid: Array<MapTile>, ownerIndex: Int, targetIndex: Int): Boolean {
+        val owner = (grid[ownerIndex] as? MapTile.Room)?.data ?: return false
+        if (owner.name == UNKNOWN_ROOM_NAME) return false
+        val target = grid[targetIndex]
+        val targetData = (target as? MapTile.Room)?.data
+        if (targetData === owner) return false
+        if (targetData != null && targetData.name != UNKNOWN_ROOM_NAME) return false
+        if (targetData == null && target !is MapTile.Empty) return false
+        if (targetData == null) {
+            grid[targetIndex] = MapTile.Room(owner, MapConstants.UNKNOWN_CORE)
+            return true
+        }
+        grid.indices.forEach { index ->
+            val tile = grid[index] as? MapTile.Room ?: return@forEach
+            if (tile.data === targetData) grid[index] = MapTile.Room(owner, tile.core)
+        }
+        return true
+    }
+
     private fun unscannedComponent(
         grid: Array<MapTile>,
         start: GridCell,

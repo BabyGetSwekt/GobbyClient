@@ -11,7 +11,7 @@ sealed class MapTile {
 
 enum class DoorType { NORMAL, WITHER, BLOOD, ENTRANCE }
 
-enum class MapCheckmark { NONE, UNKNOWN, WHITE, GREEN, FAILED }
+enum class MapCheckmark { UNKNOWN, NONE, FAILED, WHITE, GREEN }
 
 object MapConstants {
     const val UNKNOWN_CORE = 0
