@@ -78,6 +78,8 @@ object Utils {
 
     fun getRandomInt(min: Int, max: Int): Int = (min..max).random()
 
+    fun swapDelayTicks(): Int = getRandomInt(3, 7)
+
     inline val posX get() = mc.player?.x ?: 0.0
     inline val posY get() = mc.player?.y ?: 0.0
     inline val posZ get() = mc.player?.z ?: 0.0

@@ -11,7 +11,6 @@ import gobby.events.render.Render2DEvent
 import gobby.events.render.Render3DEvent
 import gobby.events.render.camera
 import gobby.events.render.matrixStack
-import gobby.events.render.renderTickCounter
 import gobby.gui.click.BooleanSetting
 import gobby.gui.click.Category
 import gobby.gui.click.Module
@@ -95,7 +94,7 @@ object BloodCampHelper : Module(
         val startVector: Vec3, val started: Long, val firstSpawns: Boolean,
         var lastPosition: Vec3, val clock: Clock = Clock(), var totalDelta: Vec3 = Vec3.ZERO,
         var currVector: Vec3 = startVector, var endVector: Vec3 = startVector, var endUpdated: Long = started,
-        var speed: Vec3 = Vec3.ZERO, var lastEnd: Vec3? = null, var lastEndPoint: Vec3? = null, var lastPingPoint: Vec3? = null
+        var speed: Vec3 = Vec3.ZERO, var lastEnd: Vec3? = null
     )
 
     private val spawns = ConcurrentHashMap<ArmorStand, Spawn>()
@@ -116,7 +115,7 @@ object BloodCampHelper : Module(
         val stand = packet.getEntity(mc.level ?: return) as? ArmorStand ?: return
         if (watcher?.distanceTo(stand)?.let { it > 20f } == true || !stand.isBloodStand) return
 
-        val position = Vec3(stand.x + moved.deltaX / 4096.0, stand.y + moved.deltaY / 4096.0, stand.z + moved.deltaZ / 4096.0)
+        val position = stand.position()
         spawns.getOrPut(stand) { Spawn(position, tickTime, firstSpawns, position) }.apply {
             totalDelta = totalDelta.add(position.subtract(lastPosition))
             lastPosition = position
@@ -280,23 +279,18 @@ object BloodCampHelper : Module(
     @SubscribeEvent
     fun onRender3D(event: Render3DEvent) {
         if (event.type != Render3DEvent.Type.BeforeEntity || !inClear || !bloodAssist) return
-        val partial = event.renderTickCounter.getGameTimeDeltaPartialTick(false)
         val ping = averagePing()
-        spawns.forEach { (stand, spawn) -> if (stand.isAlive) drawSpawn(event, stand, spawn, partial, ping) }
+        spawns.forEach { (stand, spawn) -> if (stand.isAlive) drawSpawn(event, stand, spawn, ping) }
     }
 
-    private fun drawSpawn(event: Render3DEvent, stand: ArmorStand, spawn: Spawn, partial: Float, ping: Float) {
+    private fun drawSpawn(event: Render3DEvent, stand: ArmorStand, spawn: Spawn, ping: Float) {
         val end = spawn.endPoint
         val remaining = spawn.remainingMs
         val pingPoint = Vec3(stand.x + spawn.speed.x * ping, stand.y + spawn.speed.y * ping, stand.z + spawn.speed.z * ping)
-        val previousEnd = spawn.lastEndPoint
-        val previousPing = spawn.lastPingPoint
-        spawn.lastEndPoint = end
-        spawn.lastPingPoint = pingPoint
 
-        val endBox = boxAt(lerp(end, previousEnd, partial))
+        val endBox = boxAt(end)
         if (ping < remaining) {
-            draw3DBox(event.matrixStack, event.camera, boxAt(lerp(pingPoint, previousPing, partial)), Color(85, 255, 85), filled = false, depthTest = true)
+            draw3DBox(event.matrixStack, event.camera, boxAt(pingPoint), Color(85, 255, 85), filled = false, depthTest = true)
             draw3DBox(event.matrixStack, event.camera, endBox, Color(255, 85, 85), filled = false, depthTest = true)
         } else draw3DBox(event.matrixStack, event.camera, endBox, Color(0, 170, 170), filled = false, depthTest = true)
 

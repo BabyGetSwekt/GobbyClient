@@ -44,7 +44,7 @@ object TrashItems : Module("Trash Items", "Highlights and sells useless dungeon 
     )
     private val ITEM_JUNK = setOf("PREMIUM_FLESH", "OPTICAL_LENS", "TRIPWIRE_HOOK", "STONE_BUTTON",
         "DUNGEON_LORE_PAPER", "DEFUSE_KIT", "BEATING_HEART", "TRAINING_WEIGHTS", "ICE_HUNK", "LEVER",
-        "SIGN"
+        "SIGN", "VITAMIN_DEATH"
         )
     private val ARMOR_SETS = setOf(
         "ZOMBIE_KNIGHT", "ZOMBIE_SOLDIER", "BOUNCY", "SKELETON_MASTER", "SKELETON_SOLDIER", "ROTTEN",

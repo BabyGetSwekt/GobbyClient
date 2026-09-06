@@ -9,6 +9,7 @@ import gobby.gui.click.Module
 import gobby.utils.BONZO_MASK_IDS
 import gobby.utils.LocationUtils
 import gobby.utils.SPIRIT_MASK_IDS
+import gobby.utils.managers.ArmorPiece
 import gobby.utils.managers.EquipmentManager
 import gobby.utils.render.TitleUtils
 import java.awt.Color
@@ -39,7 +40,7 @@ object MaskSwapper : Module("Mask Swapper", "Swap masks with keybinds", Category
     }
 
     private fun swap(name: String, color: Color, ids: Set<String>) {
-        EquipmentManager.swapHead(*ids.toTypedArray())
+        EquipmentManager.swap(ArmorPiece.HELMET, *ids.toTypedArray())
         TitleUtils.displayStyledTitleTicks(name, 20, color)
     }
 }

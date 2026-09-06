@@ -7,6 +7,7 @@ import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
 import gobby.events.core.SubscribeEvent
 import gobby.utils.getItemUUID
+import gobby.utils.skyblockID
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.world.entity.EquipmentSlot
@@ -21,9 +22,13 @@ object ArmorTracker {
         8 to EquipmentSlot.FEET
     )
 
-    private val worn = mutableMapOf<EquipmentSlot, String>()
+    private data class Worn(val uuid: String, val id: String)
 
-    fun uuidOf(slot: EquipmentSlot): String = worn[slot] ?: ""
+    private val worn = mutableMapOf<EquipmentSlot, Worn>()
+
+    fun uuidOf(slot: EquipmentSlot): String = worn[slot]?.uuid ?: ""
+
+    fun idOf(slot: EquipmentSlot): String = worn[slot]?.id ?: ""
 
     @SubscribeEvent
     fun onPacket(event: PacketReceivedEvent) {
@@ -41,8 +46,8 @@ object ArmorTracker {
         val after = stack.getItemUUID ?: ""
         if (after.isEmpty() && !stack.isEmpty) return
         val before = uuidOf(slot)
+        worn[slot] = Worn(after, stack.skyblockID)
         if (after == before) return
-        worn[slot] = after
         Gobbyclient.EVENT_MANAGER.publish(ArmorUpdateEvent(slot, before, after))
     }
 

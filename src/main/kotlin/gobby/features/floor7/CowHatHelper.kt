@@ -10,6 +10,7 @@ import gobby.gui.click.Module
 import gobby.utils.LocationUtils.dungeonFloor
 import gobby.utils.LocationUtils.masterMode
 import gobby.utils.getHelmetID
+import gobby.utils.managers.ArmorPiece
 import gobby.utils.managers.EquipmentManager
 import gobby.utils.managers.WardrobeManager
 import gobby.utils.render.TitleUtils
@@ -45,7 +46,7 @@ object CowHatHelper : Module(
         previousHelmet = WardrobeManager.wornHelmet
         reminder = Reminder.WEAR
         if (!autoSwapCow) return TitleUtils.displayStyledTitleTicks("Cow Hat Reminder!", 60, Color.WHITE)
-        EquipmentManager.swapHead("COW_HEAD")
+        EquipmentManager.swap(ArmorPiece.HELMET, "COW_HEAD")
         TitleUtils.displayStyledTitleTicks("Autoswapping to Cow", 40, Color.WHITE)
     }
 
@@ -53,7 +54,7 @@ object CowHatHelper : Module(
         if (!wearingCow) return
         reminder = Reminder.REMOVE
         if (!autoSwapCow || previousHelmet.isEmpty()) return TitleUtils.displayStyledTitleTicks("Remove Cow Hat!", 200, Color.RED)
-        EquipmentManager.swapHeadByUuid(previousHelmet)
+        EquipmentManager.swapByUuid(ArmorPiece.HELMET, previousHelmet)
         TitleUtils.displayStyledTitleTicks("Autoswapping back", 40, Color.WHITE)
     }
 

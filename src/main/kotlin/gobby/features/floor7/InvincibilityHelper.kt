@@ -9,6 +9,7 @@ import gobby.gui.click.RefreshSetting
 import gobby.gui.click.TextSetting
 import gobby.utils.BONZO_MASK_IDS
 import gobby.utils.SPIRIT_MASK_IDS
+import gobby.utils.managers.ArmorPiece
 import gobby.utils.managers.EquipmentManager
 import gobby.utils.managers.InvincibilityManager
 import gobby.utils.managers.PetEntry
@@ -68,7 +69,7 @@ object InvincibilityHelper : Module("Invincibility Helper",
 
     private fun equipNextSave() {
         val mask = availableMask() ?: return equipPhoenix()
-        EquipmentManager.swapHead(*mask.toTypedArray())
+        EquipmentManager.swap(ArmorPiece.HELMET, *mask.toTypedArray())
     }
 
     private fun availableMask(): Set<String>? = Save.entries

@@ -7,13 +7,10 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils.errorMessage
 import gobby.utils.ChatUtils.modMessage
 import gobby.utils.ConfigUtils
-import gobby.utils.Utils.getRandomInt
+import gobby.utils.Utils.swapDelayTicks
 import gobby.utils.managers.PETS_FOLDER
 import gobby.utils.managers.PetEntry
 import gobby.utils.managers.PetManager
-
-private const val MIN_SWAP_DELAY = 3
-private const val MAX_SWAP_DELAY = 7
 
 data class PetRule(val category: String = "", val option: String = "", val petUuid: String = "", var enabled: Boolean = true)
 
@@ -49,7 +46,7 @@ object PetRules {
         if (pending != null) return true
         if (PetManager.equipped?.uuid == pet.uuid) return true
         pending = pet
-        delay = getRandomInt(MIN_SWAP_DELAY, MAX_SWAP_DELAY)
+        delay = swapDelayTicks()
         attempts = 0
         return true
     }
@@ -68,7 +65,7 @@ object PetRules {
             return errorMessage("Could not swap to ${pet.label}")
         }
         attempts++
-        delay = getRandomInt(MIN_SWAP_DELAY, MAX_SWAP_DELAY)
+        delay = swapDelayTicks()
         PetManager.requestEquip(pet, announce = false)
     }
 

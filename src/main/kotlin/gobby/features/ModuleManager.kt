@@ -159,6 +159,7 @@ object ModuleManager {
         CreeperBeams,
         CowHatHelper,
         MaskTimers,
+        SpringBootsHelper,
         PadTimers,
         FuckDiorite,
         Relics,

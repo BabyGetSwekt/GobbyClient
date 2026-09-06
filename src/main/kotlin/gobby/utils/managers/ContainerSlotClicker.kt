@@ -8,7 +8,7 @@ import gobby.events.core.SubscribeEvent
 import gobby.utils.ChatUtils
 import gobby.utils.ContainerClicks
 import gobby.utils.LocationUtils
-import gobby.utils.Utils.getRandomInt
+import gobby.utils.Utils.swapDelayTicks
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
@@ -169,7 +169,7 @@ abstract class ContainerSlotClicker(
             return
         }
         if (mc.gui.screen() != null) {
-            resumeDelay = getRandomInt(3, 7)
+            resumeDelay = swapDelayTicks()
             return
         }
         if (resumeDelay > 0) {
