@@ -145,6 +145,7 @@ object ModuleManager {
         AutoExperiments,
         AutoGFS,
         AutoUlt,
+        WitherBossEsp,
         BloodCampHelper,
         AutoJax,
         LividHelper,

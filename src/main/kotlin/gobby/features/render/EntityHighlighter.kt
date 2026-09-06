@@ -15,12 +15,13 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.boss.wither.WitherBoss
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.AABB
 import java.awt.Color
 
 private const val LINE_MODE_FEET = 0
 private const val LINE_MODE_CROSSHAIR = 1
 
-enum class EspStyle { MODEL, BOX, FILLED_BOX }
+enum class EspStyle { MODEL, BOX, FILLED_BOX, CONNECTED }
 
 abstract class EntityHighlighter(
     name: String,
@@ -49,8 +50,13 @@ abstract class EntityHighlighter(
             val color = getColorFor(sourceEntity)
             when (espStyle()) {
                 EspStyle.MODEL -> drawEntityModel(poseStack, collector, camera, delta, renderEntity, color, rendersArmor())
-                EspStyle.BOX -> draw3DBox(poseStack, camera, renderEntity.boundingBox, color, filled = false)
-                EspStyle.FILLED_BOX -> draw3DBox(poseStack, camera, renderEntity.boundingBox, color, filled = true)
+                EspStyle.BOX -> draw3DBox(poseStack, camera, boxFor(renderEntity), color, filled = false)
+                EspStyle.FILLED_BOX -> draw3DBox(poseStack, camera, boxFor(renderEntity), color, filled = true)
+                EspStyle.CONNECTED -> {
+                    val box = boxFor(renderEntity)
+                    draw3DBox(poseStack, camera, box, color, filled = true)
+                    draw3DBox(poseStack, camera, box, Color(color.red, color.green, color.blue), filled = false)
+                }
             }
             lineStart?.let { drawLine3D(poseStack, camera, it, Interpolate.interpolateEntity(renderEntity), lineColor) }
         }
@@ -89,6 +95,8 @@ abstract class EntityHighlighter(
             }
         }
     }
+
+    protected open fun boxFor(entity: Entity): AABB = entity.boundingBox
 
     protected open fun resolveEntity(entity: Entity): Entity? = entity
 
