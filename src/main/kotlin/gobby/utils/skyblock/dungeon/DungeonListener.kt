@@ -1,7 +1,9 @@
 package gobby.utils.skyblock.dungeon
 
 import gobby.Gobbyclient.Companion.mc
+import gobby.Gobbyclient
 import gobby.events.ChatReceivedEvent
+import gobby.events.DungeonRunEndEvent
 import gobby.events.ClientTickEvent
 import gobby.events.PacketReceivedEvent
 import gobby.events.WorldLoadEvent
@@ -20,6 +22,8 @@ object DungeonListener {
         """(?:\[(?!\d+])[^]]{1,24}]\s+)*(?:\[(\d+)]\s+)?(?:\[[^]]{1,24}]\s+)*(\w{1,16})(?:\s+([^()]*?))?\s*\((Archer|Berserker|Berserk|Mage|Healer|Tank|DEAD)(?:\s+([IVXLCDM0]+))?\)""",
         RegexOption.IGNORE_CASE
     )
+
+    private val RUN_END = Regex("""^\s*> EXTRA STATS <$""")
 
     fun teammateNameOf(entry: PlayerInfo): String? = teammateMatch(entry)?.groupValues?.get(2)
 
@@ -69,6 +73,11 @@ object DungeonListener {
     fun onChat(event: ChatReceivedEvent) {
         if (!inDungeons) return
         val message = event.message
+
+        if (RUN_END.matches(message)) {
+            Gobbyclient.EVENT_MANAGER.publish(DungeonRunEndEvent())
+            return
+        }
 
         if (message == "[BOSS] Goldor: Who dares trespass into my domain?") {
             inP3 = true
